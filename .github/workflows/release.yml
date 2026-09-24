@@ -1,0 +1,67 @@
+name: Release
+
+# Loest den Workflow aus, sobald ein Git-Tag im Format "v1.0.0" (SemVer mit "v"-Praefix) gepusht wird,
+# z.B. per: git tag v1.0.0 && git push origin v1.0.0
+# Alternativ manuell ueber die GitHub-UI ("Run workflow") auf einem beliebigen Branch startbar,
+# z.B. zum Testen, ohne dafuer extra einen Tag anlegen zu muessen.
+on:
+  push:
+    tags:
+      - "v*.*.*"
+  workflow_dispatch:
+
+# Erforderlich, damit der Workflow ein GitHub Release anlegen und Dateien daran anhaengen darf.
+permissions:
+  contents: write
+
+jobs:
+  build-and-release:
+    runs-on: windows-latest
+
+    steps:
+      - name: Repository auschecken
+        uses: actions/checkout@v4
+
+      - name: .NET 8 SDK einrichten
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: "8.0.x"
+
+      - name: Abhaengigkeiten wiederherstellen
+        run: dotnet restore
+
+      # Erzeugt die self-contained Single-File-EXE (siehe VirtualController.App.csproj:
+      # RuntimeIdentifier=win-x64, SelfContained=true, PublishSingleFile=true). Das dortige
+      # "CopyPublishedExeToRepoRoot"-Target kopiert das Ergebnis zusaetzlich ins Repo-Root -
+      # fuer den Workflow selbst massgeblich ist aber der PublishDir-Pfad unten.
+      - name: Release-Build veroeffentlichen (self-contained win-x64 EXE)
+        run: dotnet publish src/VirtualController.App/VirtualController.App.csproj -c Release -r win-x64 --self-contained true
+
+      # Die WPF-nativen Interop-DLLs (D3DCompiler_47_cor3.dll, PenImc_cor3.dll, PresentationNative_cor3.dll,
+      # vcruntime140_cor3.dll, wpfgfx_cor3.dll) koennen bei PublishSingleFile nicht ins Bundle eingebettet
+      # werden und muessen als separate Dateien neben der EXE liegen (siehe README.md) - werden daher
+      # zusammen mit der EXE in ein eigenes Verzeichnis kopiert, aus dem anschliessend das Release-Archiv
+      # gepackt wird.
+      - name: Release-Ordner zusammenstellen
+        shell: pwsh
+        run: |
+          $publishDir = "src/VirtualController.App/bin/Release/net8.0-windows/win-x64/publish"
+          $stagingDir = "release-staging"
+          New-Item -ItemType Directory -Path $stagingDir -Force | Out-Null
+          Copy-Item "$publishDir/VirtualController.exe" -Destination $stagingDir
+          Copy-Item "D3DCompiler_47_cor3.dll" -Destination $stagingDir
+          Copy-Item "PenImc_cor3.dll" -Destination $stagingDir
+          Copy-Item "PresentationNative_cor3.dll" -Destination $stagingDir
+          Copy-Item "vcruntime140_cor3.dll" -Destination $stagingDir
+          Copy-Item "wpfgfx_cor3.dll" -Destination $stagingDir
+          Compress-Archive -Path "$stagingDir/*" -DestinationPath "VirtualController-win-x64.zip"
+
+      - name: GitHub Release erstellen und Dateien anhaengen
+        uses: softprops/action-gh-release@v2
+        with:
+          # Bewusst NUR das ZIP (EXE + alle benoetigten nativen DLLs, siehe README.md "Voraussetzungen")
+          # als Anhang - nicht zusaetzlich die rohe EXE alleine, da die App ohne die DLLs nicht startet
+          # und ein separater EXE-Download Nutzer sonst zu einer nicht lauffaehigen Datei verleiten wuerde.
+          files: VirtualController-win-x64.zip
+          # Der Tag-Name (z.B. "v1.0.0") wird automatisch als Release-Titel/-Version verwendet.
+          generate_release_notes: true
