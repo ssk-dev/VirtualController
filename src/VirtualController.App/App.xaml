@@ -1,0 +1,28 @@
+<Application x:Class="VirtualController.App.App"
+             xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             StartupUri="Views/MainWindow.xaml">
+    <Application.Resources>
+        <ResourceDictionary>
+            <ResourceDictionary.MergedDictionaries>
+                <ResourceDictionary Source="Converters/Converters.xaml" />
+                <ResourceDictionary Source="Views/Controls/DeviceConfigTemplates.xaml" />
+            </ResourceDictionary.MergedDictionaries>
+
+        <!-- Globales, kurzes visuelles Feedback fuer jeden Button-Klick: die Hintergrundfarbe faerbt sich
+             waehrend der gedrueckten Maustaste kurz ein und kehrt beim Loslassen automatisch zur normalen
+             Farbe zurueck (bewusst per Trigger auf IsPressed statt EventTrigger/Storyboard, da IsPressed
+             ohnehin nur waehrend des Klicks aktiv ist - "kurz" ergibt sich damit ganz natuerlich ohne
+             zusaetzliche Timing-Logik). Nutzt bewusst Background statt Foreground, damit dies nicht mit
+             der roten Foreground-/FontWeight-Hervorhebung des Speichern-Buttons bei ungespeicherten
+             Aenderungen kollidiert (siehe BoolToUnsavedForegroundConverter/BoolToFontWeightConverter). -->
+        <Style TargetType="Button">
+            <Style.Triggers>
+                <Trigger Property="IsPressed" Value="True">
+                    <Setter Property="Background" Value="#FFD8A8" />
+                </Trigger>
+            </Style.Triggers>
+        </Style>
+        </ResourceDictionary>
+    </Application.Resources>
+</Application>

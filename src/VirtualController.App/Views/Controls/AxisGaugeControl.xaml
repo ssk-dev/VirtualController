@@ -1,0 +1,78 @@
+<UserControl x:Class="VirtualController.App.Views.Controls.AxisGaugeControl"
+             xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+             xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+             xmlns:vm="clr-namespace:VirtualController.App.ViewModels"
+             mc:Ignorable="d"
+             d:DataContext="{d:DesignInstance Type=vm:AxisVisualizationViewModel, IsDesignTimeCreatable=False}"
+             d:DesignWidth="160">
+    <!--
+        Generische, nicht editierbare Live-Anzeige einer einzelnen physischen Achse als horizontaler
+        Balken/Slider (siehe Anforderung "Grafische Darstellung der Controller-Eingaben"). Der
+        DataContext ist stets ein AxisVisualizationViewModel; alle Positionen (Marker, Deadzone-Band)
+        werden ausschliesslich ueber Grid-Star-Spalten (FractionToStarGridLengthConverter) relativ zur
+        tatsaechlichen Breite berechnet - es findet keine eigene Pixel-Arithmetik oder Wertelogik statt.
+    -->
+    <StackPanel Margin="0,2,0,4">
+        <Grid Margin="0,0,0,2">
+            <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="*" />
+                <ColumnDefinition Width="Auto" />
+            </Grid.ColumnDefinitions>
+            <TextBlock Grid.Column="0" Text="{Binding Name}" FontSize="11" Foreground="#666" />
+            <TextBlock Grid.Column="1" Text="{Binding Value, StringFormat=F2}" FontSize="11" Foreground="#999" FontFamily="Consolas" />
+        </Grid>
+
+        <Border Height="20" CornerRadius="3" Background="#ECECEC" BorderBrush="#CCC" BorderThickness="1" ClipToBounds="True">
+            <Grid>
+                <!-- Deadzone-Band: zentraler Bereich, dessen Breite proportional zum konfigurierten Deadzone-Wert waechst. -->
+                <Grid>
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="{Binding DeadzoneStartFraction, Converter={StaticResource FractionToStarGridLengthConverter}}" />
+                        <ColumnDefinition Width="{Binding DeadzoneWidthFraction, Converter={StaticResource FractionToStarGridLengthConverter}}" />
+                        <ColumnDefinition Width="{Binding AfterDeadzoneFraction, Converter={StaticResource FractionToStarGridLengthConverter}}" />
+                    </Grid.ColumnDefinitions>
+
+                    <Border x:Name="DeadzoneBand" Grid.Column="1" Margin="0,3" CornerRadius="2"
+                            BorderThickness="1" BorderBrush="#B0B0B0" Background="#D8D8D8">
+                        <Border.Style>
+                            <Style TargetType="Border">
+                                <Style.Triggers>
+                                    <!-- Feuert nur beim UEBERGANG von "innerhalb" nach "ausserhalb" (EnterActions),
+                                         nicht dauerhaft solange der Zustand bestehen bleibt -> kein Flackern. -->
+                                    <DataTrigger Binding="{Binding IsOutsideDeadzone}" Value="True">
+                                        <DataTrigger.EnterActions>
+                                            <BeginStoryboard>
+                                                <Storyboard>
+                                                    <ColorAnimation Storyboard.TargetProperty="(Border.BorderBrush).(SolidColorBrush.Color)"
+                                                                    To="#FFA726" Duration="0:0:0.12" AutoReverse="True" />
+                                                    <ColorAnimation Storyboard.TargetProperty="(Border.Background).(SolidColorBrush.Color)"
+                                                                    To="#FFE0B2" Duration="0:0:0.12" AutoReverse="True" />
+                                                </Storyboard>
+                                            </BeginStoryboard>
+                                        </DataTrigger.EnterActions>
+                                    </DataTrigger>
+                                </Style.Triggers>
+                            </Style>
+                        </Border.Style>
+                    </Border>
+                </Grid>
+
+                <!-- Nullpunkt-Markierung, nur fuer bidirektionale (zentrierte) Achsen sinnvoll. -->
+                <Rectangle Width="1" Fill="#999"
+                           Visibility="{Binding IsBidirectional, Converter={StaticResource BoolToVisibilityConverter}}" />
+
+                <!-- Aktueller Wert als schmaler, gut sichtbarer Balken/Marker. -->
+                <Grid>
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="{Binding MarkerFraction, Converter={StaticResource FractionToStarGridLengthConverter}}" />
+                        <ColumnDefinition Width="4" />
+                        <ColumnDefinition Width="{Binding AfterMarkerFraction, Converter={StaticResource FractionToStarGridLengthConverter}}" />
+                    </Grid.ColumnDefinitions>
+                    <Rectangle Grid.Column="1" Fill="#2D6CDF" RadiusX="1" RadiusY="1" />
+                </Grid>
+            </Grid>
+        </Border>
+    </StackPanel>
+</UserControl>
