@@ -1,0 +1,20 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <!-- TargetFramework, Nullable, ImplicitUsings, Platforms, PlatformTarget, LangVersion: siehe Directory.Build.props -->
+  <PropertyGroup>
+    <RootNamespace>VirtualController.Core</RootNamespace>
+    <!-- x64 only: ViGEmBus / DirectInput native interop expects matching bitness -->
+    <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <!-- Kernel-Treiber-Client (kein SDK, nur dieser NuGet-Wrapper + einmalige ViGEmBus-Treiberinstallation zur Laufzeit) -->
+    <PackageReference Include="Nefarius.Drivers.HidHide" Version="3.4.0" />
+    <PackageReference Include="Nefarius.ViGEm.Client" Version="1.21.256" />
+    <!-- Aktiv gepflegte SharpDX-Nachfolger fuer XInput/DirectInput (reines P/Invoke, keine Zusatz-Installation) -->
+    <PackageReference Include="Vortice.XInput" Version="3.2.0" />
+    <PackageReference Include="Vortice.DirectInput" Version="3.2.0" />
+    <PackageReference Include="System.Text.Json" Version="10.0.8" />
+  </ItemGroup>
+
+</Project>

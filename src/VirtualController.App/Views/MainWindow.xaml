@@ -1,0 +1,458 @@
+<Window x:Class="VirtualController.App.Views.MainWindow"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:vm="clr-namespace:VirtualController.App.ViewModels"
+        Title="Virtual Controller" Height="720" Width="1100"
+        Closing="MainWindow_OnClosing">
+
+    <DockPanel>
+        <!-- Kopfzeile: Treiber-Status + globale Aktionen -->
+        <Border DockPanel.Dock="Top" Padding="10" Background="#F2F2F2" BorderBrush="#DDD" BorderThickness="0,0,0,1">
+            <Grid>
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="*" />
+                    <ColumnDefinition Width="Auto" />
+                </Grid.ColumnDefinitions>
+
+                <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
+                    <Ellipse Width="12" Height="12" Margin="0,0,8,0"
+                             Fill="{Binding DriverReady, Converter={StaticResource BoolToStatusBrushConverter}}" />
+                    <TextBlock Text="{Binding DriverStatusText}" VerticalAlignment="Center" FontWeight="Bold" />
+                    <TextBlock Text="{Binding LastErrorMessage}" Foreground="Red" Margin="12,0,0,0" VerticalAlignment="Center" />
+                </StackPanel>
+
+                <StackPanel Grid.Column="1" Orientation="Horizontal">
+                    <Button Content="Treiber verbinden" Command="{Binding ConnectDriverCommand}" Margin="4,0" Padding="8,4" />
+                    <Button Content="Geraete aktualisieren" Command="{Binding RefreshDevicesCommand}" Margin="4,0" Padding="8,4" />
+                    <Button Content="Profile laden" Command="{Binding LoadProfilesCommand}" Margin="4,0" Padding="8,4" />
+                    <TextBlock Text="Ungespeicherte Aenderungen" Foreground="#C00000" FontWeight="Bold"
+                               VerticalAlignment="Center" Margin="12,0,4,0"
+                               Visibility="{Binding HasUnsavedChanges, Converter={StaticResource BoolToVisibilityConverter}}" />
+                    <Button Content="Profile speichern" Command="{Binding SaveProfilesCommand}" Margin="4,0" Padding="8,4"
+                            Foreground="{Binding HasUnsavedChanges, Converter={StaticResource BoolToUnsavedForegroundConverter}}"
+                            FontWeight="{Binding HasUnsavedChanges, Converter={StaticResource BoolToFontWeightConverter}}" />
+                </StackPanel>
+            </Grid>
+        </Border>
+
+        <!-- Haupt-Tabbar: teilt die Funktionalitaet des Hauptfensters in die Bereiche "Mapping"
+             (bisherige Controller-/Modus-/Mapping-Verwaltung, unveraendert), "Gerätekonfiguration"
+             (bisheriger separater "Geraete konfigurieren"-Dialog, jetzt als eigener Tab mit einer
+             weiteren, inneren Tab-Leiste je Geraet) und "Einstellungen" (Platzhalter fuer zukuenftige,
+             globale Anwendungseinstellungen). -->
+        <TabControl SelectedIndex="{Binding SelectedTabIndex}">
+            <TabItem Header="Mapping">
+                <DockPanel>
+                    <!-- Linke Spalte: Liste der virtuellen Controller -->
+                    <Border DockPanel.Dock="Left" Width="260" BorderBrush="#DDD" BorderThickness="0,0,1,0">
+                        <DockPanel>
+                            <Button DockPanel.Dock="Top" Content="+ Neuer virtueller Controller" Margin="8"
+                                    Padding="6" Command="{Binding AddControllerCommand}" />
+
+                            <ListBox ItemsSource="{Binding Controllers}"
+                                     x:Name="ControllerListBox"
+                                     SelectedItem="{Binding SelectedController}"
+                                     Margin="4">
+                                <ListBox.ItemTemplate>
+                                    <DataTemplate DataType="{x:Type vm:VirtualControllerViewModel}">
+                                        <StackPanel Orientation="Horizontal" Margin="2">
+                                            <Ellipse Width="10" Height="10" Margin="0,0,6,0" VerticalAlignment="Center"
+                                                     Fill="{Binding IsRunning, Converter={StaticResource BoolToStatusBrushConverter}}" />
+                                            <StackPanel>
+                                                <TextBlock Text="{Binding Name}" FontWeight="Bold" />
+                                                <TextBlock Text="{Binding Layout}" FontSize="11" Foreground="Gray" />
+                                            </StackPanel>
+                                        </StackPanel>
+                                    </DataTemplate>
+                                </ListBox.ItemTemplate>
+                            </ListBox>
+                        </DockPanel>
+                    </Border>
+
+                    <!-- Rechte Seite: Details + Mapping-Tabelle des ausgewaehlten Controllers -->
+                    <Grid x:Name="ControllerDetailGrid" DataContext="{Binding SelectedController}">
+                        <Grid.RowDefinitions>
+                            <RowDefinition Height="Auto" />
+                            <RowDefinition Height="Auto" />
+                            <RowDefinition Height="Auto" />
+                            <RowDefinition Height="*" />
+                        </Grid.RowDefinitions>
+
+                        <Border Grid.Row="0" Padding="12" Background="#FAFAFA" BorderBrush="#DDD" BorderThickness="0,0,0,1">
+                            <StackPanel>
+                                <StackPanel Orientation="Horizontal" Margin="0,0,0,6">
+                                    <TextBlock Text="Name:" VerticalAlignment="Center" Width="90" />
+                                    <TextBox Text="{Binding Name, UpdateSourceTrigger=PropertyChanged}" Width="220" />
+
+                                    <TextBlock Text="Layout:" VerticalAlignment="Center" Width="60" Margin="16,0,0,0" />
+                                    <ComboBox ItemsSource="{x:Static vm:VirtualControllerViewModel.LayoutOptions}"
+                                              SelectedItem="{Binding Layout}" Width="120"
+                                              IsEnabled="{Binding IsRunning, Converter={StaticResource InverseBoolConverter}}"
+                                              ToolTip="Das Layout kann nicht geaendert werden, waehrend der Controller laeuft - bitte zuerst Stop klicken." />
+
+                                    <TextBlock Text="Backend:" VerticalAlignment="Center" Width="70" Margin="16,0,0,0" />
+                                    <TextBlock Text="{Binding ResolvedBackend}" VerticalAlignment="Center" FontStyle="Italic" />
+                                </StackPanel>
+
+                                <StackPanel Orientation="Horizontal">
+                                    <TextBlock Text="Polling (Hz):" VerticalAlignment="Center" Width="90" />
+                                    <TextBox Text="{Binding PollingRateHz, UpdateSourceTrigger=PropertyChanged}" Width="80" />
+
+                                    <TextBlock Text="{Binding StatusText}" Margin="20,0,0,0" VerticalAlignment="Center" FontWeight="Bold" />
+
+                                    <Button Content="Start" Command="{Binding StartCommand}" Margin="16,0,4,0" Padding="10,4" />
+                                    <Button Content="Stop" Command="{Binding StopCommand}" Margin="4,0" Padding="10,4" />
+
+                                    <!-- Sperrt die diesem Controller zugeordneten physischen Geraete per HidHide fuer alle
+                                         anderen Anwendungen, solange dieser virtuelle Controller laeuft (siehe
+                                         ControllerManager/HidHideController). Ausgegraut, falls der HidHide-Treiber nicht
+                                         installiert/betriebsbereit ist (siehe MainViewModel.IsHidHideAvailable) - der
+                                         DataContext dieses Bereichs ist bereits SelectedController, daher Zugriff auf das
+                                         Fenster-weite MainViewModel ueber den Window-DataContext. -->
+                                    <CheckBox Content="HidHide" VerticalAlignment="Center" Margin="16,0,0,0"
+                                              IsChecked="{Binding HidHideEnabled}"
+                                              IsEnabled="{Binding DataContext.IsHidHideAvailable, RelativeSource={RelativeSource AncestorType=Window}}"
+                                              ToolTip="Physische Geraete dieses Controllers waehrend der Laufzeit fuer andere Anwendungen sperren (benoetigt den HidHide-Treiber)." />
+
+                                    <Button Content="Entfernen" Command="{Binding RemoveCommand}" Margin="16,0,0,0" Padding="10,4" />
+                                </StackPanel>
+                            </StackPanel>
+                        </Border>
+
+                        <!-- Modus-Umschaltmechanismus: entweder ein einziger, controller-weiter Toggle-Trigger, der
+                             bei jeder steigenden Flanke zum naechsten aktivierten Modus weiterschaltet, oder je Modus
+                             ein eigener Switch-Trigger, der diesen Modus direkt aktiviert (siehe Tab-Leiste unten).
+                             Beide Mechanismen sind immer vollstaendig konfiguriert vorhanden - dieser Schalter legt nur
+                             fest, welcher davon zur Laufzeit tatsaechlich ausgewertet wird (siehe ControllerSession). -->
+                        <Border Grid.Row="1" Padding="12,8" Background="#F5F5FA" BorderBrush="#DDD" BorderThickness="0,0,0,1">
+                            <StackPanel Orientation="Horizontal">
+                                <TextBlock Text="Modi Switch / Toggle:" VerticalAlignment="Center" FontWeight="Bold" Width="130" />
+                                <ComboBox ItemsSource="{x:Static vm:VirtualControllerViewModel.ModeSwitchMechanismOptions}"
+                                          SelectedItem="{Binding ModeSwitchMechanism}" Width="110" />
+
+                                <!-- Toggle-Trigger wird bewusst direkt neben dem Schalter definiert (nicht in der
+                                     Tab-Leiste), da er controller-weit (nicht modusspezifisch) gilt. -->
+                                <StackPanel Orientation="Horizontal" Margin="16,0,0,0"
+                                            Visibility="{Binding ModeSwitchMechanism, Converter={StaticResource EnumEqualsVisibilityConverter}, ConverterParameter=Toggle}">
+                                    <Button Content="Erfassen" Command="{Binding CaptureToggleTriggerCommand}" Padding="6,2" Margin="0,0,6,0" />
+                                    <Button Content="Zuweisen" Click="OnAssignToggleTriggerClicked" Padding="6,2" Margin="0,0,6,0"
+                                            ToolTip="Physische Eingabe aus einer Liste auswaehlen, statt sie zu druecken/bewegen." />
+                                    <TextBlock Text="{Binding ToggleTriggerDisplayName}" VerticalAlignment="Center" />
+                                    <TextBlock Text="{Binding CaptureCountdownSeconds, StringFormat=' (druecke Taste... noch {0}s)'}" Foreground="OrangeRed" VerticalAlignment="Center"
+                                               Visibility="{Binding IsCapturingToggleTrigger, Converter={StaticResource BoolToVisibilityConverter}}" />
+                                </StackPanel>
+
+                                <!-- Opt-in Bildschirmbenachrichtigung: zeigt bei jedem tatsaechlichen Moduswechsel
+                                     dieses Controllers (egal ob per Klick auf einen Tab oder per Trigger) kurz unten
+                                     links am Bildschirm den Controller- und Modusnamen an (siehe ModeChangeToast). -->
+                                <CheckBox Content="Bildschirmbenachrichtigung bei Moduswechsel" IsChecked="{Binding NotifyOnModeChange}"
+                                          VerticalAlignment="Center" Margin="24,0,0,0" />
+                            </StackPanel>
+                        </Border>
+
+                        <!-- Tab-Leiste der Modi: jeder Tab zeigt Name, gruenen Aktiv-Indikator (nur bei
+                             IsActive == true, siehe ModeViewModel), Enabled-Checkbox und Entfernen-Button. Ein Klick
+                             auf einen Tab (ausser auf Checkbox/Entfernen) waehlt ihn aus und aktiviert ihn damit
+                             sofort als aktiven Modus des Controllers (siehe VirtualControllerViewModel.SelectedMode). -->
+                        <Border Grid.Row="2" Padding="8,6" BorderBrush="#DDD" BorderThickness="0,0,0,1">
+                            <StackPanel Orientation="Horizontal">
+                                <ListBox ItemsSource="{Binding Modes}" SelectedItem="{Binding SelectedMode}"
+                                         BorderThickness="0" Background="Transparent"
+                                         ScrollViewer.HorizontalScrollBarVisibility="Disabled">
+                                    <ListBox.ItemsPanel>
+                                        <ItemsPanelTemplate>
+                                            <StackPanel Orientation="Horizontal" />
+                                        </ItemsPanelTemplate>
+                                    </ListBox.ItemsPanel>
+                                    <ListBox.ItemContainerStyle>
+                                        <Style TargetType="ListBoxItem">
+                                            <Setter Property="Padding" Value="0" />
+                                            <Setter Property="Margin" Value="0,0,6,0" />
+                                            <Setter Property="Template">
+                                                <Setter.Value>
+                                                    <ControlTemplate TargetType="ListBoxItem">
+                                                        <ContentPresenter />
+                                                    </ControlTemplate>
+                                                </Setter.Value>
+                                            </Setter>
+                                        </Style>
+                                    </ListBox.ItemContainerStyle>
+                                    <ListBox.ItemTemplate>
+                                        <DataTemplate DataType="{x:Type vm:ModeViewModel}">
+                                            <Border BorderBrush="#AAA" BorderThickness="1" CornerRadius="4" Padding="8,4"
+                                                    Background="{Binding IsActive, Converter={StaticResource BoolToHighlightBrushConverter}}"
+                                                    PreviewMouseLeftButtonDown="OnModeTabBorderPreviewMouseLeftButtonDown">
+                                                <StackPanel Orientation="Horizontal">
+                                                    <Ellipse Width="10" Height="10" Margin="0,0,6,0" VerticalAlignment="Center"
+                                                             Fill="{Binding IsActive, Converter={StaticResource BoolToStatusBrushConverter}}"
+                                                             ToolTip="Gruen = dieser Modus ist aktuell der aktive Modus des Controllers." />
+                                                    <TextBox Text="{Binding Name, UpdateSourceTrigger=PropertyChanged}" Width="100"
+                                                             VerticalAlignment="Center" />
+                                                    <CheckBox IsChecked="{Binding Enabled}" VerticalAlignment="Center" Margin="6,0,0,0"
+                                                              ToolTip="Deaktivierte Modi werden beim Toggle-/Switch-Wechsel uebersprungen." />
+
+                                                    <!-- Nur bei Switch-Mechanismus relevant: eigener Ausloeser dieses Modus. -->
+                                                    <StackPanel Orientation="Horizontal" Margin="8,0,0,0"
+                                                                Visibility="{Binding DataContext.ModeSwitchMechanism, ElementName=ControllerDetailGrid, Converter={StaticResource EnumEqualsVisibilityConverter}, ConverterParameter=Switch}">
+                                                        <Button Content="Erfassen" Command="{Binding CaptureSwitchTriggerCommand}" Padding="6,2" Margin="0,0,6,0" />
+                                                        <Button Content="Zuweisen" Click="OnAssignSwitchTriggerClicked" Padding="6,2" Margin="0,0,6,0"
+                                                                ToolTip="Physische Eingabe aus einer Liste auswaehlen, statt sie zu druecken/bewegen." />
+                                                        <TextBlock Text="{Binding SwitchTriggerDisplayName}" VerticalAlignment="Center" />
+                                                        <TextBlock Text="{Binding CaptureCountdownSeconds, StringFormat=' (druecke Taste... noch {0}s)'}" Foreground="OrangeRed" VerticalAlignment="Center"
+                                                                   Visibility="{Binding IsCapturingSwitchTrigger, Converter={StaticResource BoolToVisibilityConverter}}" />
+                                                        <TextBlock Text="{Binding SwitchTriggerValidationError}" Foreground="Red" FontWeight="Bold"
+                                                                   VerticalAlignment="Center" Margin="6,0,0,0" TextWrapping="Wrap" MaxWidth="220"
+                                                                   Visibility="{Binding SwitchTriggerValidationError, Converter={StaticResource BoolToVisibilityConverter}}" />
+                                                    </StackPanel>
+
+                                                    <Button Content="x" Command="{Binding RemoveCommand}" Padding="4,0" Margin="8,0,0,0"
+                                                            ToolTip="Diesen Modus entfernen." />
+                                                </StackPanel>
+                                            </Border>
+                                        </DataTemplate>
+                                    </ListBox.ItemTemplate>
+                                </ListBox>
+
+                                <Button Content="+ Neuer Modus" Command="{Binding AddModeCommand}" Padding="6,4" VerticalAlignment="Center" />
+                            </StackPanel>
+                        </Border>
+
+                        <Grid Grid.Row="3" Margin="12">
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="*" />
+                                <ColumnDefinition Width="300" />
+                            </Grid.ColumnDefinitions>
+
+                            <!-- Linke Spalte: Mapping-Tabelle des ausgewaehlten virtuellen Controllers -->
+                            <DockPanel Grid.Column="0" Margin="0,0,12,0">
+                                <Button DockPanel.Dock="Top" Content="+ Mapping-Zeile hinzufuegen" HorizontalAlignment="Left"
+                                        Margin="0,0,0,8" Padding="6,4" Command="{Binding AddMappingCommand}" />
+
+                                <DataGrid x:Name="MappingsDataGrid" ItemsSource="{Binding SelectedMode.Mappings, NotifyOnTargetUpdated=True}"
+                                          AutoGenerateColumns="False" CanUserAddRows="False"
+                                          EnableRowVirtualization="False"
+                                          Binding.TargetUpdated="OnMappingsDataGridTargetUpdated">
+                                    <DataGrid.RowStyle>
+                                        <!-- Live-Hervorhebung der Mapping-Zeile, waehrend ihre zugewiesene physische
+                                             Quelle gerade aktiv ist (Taste gedrueckt, Achse ausgeschlagen, D-Pad
+                                             gehalten) - identisches Verhalten wie in der Liste "Verfügbare Geräte"
+                                             (siehe PhysicalInputRowViewModel.IsActive), nur hier fuer die komplette
+                                             Zeile der Mapping-Tabelle statt fuer eine einzelne Eingabezeile. -->
+                                        <Style TargetType="DataGridRow">
+                                            <Setter Property="Background" Value="{Binding IsSourceActive, Converter={StaticResource BoolToHighlightBrushConverter}}" />
+                                        </Style>
+                                    </DataGrid.RowStyle>
+                                    <DataGrid.Columns>
+                                        <DataGridTemplateColumn Header="Physische Quelle" Width="220">
+                                            <DataGridTemplateColumn.CellTemplate>
+                                                <DataTemplate DataType="{x:Type vm:MappingRowViewModel}">
+                                                    <StackPanel Orientation="Horizontal">
+                                                        <Button Content="Erfassen" Command="{Binding CaptureCommand}" Padding="6,2" Margin="0,0,6,0" />
+                                                        <Button Content="Zuweisen" Click="OnAssignInputClicked" Padding="6,2" Margin="0,0,6,0"
+                                                                ToolTip="Physische Eingabe aus einer Liste auswaehlen, statt sie zu druecken/bewegen." />
+                                                        <TextBlock Text="{Binding SourceDisplayName}" VerticalAlignment="Center" />
+                                                        <TextBlock Text=" (nicht verbunden)" Foreground="Red" FontWeight="Bold" VerticalAlignment="Center"
+                                                                   Visibility="{Binding IsSourceConnected, Converter={StaticResource BoolToVisibilityConverter}, ConverterParameter=Invert}" />
+                                                        <TextBlock Text="{Binding CaptureCountdownSeconds, StringFormat=' (druecke Taste... noch {0}s)'}" Foreground="OrangeRed"
+                                                                   Visibility="{Binding IsCapturing, Converter={StaticResource BoolToVisibilityConverter}}" />
+                                                    </StackPanel>
+                                                </DataTemplate>
+                                            </DataGridTemplateColumn.CellTemplate>
+                                        </DataGridTemplateColumn>
+
+                                        <DataGridTemplateColumn Header="Ziel-Typ" Width="110">
+                                            <DataGridTemplateColumn.CellTemplate>
+                                                <DataTemplate DataType="{x:Type vm:MappingRowViewModel}">
+                                                    <ComboBox ItemsSource="{x:Static vm:MappingRowViewModel.TargetKindOptions}"
+                                                              IsSynchronizedWithCurrentItem="False"
+                                                              SelectedItem="{Binding SelectedTargetKind}" />
+                                                </DataTemplate>
+                                            </DataGridTemplateColumn.CellTemplate>
+                                        </DataGridTemplateColumn>
+
+                                        <DataGridTemplateColumn Header="Ziel-Wert" Width="150">
+                                            <DataGridTemplateColumn.CellTemplate>
+                                                <DataTemplate DataType="{x:Type vm:MappingRowViewModel}">
+                                                    <ComboBox ItemsSource="{Binding CurrentTargetOptions}"
+                                                              DisplayMemberPath="Label"
+                                                              SelectedValuePath="Value"
+                                                              IsSynchronizedWithCurrentItem="False"
+                                                              SelectedValue="{Binding SelectedTargetValue}" />
+                                                </DataTemplate>
+                                            </DataGridTemplateColumn.CellTemplate>
+                                        </DataGridTemplateColumn>
+
+                                        <DataGridTemplateColumn Header="Invertieren" Width="80">
+                                            <DataGridTemplateColumn.CellTemplate>
+                                                <DataTemplate DataType="{x:Type vm:MappingRowViewModel}">
+                                                    <CheckBox IsChecked="{Binding Invert}" HorizontalAlignment="Center"
+                                                              Visibility="{Binding IsAxisTarget, Converter={StaticResource BoolToVisibilityConverter}}" />
+                                                </DataTemplate>
+                                            </DataGridTemplateColumn.CellTemplate>
+                                        </DataGridTemplateColumn>
+
+                                        <DataGridTemplateColumn Header="Nur diese Richtung" Width="80">
+                                            <DataGridTemplateColumn.CellTemplate>
+                                                <DataTemplate DataType="{x:Type vm:MappingRowViewModel}">
+                                                    <CheckBox IsChecked="{Binding DirectionalOnly}" HorizontalAlignment="Center"
+                                                              ToolTip="Nur die erfasste Achsenhaelfte (z.B. Y+) auf diese Ziel-Achse anwenden, statt der vollen Achse - ermoeglicht das Aufteilen zweier physischer Achsenhaelften auf unterschiedliche virtuelle Achsen."
+                                                              Visibility="{Binding IsAxisTarget, Converter={StaticResource BoolToVisibilityConverter}}" />
+                                                </DataTemplate>
+                                            </DataGridTemplateColumn.CellTemplate>
+                                        </DataGridTemplateColumn>
+
+                                        <DataGridTemplateColumn Header="Deadzone" Width="90">
+                                            <DataGridTemplateColumn.CellTemplate>
+                                                <DataTemplate DataType="{x:Type vm:MappingRowViewModel}">
+                                                    <TextBox Text="{Binding DeadzoneText, UpdateSourceTrigger=PropertyChanged}"
+                                                             Visibility="{Binding IsAxisTarget, Converter={StaticResource BoolToVisibilityConverter}}" />
+                                                </DataTemplate>
+                                            </DataGridTemplateColumn.CellTemplate>
+                                        </DataGridTemplateColumn>
+
+                                        <DataGridTemplateColumn Header="" Width="90">
+                                            <DataGridTemplateColumn.CellTemplate>
+                                                <DataTemplate DataType="{x:Type vm:MappingRowViewModel}">
+                                                    <Button Content="Entfernen" Command="{Binding RemoveCommand}" Padding="6,2" />
+                                                </DataTemplate>
+                                            </DataGridTemplateColumn.CellTemplate>
+                                        </DataGridTemplateColumn>
+                                    </DataGrid.Columns>
+                                </DataGrid>
+                            </DockPanel>
+
+                            <!-- Rechte Spalte: vertikales Panel mit allen fuer diesen Controller verfuegbaren physischen Geraeten -->
+                            <Border Grid.Column="1" BorderBrush="#DDD" BorderThickness="1,0,0,0" Padding="12,0,0,0">
+                                <DockPanel>
+                                    <TextBlock DockPanel.Dock="Top" Text="Verfügbare Geräte:" FontWeight="Bold" Margin="0,0,0,4" />
+                                    <ScrollViewer VerticalScrollBarVisibility="Auto">
+                                        <ItemsControl ItemsSource="{Binding AvailableDeviceSelections}">
+                                            <ItemsControl.ItemsPanel>
+                                                <ItemsPanelTemplate>
+                                                    <StackPanel Orientation="Vertical" />
+                                                </ItemsPanelTemplate>
+                                            </ItemsControl.ItemsPanel>
+                                            <ItemsControl.ItemTemplate>
+                                                <DataTemplate DataType="{x:Type vm:DeviceSelectionViewModel}">
+                                                    <Expander IsExpanded="{Binding IsExpanded, Mode=TwoWay}" Margin="0,0,0,4"
+                                                              BorderBrush="#DDD" BorderThickness="0,0,0,1" Padding="0,0,0,4">
+                                                        <Expander.Header>
+                                                            <CheckBox Content="{Binding DisplayName}" IsChecked="{Binding IsSelected}"
+                                                                      VerticalContentAlignment="Center" />
+                                                        </Expander.Header>
+
+                                                        <ItemsControl ItemsSource="{Binding Inputs}" Margin="24,4,0,4">
+                                                            <ItemsControl.ItemTemplate>
+                                                                <DataTemplate DataType="{x:Type vm:PhysicalInputRowViewModel}">
+                                                                    <Border Background="{Binding IsActive, Converter={StaticResource BoolToHighlightBrushConverter}}"
+                                                                            Padding="4,2" Margin="0,0,0,1"
+                                                                            Opacity="{Binding IsEnabled, Converter={StaticResource BoolToDimOpacityConverter}}">
+                                                                        <StackPanel>
+                                                                            <TextBox Text="{Binding Name, UpdateSourceTrigger=PropertyChanged}"
+                                                                                     VerticalAlignment="Center" />
+                                                                            <Button Content="Zuweisen" Command="{Binding AssignCommand}"
+                                                                                    HorizontalAlignment="Left" Padding="6,1" Margin="0,4,0,0" />
+                                                                        </StackPanel>
+                                                                    </Border>
+                                                                </DataTemplate>
+                                                            </ItemsControl.ItemTemplate>
+                                                        </ItemsControl>
+                                                    </Expander>
+                                                </DataTemplate>
+                                            </ItemsControl.ItemTemplate>
+                                        </ItemsControl>
+                                    </ScrollViewer>
+                                </DockPanel>
+                            </Border>
+                        </Grid>
+                    </Grid>
+                </DockPanel>
+            </TabItem>
+
+            <TabItem Header="Gerätekonfiguration">
+                <!-- DataContext dieses Tabs ist bewusst explizit auf DeviceConfig umgebogen (statt weiter
+                     auf MainViewModel zu zeigen wie die Tab-Leiste selbst), damit alle Bindings innerhalb
+                     dieses Tabs (Devices/SelectedDevice) direkt gegen das DeviceConfigViewModel aufloesen -
+                     analog dazu, wie zuvor DeviceConfigWindow.xaml komplett eigenstaendig an dieses
+                     ViewModel gebunden war. -->
+                <DockPanel DataContext="{Binding DeviceConfig}">
+                    <TextBlock DockPanel.Dock="Top" Margin="12,12,12,8" TextWrapping="Wrap"
+                               Text="Deaktivierte Geraete erscheinen in keiner Geraeteauswahl mehr. Deaktivierte Eingaben werden von Erfassung und Mapping ignoriert, bleiben aber hier sichtbar. Ueber 'Ausblenden' laesst sich ein Geraet (z.B. ein eigener virtueller Controller dieser Anwendung) komplett aus dieser Liste entfernen - ausgeblendete Geraete koennen unten wieder eingeblendet werden." />
+
+                    <!-- Linke Spalte: Liste aller bekannten physischen Geraete (verbunden + zuvor bekannte,
+                         aber aktuell getrennte - siehe MainViewModel.GetAllKnownDevices), analog zur
+                         Controller-Liste im "Mapping"-Tab. Ersetzt die fruehere innere Tab-Leiste
+                         (TabStripPlacement="Left") durch dasselbe Listen+Detail-Muster wie im Mapping-Tab,
+                         fuer ein konsistentes Erscheinungsbild. Der gruene/graue Status-Punkt zeigt
+                         Enabled+Connected (gruen) vs. deaktiviert/getrennt (grau); der Geraetename wird
+                         zusaetzlich ausgegraut, wenn das Geraet aktuell nicht angeschlossen ist - beide
+                         Zustaende sind unabhaengig voneinander und koennen sich ueberlagern. Unterhalb der
+                         Hauptliste ermoeglicht ein einklappbarer Bereich das Wiedereinblenden manuell
+                         ausgeblendeter Geraete (siehe DeviceSettings.Hidden) - notwendig, da z.B. die
+                         eigenen, per ViGEmBus emulierten virtuellen Controller dieser Anwendung von
+                         XInput/DirectInput nicht automatisch von echter Hardware unterschieden werden
+                         koennen und der Nutzer sie daher selbst dauerhaft ausblenden muss. -->
+                    <Border DockPanel.Dock="Left" Width="260" BorderBrush="#DDD" BorderThickness="0,0,1,0">
+                        <DockPanel>
+                            <Expander DockPanel.Dock="Bottom" Header="Ausgeblendete Geräte" Margin="4"
+                                      Visibility="{Binding HiddenDevices.Count, Converter={StaticResource CountToVisibilityConverter}}">
+                                <ListBox ItemsSource="{Binding HiddenDevices}" MaxHeight="200" BorderThickness="0">
+                                    <ListBox.ItemTemplate>
+                                        <DataTemplate DataType="{x:Type vm:DeviceConfigDeviceViewModel}">
+                                            <Grid Margin="2" Opacity="{Binding IsConnected, Converter={StaticResource BoolToDimOpacityConverter}}">
+                                                <Grid.ColumnDefinitions>
+                                                    <ColumnDefinition Width="*" />
+                                                    <ColumnDefinition Width="Auto" />
+                                                </Grid.ColumnDefinitions>
+                                                <TextBlock Grid.Column="0" Text="{Binding DisplayName}" VerticalAlignment="Center"
+                                                           TextTrimming="CharacterEllipsis" />
+                                                <Button Grid.Column="1" Content="Einblenden" Padding="4,1" FontSize="11"
+                                                        Command="{Binding ToggleHiddenCommand}" />
+                                            </Grid>
+                                        </DataTemplate>
+                                    </ListBox.ItemTemplate>
+                                </ListBox>
+                            </Expander>
+
+                            <ListBox ItemsSource="{Binding Devices}" SelectedItem="{Binding SelectedDevice}" Margin="4">
+                                <ListBox.ItemTemplate>
+                                    <DataTemplate DataType="{x:Type vm:DeviceConfigDeviceViewModel}">
+                                        <Grid Margin="2" Opacity="{Binding IsConnected, Converter={StaticResource BoolToDimOpacityConverter}}">
+                                            <Grid.ColumnDefinitions>
+                                                <ColumnDefinition Width="Auto" />
+                                                <ColumnDefinition Width="*" />
+                                                <ColumnDefinition Width="Auto" />
+                                            </Grid.ColumnDefinitions>
+                                            <Ellipse Grid.Column="0" Width="10" Height="10" Margin="0,0,6,0" VerticalAlignment="Center"
+                                                     Fill="{Binding IsActiveIndicator, Converter={StaticResource BoolToStatusBrushConverter}}"
+                                                     ToolTip="Gruen = aktiviert und angeschlossen. Grau = deaktiviert und/oder nicht angeschlossen." />
+                                            <TextBlock Grid.Column="1" Text="{Binding DisplayName}" VerticalAlignment="Center"
+                                                       TextTrimming="CharacterEllipsis" />
+                                            <Button Grid.Column="2" Content="Ausblenden" Padding="4,1" FontSize="11" Margin="4,0,0,0"
+                                                    Command="{Binding ToggleHiddenCommand}"
+                                                    ToolTip="Dieses Geraet dauerhaft aus dieser Liste entfernen (z.B. einen eigenen virtuellen Controller) - jederzeit unten wieder einblendbar." />
+                                        </Grid>
+                                    </DataTemplate>
+                                </ListBox.ItemTemplate>
+                            </ListBox>
+                        </DockPanel>
+                    </Border>
+
+                    <!-- Rechte Seite: Detailansicht des ausgewaehlten Geraets, ueber die implizite
+                         DeviceConfigDeviceViewModel-Vorlage (siehe DeviceConfigTemplates.xaml) dargestellt. -->
+                    <ContentPresenter Content="{Binding SelectedDevice}" Margin="8,0,8,8" />
+                </DockPanel>
+            </TabItem>
+
+            <TabItem Header="Einstellungen">
+                <StackPanel Margin="12">
+                    <CheckBox Content="Automatische Geräteerkennung" IsChecked="{Binding AutoDeviceDetectionEnabled}"
+                              FontWeight="Bold" />
+                    <TextBlock Margin="24,4,0,0" Foreground="Gray" FontStyle="Italic" TextWrapping="Wrap" MaxWidth="500"
+                               Text="Erkennt neu angeschlossene oder getrennte Geräte automatisch im Hintergrund, ohne dass 'Geräte aktualisieren' geklickt werden muss. Deaktivieren stoppt den periodischen Scan vollständig." />
+                    <TextBlock Margin="0,16,0,0" Text="Hier entstehen zukuenftig weitere globale Anwendungseinstellungen." Foreground="Gray" FontStyle="Italic" />
+                </StackPanel>
+            </TabItem>
+        </TabControl>
+    </DockPanel>
+</Window>

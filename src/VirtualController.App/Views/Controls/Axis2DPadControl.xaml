@@ -1,0 +1,101 @@
+<UserControl x:Class="VirtualController.App.Views.Controls.Axis2DPadControl"
+             xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+             xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+             xmlns:vm="clr-namespace:VirtualController.App.ViewModels"
+             mc:Ignorable="d"
+             d:DataContext="{d:DesignInstance Type=vm:Axis2DVisualizationViewModel, IsDesignTimeCreatable=False}"
+             d:DesignWidth="120" d:DesignHeight="150">
+    <!--
+        Generische, nicht editierbare Live-Anzeige eines kombinierten X/Y-Sticks als quadratisches
+        Koordinatenfeld (siehe Anforderung "Grafische Darstellung der Controller-Eingaben"). Der
+        DataContext ist stets ein Axis2DVisualizationViewModel; Marker- und Deadzone-Position werden
+        ausschliesslich ueber Grid-Star-Zeilen/-Spalten (FractionToStarGridLengthConverter) relativ zur
+        tatsaechlichen Groesse berechnet - es findet keine eigene Pixel-Arithmetik oder Wertelogik statt.
+        Die Y-Achse wird gespiegelt dargestellt (oben = positiv), wie bei einem Joystick ueblich.
+    -->
+    <Viewbox Stretch="Uniform" StretchDirection="Both">
+    <StackPanel Width="120" Margin="0,2,0,4">
+        <Grid Margin="0,0,0,2">
+            <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="*" />
+                <ColumnDefinition Width="Auto" />
+            </Grid.ColumnDefinitions>
+            <TextBlock Grid.Column="0" Text="{Binding Name}" FontSize="11" Foreground="#666" />
+            <TextBlock Grid.Column="1" FontSize="11" Foreground="#999" FontFamily="Consolas">
+                <TextBlock.Text>
+                    <MultiBinding StringFormat="{}{0:F2}/{1:F2}">
+                        <Binding Path="X.Value" />
+                        <Binding Path="Y.Value" />
+                    </MultiBinding>
+                </TextBlock.Text>
+            </TextBlock>
+        </Grid>
+
+        <Border Width="120" Height="120" CornerRadius="3" Background="#ECECEC" BorderBrush="#CCC" BorderThickness="1" ClipToBounds="True">
+            <Grid>
+                <!-- Deadzone-Bereich: quadratischer Rahmen um den Mittelpunkt, dessen Groesse proportional
+                     zur konfigurierten (jeweils groesseren) X-/Y-Deadzone waechst. -->
+                <Grid>
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="{Binding X.DeadzoneStartFraction, Converter={StaticResource FractionToStarGridLengthConverter}}" />
+                        <ColumnDefinition Width="{Binding X.DeadzoneWidthFraction, Converter={StaticResource FractionToStarGridLengthConverter}}" />
+                        <ColumnDefinition Width="{Binding X.AfterDeadzoneFraction, Converter={StaticResource FractionToStarGridLengthConverter}}" />
+                    </Grid.ColumnDefinitions>
+                    <Grid.RowDefinitions>
+                        <RowDefinition Height="{Binding YTopDeadzoneFraction, Converter={StaticResource FractionToStarGridLengthConverter}}" />
+                        <RowDefinition Height="{Binding Y.DeadzoneWidthFraction, Converter={StaticResource FractionToStarGridLengthConverter}}" />
+                        <RowDefinition Height="{Binding YBottomDeadzoneFraction, Converter={StaticResource FractionToStarGridLengthConverter}}" />
+                    </Grid.RowDefinitions>
+
+                    <Border x:Name="DeadzoneBox" Grid.Column="1" Grid.Row="1" CornerRadius="2"
+                            BorderThickness="1" BorderBrush="#B0B0B0" Background="#D8D8D8">
+                        <Border.Style>
+                            <Style TargetType="Border">
+                                <Style.Triggers>
+                                    <!-- Feuert nur beim UEBERGANG von "innerhalb" nach "ausserhalb" (EnterActions),
+                                         nicht dauerhaft solange der Zustand bestehen bleibt -> kein Flackern. -->
+                                    <DataTrigger Binding="{Binding IsOutsideDeadzone}" Value="True">
+                                        <DataTrigger.EnterActions>
+                                            <BeginStoryboard>
+                                                <Storyboard>
+                                                    <ColorAnimation Storyboard.TargetProperty="(Border.BorderBrush).(SolidColorBrush.Color)"
+                                                                    To="#FFA726" Duration="0:0:0.12" AutoReverse="True" />
+                                                    <ColorAnimation Storyboard.TargetProperty="(Border.Background).(SolidColorBrush.Color)"
+                                                                    To="#FFE0B2" Duration="0:0:0.12" AutoReverse="True" />
+                                                </Storyboard>
+                                            </BeginStoryboard>
+                                        </DataTrigger.EnterActions>
+                                    </DataTrigger>
+                                </Style.Triggers>
+                            </Style>
+                        </Border.Style>
+                    </Border>
+                </Grid>
+
+                <!-- Faden-Kreuz durch den Mittelpunkt (Neutralpunkt 0,0). -->
+                <Rectangle Height="1" Fill="#C8C8C8" VerticalAlignment="Center" />
+                <Rectangle Width="1" Fill="#C8C8C8" HorizontalAlignment="Center" />
+
+                <!-- Aktuelle Position als gut sichtbarer Punkt/Marker. Y invertiert (oben = positiv). -->
+                <Grid>
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="{Binding X.MarkerFraction, Converter={StaticResource FractionToStarGridLengthConverter}}" />
+                        <ColumnDefinition Width="10" />
+                        <ColumnDefinition Width="{Binding X.AfterMarkerFraction, Converter={StaticResource FractionToStarGridLengthConverter}}" />
+                    </Grid.ColumnDefinitions>
+                    <Grid.RowDefinitions>
+                        <RowDefinition Height="{Binding YTopMarkerFraction, Converter={StaticResource FractionToStarGridLengthConverter}}" />
+                        <RowDefinition Height="10" />
+                        <RowDefinition Height="{Binding YBottomMarkerFraction, Converter={StaticResource FractionToStarGridLengthConverter}}" />
+                    </Grid.RowDefinitions>
+
+                    <Ellipse Grid.Column="1" Grid.Row="1" Width="10" Height="10" Fill="#2D6CDF"
+                              Stroke="White" StrokeThickness="1" />
+                </Grid>
+            </Grid>
+        </Border>
+    </StackPanel>
+    </Viewbox>
+</UserControl>

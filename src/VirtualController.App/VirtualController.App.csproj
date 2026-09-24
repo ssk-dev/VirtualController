@@ -1,0 +1,51 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <!-- TargetFramework, Nullable, ImplicitUsings, Platforms, PlatformTarget, LangVersion: siehe Directory.Build.props -->
+  <PropertyGroup>
+    <OutputType>WinExe</OutputType>
+    <UseWPF>true</UseWPF>
+    <!-- Nur fuer das Tray-Icon (System.Windows.Forms.NotifyIcon); WPF selbst bietet kein natives Tray-Icon. -->
+    <UseWindowsForms>true</UseWindowsForms>
+    <RootNamespace>VirtualController.App</RootNamespace>
+    <AssemblyName>VirtualController</AssemblyName>
+  </PropertyGroup>
+
+  <!--
+    Publish-Einstellungen: erzeugt bei "dotnet publish" immer eine eigenstaendige
+    Single-File-EXE (kein separates .NET muss auf dem Zielrechner installiert sein).
+    Das ist die Variante, die anschliessend automatisch ins Repo-Root kopiert wird.
+  -->
+  <PropertyGroup>
+    <RuntimeIdentifier>win-x64</RuntimeIdentifier>
+    <SelfContained>true</SelfContained>
+    <PublishSingleFile>true</PublishSingleFile>
+    <IncludeNativeLibrariesForSelfExtract>true</IncludeNativeLibrariesForSelfExtract>
+    <IncludeAllContentForSelfExtract>true</IncludeAllContentForSelfExtract>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\VirtualController.Core\VirtualController.Core.csproj" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <!-- MIT-lizenzierte, offizielle MVVM-Bausteine (ObservableObject, RelayCommand, AsyncRelayCommand, Source-Generatoren) -->
+    <PackageReference Include="CommunityToolkit.Mvvm" Version="8.3.2" />
+  </ItemGroup>
+
+  <!--
+    Kopiert nach jedem "dotnet publish" die frisch erzeugte, self-contained EXE (und PDB)
+    ins Repo-Root und ueberschreibt dabei die dort liegende aeltere Version.
+    So ist die EXE im Root immer der aktuellste Stand.
+  -->
+  <Target Name="CopyPublishedExeToRepoRoot" AfterTargets="Publish">
+    <PropertyGroup>
+      <RepoRootDir>$(MSBuildThisFileDirectory)..\..\</RepoRootDir>
+    </PropertyGroup>
+    <ItemGroup>
+      <PublishedExeFiles Include="$(PublishDir)VirtualController.exe;$(PublishDir)VirtualController.pdb;$(PublishDir)VirtualController.Core.pdb" />
+    </ItemGroup>
+    <Copy SourceFiles="@(PublishedExeFiles)" DestinationFolder="$(RepoRootDir)" SkipUnchangedFiles="false" OverwriteReadOnlyFiles="true" />
+    <Message Importance="high" Text="VirtualController.exe wurde nach '$(RepoRootDir)' kopiert (ueberschrieben)." />
+  </Target>
+
+</Project>
