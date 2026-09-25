@@ -28,7 +28,7 @@ public sealed partial class PhysicalInputRowViewModel : ObservableObject
 
     /// <summary>Ob diese physische Eingabe im Geraete-Konfigurationsdialog aktiviert ist. Wird nur bei
     /// der Erstellung dieser Zeile ausgewertet (Snapshot) - reicht aus, da bei jeder Aenderung der
-    /// Geraeteeinstellungen (<see cref="MainViewModel.NotifyDeviceSettingsChanged"/>) die komplette
+    /// Geraeteverfuegbarkeit (<see cref="MainViewModel.NotifyDeviceAvailabilityChanged"/>) die komplette
     /// Geraeteauswahlliste inkl. dieser Zeilen ohnehin neu aufgebaut wird. Wird in der View genutzt,
     /// um deaktivierte Eingaben visuell auszugrauen.</summary>
     [ObservableProperty]

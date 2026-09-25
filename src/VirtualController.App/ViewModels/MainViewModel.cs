@@ -440,15 +440,35 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
         return settings;
     }
 
-    /// <summary>Wird vom Konfigurationsdialog aufgerufen, nachdem der Nutzer geraeteweite Einstellungen
-    /// (Enable/Disable eines Geraets oder einzelner Eingaben, Umbenennung, Kalibrierung, Deadzone, Kurve)
-    /// geaendert hat: filtert die Geraeteliste neu (deaktivierte Geraete verschwinden sofort aus der
-    /// Auswahl fuer virtuelle Controller) und verteilt die Aenderung an alle laufenden Sessions, damit
-    /// z.B. eine frisch deaktivierte Eingabe sofort wirkungslos wird, ohne dass der Nutzer die
-    /// betroffenen virtuellen Controller neu starten muss.</summary>
-    public void NotifyDeviceSettingsChanged()
+    /// <summary>Wird vom Konfigurationsdialog aufgerufen, nachdem der Nutzer die Verfuegbarkeit eines
+    /// gesamten Geraets geaendert hat (Enable/Disable oder Ausblenden/Einblenden): filtert die
+    /// Geraeteliste neu (deaktivierte/ausgeblendete Geraete verschwinden sofort aus der Auswahl fuer
+    /// virtuelle Controller) und verteilt die Aenderung an alle laufenden Sessions. <see cref="RefreshDevices"/>
+    /// fuehrt dabei eine vollstaendige Hardware-Neuerkennung (XInput/DirectInput-Enumeration) durch - diese
+    /// Methode darf deshalb NICHT fuer reine Einstellungsaenderungen (Umbenennung, Kalibrierung, Deadzone,
+    /// Kurve, Enable/Disable einzelner Eingaben) verwendet werden, da die zugehoerigen Steuerelemente per
+    /// UpdateSourceTrigger=PropertyChanged bei jedem Tastendruck/jeder Wertaenderung binden - eine dabei
+    /// jedesmal synchron auf dem UI-Thread ausgefuehrte Hardware-Enumeration wuerde zu spuerbaren
+    /// Verzoegerungen fuehren (siehe <see cref="NotifyDeviceSettingsChanged"/> fuer den dafuer vorgesehenen,
+    /// leichtgewichtigen Pfad).</summary>
+    public void NotifyDeviceAvailabilityChanged()
     {
         RefreshDevices();
+        _manager.BroadcastDeviceSettings(_deviceSettings);
+        HasUnsavedChanges = true;
+    }
+
+    /// <summary>Wird vom Konfigurationsdialog aufgerufen, nachdem der Nutzer eine reine Einstellung
+    /// geaendert hat, die weder die Verfuegbarkeit eines Geraets noch dessen Faehigkeiten beeinflusst
+    /// (z.B. Umbenennung einer Eingabe/eines Sticks, Kalibrierung, Deadzone, Kurve, Enable/Disable einer
+    /// einzelnen Eingabe statt des gesamten Geraets): verteilt die Aenderung sofort an alle laufenden
+    /// Sessions, OHNE die teure Hardware-Neuerkennung aus <see cref="NotifyDeviceAvailabilityChanged"/>
+    /// auszufuehren. Bewusst getrennt, da die zugehoerigen Steuerelemente ueblicherweise per
+    /// UpdateSourceTrigger=PropertyChanged binden (z.B. das Umbenennungs-Textfeld) und daher bei jedem
+    /// Tastendruck aufgerufen werden - eine dabei staendig wiederholte Geraete-Enumeration wuerde
+    /// spuerbare Eingabeverzoegerungen verursachen.</summary>
+    public void NotifyDeviceSettingsChanged()
+    {
         _manager.BroadcastDeviceSettings(_deviceSettings);
         HasUnsavedChanges = true;
     }

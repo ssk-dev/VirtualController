@@ -20,7 +20,8 @@ public sealed partial class DeviceConfigDeviceViewModel : ObservableObject, IDis
     public PhysicalDeviceInfo Device { get; private set; }
 
     private readonly DeviceSettings _settings;
-    private readonly Action _notifyChanged;
+    private readonly Action _notifyAvailabilityChanged;
+    private readonly Action _notifySettingsChanged;
     private bool _inputsBuilt;
 
     private DispatcherTimer? _liveTimer;
@@ -71,11 +72,12 @@ public sealed partial class DeviceConfigDeviceViewModel : ObservableObject, IDis
     /// nicht erfuellt sind (siehe BoolToStatusBrushConverter).</summary>
     public bool IsActiveIndicator => Enabled && IsConnected;
 
-    public DeviceConfigDeviceViewModel(PhysicalDeviceInfo device, DeviceSettings settings, Action notifyChanged, bool isConnected)
+    public DeviceConfigDeviceViewModel(PhysicalDeviceInfo device, DeviceSettings settings, Action notifyAvailabilityChanged, Action notifySettingsChanged, bool isConnected)
     {
         Device = device;
         _settings = settings;
-        _notifyChanged = notifyChanged;
+        _notifyAvailabilityChanged = notifyAvailabilityChanged;
+        _notifySettingsChanged = notifySettingsChanged;
         _enabled = settings.Enabled;
         _hidden = settings.Hidden;
         _isConnected = isConnected;
@@ -102,14 +104,14 @@ public sealed partial class DeviceConfigDeviceViewModel : ObservableObject, IDis
     partial void OnEnabledChanged(bool value)
     {
         _settings.Enabled = value;
-        _notifyChanged();
+        _notifyAvailabilityChanged();
         OnPropertyChanged(nameof(IsActiveIndicator));
     }
 
     partial void OnHiddenChanged(bool value)
     {
         _settings.Hidden = value;
-        _notifyChanged();
+        _notifyAvailabilityChanged();
     }
 
     /// <summary>Blendet dieses Geraet aus (verschieben in die Liste "Ausgeblendete Geräte") bzw. wieder ein -
@@ -198,7 +200,7 @@ public sealed partial class DeviceConfigDeviceViewModel : ObservableObject, IDis
                 _settings.Inputs[key] = inputSettings;
             }
 
-            var row = new DeviceConfigInputRowViewModel(Device, inputRef, inputSettings, _notifyChanged);
+            var row = new DeviceConfigInputRowViewModel(Device, inputRef, inputSettings, _notifySettingsChanged);
 
             if (inputRef.Kind is PhysicalInputKind.AxisPositive or PhysicalInputKind.AxisNegative)
             {
@@ -290,7 +292,7 @@ public sealed partial class DeviceConfigDeviceViewModel : ObservableObject, IDis
                 var xPair = axisPairsByIndex[index];
                 var yPair = axisPairsByIndex[stickInfo.YIndex];
                 axisGroup.Items.Add(new DeviceConfigStickGroupViewModel(
-                    stickInfo.Name, xPair, yPair, Device, _settings, _notifyChanged, stickInfo.InvertYForDisplay));
+                    stickInfo.Name, xPair, yPair, Device, _settings, _notifySettingsChanged, stickInfo.InvertYForDisplay));
                 continue;
             }
 

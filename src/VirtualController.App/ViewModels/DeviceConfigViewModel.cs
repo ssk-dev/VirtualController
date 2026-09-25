@@ -10,9 +10,11 @@ namespace VirtualController.App.ViewModels;
 /// zuvor schon konfigurierte Geraete - siehe <see cref="MainViewModel.GetAllKnownDevices"/>) mit
 /// der Moeglichkeit, das gesamte Geraet oder einzelne Eingaben zu deaktivieren und Eingaben
 /// umzubenennen. Aenderungen wirken sofort auf die im <see cref="MainViewModel"/> gehaltenen
-/// <see cref="DeviceSettings"/> und werden per <see cref="MainViewModel.NotifyDeviceSettingsChanged"/>
-/// an die Geraeteauswahl und alle laufenden Sessions weitergereicht. Die Geraete werden als Liste mit
-/// Detailbereich dargestellt (<see cref="SelectedDevice"/>, siehe MainWindow.xaml), analog zum
+/// <see cref="DeviceSettings"/> und werden per <see cref="MainViewModel.NotifyDeviceAvailabilityChanged"/>
+/// (fuer Aenderungen an <see cref="DeviceSettings.Enabled"/> bzw. <see cref="DeviceSettings.Hidden"/>, die einen
+/// vollstaendigen Refresh erfordern) sowie per <see cref="MainViewModel.NotifyDeviceSettingsChanged"/>
+/// (fuer reine Einstellungsaenderungen) an die Geraeteauswahl und alle laufenden Sessions weitergereicht.
+/// Die Geraete werden als Liste mit Detailbereich dargestellt (<see cref="SelectedDevice"/>, siehe MainWindow.xaml), analog zum
 /// Mapping-Tab. <see cref="UpdateDevices"/> gleicht die Liste bei jedem Geraete-Scan (inkl. dem
 /// periodischen Hotplug-Polling in <see cref="MainViewModel"/>) inkrementell ab, statt sie zu
 /// verwerfen und neu aufzubauen, damit laufende Bearbeitungen und die Live-Ueberwachung des
@@ -90,7 +92,8 @@ public sealed partial class DeviceConfigViewModel : ObservableObject, IDisposabl
 
             var settings = _mainViewModel.GetOrCreateDeviceSettings(known.Device.DeviceId);
             var deviceViewModel = new DeviceConfigDeviceViewModel(
-                known.Device, settings, _mainViewModel.NotifyDeviceSettingsChanged, known.IsConnected);
+                known.Device, settings, _mainViewModel.NotifyDeviceAvailabilityChanged,
+                _mainViewModel.NotifyDeviceSettingsChanged, known.IsConnected);
             deviceViewModel.PropertyChanged += OnDevicePropertyChanged;
             deviceViewModel.SetScreenActive(_isScreenActive);
 
