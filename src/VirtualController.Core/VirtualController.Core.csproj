@@ -15,6 +15,10 @@
     <PackageReference Include="Vortice.XInput" Version="3.2.0" />
     <PackageReference Include="Vortice.DirectInput" Version="3.2.0" />
     <PackageReference Include="System.Text.Json" Version="10.0.8" />
+    <!-- Rohe HID-Report-Ebene fuer das Geraete-Benchmark (Identification/Transport/Signal, siehe
+         Devices/Hid/IHidReportSource.cs) - kapselt hid.dll-P/Invoke (HidD_*, HidP_*, CreateFile/ReadFile)
+         in einer gut getesteten Bibliothek, statt dies selbst neu zu implementieren. -->
+    <PackageReference Include="HidSharp" Version="2.6.4" />
   </ItemGroup>
 
 </Project>

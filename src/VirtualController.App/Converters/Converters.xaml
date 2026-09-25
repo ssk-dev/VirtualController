@@ -22,5 +22,7 @@
     <conv:BoolToFontWeightConverter x:Key="BoolToFontWeightConverter" />
     <conv:FractionToStarGridLengthConverter x:Key="FractionToStarGridLengthConverter" />
     <conv:CountToVisibilityConverter x:Key="CountToVisibilityConverter" />
+    <conv:BoolToLogButtonTextConverter x:Key="BoolToLogButtonTextConverter" />
+    <conv:BoolToBenchmarkButtonTextConverter x:Key="BoolToBenchmarkButtonTextConverter" />
 
 </ResourceDictionary>

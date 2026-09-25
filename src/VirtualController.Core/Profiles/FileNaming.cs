@@ -6,9 +6,12 @@ namespace VirtualController.Core.Profiles;
 /// <summary>
 /// Hilfsfunktionen zum Ableiten von unter Windows gueltigen, lesbaren Dateinamen aus Anzeigenamen
 /// (Geraete, virtuelle Controller) fuer die pro Geraet/Controller aufgeteilte Persistenz (siehe
-/// <see cref="DeviceSettingsStore"/>, <see cref="ControllerStore"/>).
+/// <see cref="DeviceSettingsStore"/>, <see cref="ControllerStore"/>). Oeffentlich, da dieselbe
+/// Marke/Name-Aufteilung auch von den unabhaengigen Logging- und Benchmark-Exportdateien
+/// (log-device-{marke}-{name}.txt bzw. benchmark-device-{marke}-{name}.json) verwendet wird, um
+/// unterschiedliche Dateinamenskonventionen fuer denselben Geraetenamen zu vermeiden.
 /// </summary>
-internal static class FileNaming
+public static class FileNaming
 {
     /// <summary>Wandelt einen beliebigen Anzeigenamen in ein Dateinamen-taugliches Segment um:
     /// klein geschrieben, ungueltige/problematische Zeichen entfernt, Leerraum durch '-' ersetzt,
