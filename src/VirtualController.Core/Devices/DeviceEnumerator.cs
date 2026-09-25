@@ -10,11 +10,6 @@ namespace VirtualController.Core.Devices;
 /// </summary>
 public static class DeviceEnumerator
 {
-    // TEMPORAERES DEBUG-LOGGING fuer die Achsen-Diagnose: Core kennt DebugLog (App-Projekt) nicht,
-    // daher hier ein simpler Hook, den die App-Schicht beim Start setzt. Bitte nach Abschluss der
-    // Diagnose wieder entfernen.
-    public static Action<string>? OnDebugLog;
-
     /// <summary>Einmal ermittelte Faehigkeiten eines DirectInput-Geraets, gecacht ueber die gesamte
     /// Prozesslaufzeit (siehe <see cref="_capabilitiesCache"/> und dessen Nutzung in <see cref="EnumerateAll"/>).</summary>
     private sealed record DirectInputCapabilities(int ButtonCount, bool HasPov, List<PhysicalAxisId> AvailableAxes);
@@ -187,16 +182,6 @@ public static class DeviceEnumerator
         bool slider0Assigned = false;
         foreach (var objectInfo in device.GetObjects(DeviceObjectTypeFlags.Axis))
         {
-            // TEMPORAERES DEBUG-LOGGING: zeigt den rohen DirectInput-Objektnamen und die
-            // HID-Usage-ID, damit live verifiziert werden kann, dass die Usage-basierte Zuordnung
-            // (im Gegensatz zur vorherigen, instabilen Offset-basierten Zuordnung) bei jedem
-            // Enumerate-Aufruf konsistent bleibt. Bitte nach Abschluss der Diagnose wieder entfernen.
-            var matched = usageToAxis.TryGetValue(objectInfo.Usage, out var loggedAxisId)
-                ? loggedAxisId.ToString()
-                : "KEIN MATCH";
-            OnDebugLog?.Invoke(
-                $"[AxisDetect] Objekt Name='{objectInfo.Name}' Offset={objectInfo.Offset} Usage=0x{objectInfo.Usage:X2} -> {matched}");
-
             if (!usageToAxis.TryGetValue(objectInfo.Usage, out var axisId))
             {
                 continue;

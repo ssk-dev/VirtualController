@@ -1,7 +1,6 @@
 using System.Windows;
 using System.Windows.Forms;
 using VirtualController.App.Diagnostics;
-using VirtualController.Core.Devices;
 using Application = System.Windows.Application;
 
 namespace VirtualController.App;
@@ -22,11 +21,6 @@ public partial class App : Application
 
         DebugLog.Reset("App-Start");
         DebugLog.Write($"Debug-Log-Datei: {DebugLog.FilePath}");
-
-        // TEMPORAERES DEBUG-LOGGING fuer die Achsen-Diagnose: verdrahtet den Core-seitigen
-        // Log-Hook mit DebugLog, damit [AxisDetect]-Zeilen aus DeviceEnumerator ebenfalls in
-        // debug.log landen. Bitte nach Abschluss der Diagnose wieder entfernen.
-        DeviceEnumerator.OnDebugLog = DebugLog.Write;
 
         _trayIcon = new NotifyIcon
         {

@@ -2,8 +2,9 @@ using System.Collections.ObjectModel;
 using System.Windows.Threading;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
-using VirtualController.App.Diagnostics;
+using VirtualController.Core.Benchmark;
 using VirtualController.Core.Devices;
+using VirtualController.Core.Logging;
 
 namespace VirtualController.App.ViewModels;
 
@@ -27,6 +28,32 @@ public sealed partial class DeviceConfigDeviceViewModel : ObservableObject, IDis
     private DispatcherTimer? _liveTimer;
     private IDeviceReader? _liveReader;
     private DeviceConfigAxisGroupViewModel? _axisGroup;
+
+    private DeviceStateLogger? _stateLogger;
+    private BenchmarkSession? _benchmarkSession;
+
+    /// <summary>Ob fuer dieses Geraet aktuell eine Zustands-Protokollierung (siehe <see cref="DeviceStateLogger"/>)
+    /// laeuft - steuert den Beschriftungswechsel "Log starten"/"Log stoppen" des zugehoerigen Buttons
+    /// (siehe DeviceConfigTemplates.xaml) und laeuft, anders als das Live-Polling (<see cref="StartLiveMonitoring"/>),
+    /// unabhaengig von Tab-Sichtbarkeit/Auswahl weiter, bis der Nutzer explizit stoppt.</summary>
+    [ObservableProperty]
+    private bool _isLogging;
+
+    /// <summary>Pfad der zuletzt geschriebenen bzw. aktuell laufenden Log-Datei, fuer eine Anzeige im UI
+    /// (z.B. Tooltip des Log-Buttons) - null, solange noch nie geloggt wurde.</summary>
+    [ObservableProperty]
+    private string? _lastLogFilePath;
+
+    /// <summary>Ob fuer dieses Geraet aktuell eine Hardware-Benchmark-Sitzung (siehe <see cref="BenchmarkSession"/>)
+    /// laeuft - analog zu <see cref="IsLogging"/>, laeuft ebenso unabhaengig von Tab-Sichtbarkeit weiter,
+    /// bis der Nutzer explizit stoppt (dann wird das Ergebnis als JSON exportiert, siehe <see cref="ToggleBenchmark"/>).</summary>
+    [ObservableProperty]
+    private bool _isBenchmarking;
+
+    /// <summary>Pfad der zuletzt exportierten Benchmark-JSON-Datei, fuer eine Anzeige im UI (z.B. Tooltip
+    /// des Benchmark-Buttons) - null, solange noch nie ein Benchmark abgeschlossen wurde.</summary>
+    [ObservableProperty]
+    private string? _lastBenchmarkFilePath;
 
     /// <summary>Ob der "Gerätekonfiguration"-Tab des Hauptfensters aktuell tatsaechlich sichtbar ist UND
     /// das Fenster nicht minimiert ist (siehe <see cref="SetScreenActive"/>, gesetzt durch
@@ -119,6 +146,192 @@ public sealed partial class DeviceConfigDeviceViewModel : ObservableObject, IDis
     /// der ausgeblendeten Geraete aufgerufen (siehe MainWindow.xaml).</summary>
     [RelayCommand]
     private void ToggleHidden() => Hidden = !Hidden;
+
+    /// <summary>Startet bzw. stoppt die Zustands-Protokollierung dieses Geraets (siehe <see cref="DeviceStateLogger"/>) -
+    /// bewusst unabhaengig von <see cref="IsSelected"/>/Tab-Sichtbarkeit, damit eine einmal gestartete
+    /// Protokollierung auch beim Wechsel zu einem anderen Geraet/Tab weiterlaeuft, bis der Nutzer sie
+    /// hier erneut stoppt.</summary>
+    [RelayCommand]
+    private void ToggleLogging()
+    {
+        if (IsLogging)
+        {
+            StopLogging();
+            return;
+        }
+
+        if (!IsConnected)
+        {
+            System.Windows.MessageBox.Show(
+                $"\"{DisplayName}\" ist aktuell nicht angeschlossen - Protokollierung kann erst nach dem Anschliessen gestartet werden.",
+                "Protokollierung nicht moeglich", System.Windows.MessageBoxButton.OK, System.Windows.MessageBoxImage.Information);
+            return;
+        }
+
+        try
+        {
+            _stateLogger = new DeviceStateLogger(Device);
+            _stateLogger.LogFailed += OnStateLoggerFailed;
+            LastLogFilePath = _stateLogger.FilePath;
+            _stateLogger.Start();
+            IsLogging = true;
+        }
+        catch (Exception ex)
+        {
+            // Datei-/Ordnerzugriff kann fehlschlagen (z.B. fehlende Berechtigung) - dies darf die
+            // restliche Konfiguration nicht beeintraechtigen, der Nutzer wird lediglich informiert.
+            _stateLogger?.Dispose();
+            _stateLogger = null;
+            System.Windows.MessageBox.Show(
+                $"Protokollierung fuer \"{DisplayName}\" konnte nicht gestartet werden:\n{ex.Message}",
+                "Protokollierung fehlgeschlagen", System.Windows.MessageBoxButton.OK, System.Windows.MessageBoxImage.Error);
+        }
+    }
+
+    /// <summary>Wird auf dem Log-Hintergrund-Thread ausgeloest (siehe <see cref="DeviceStateLogger.LogFailed"/>),
+    /// z.B. wenn das Geraet waehrend einer laufenden Protokollierung getrennt wird - wechselt daher per
+    /// Dispatcher auf den UI-Thread, bevor <see cref="IsLogging"/> (ein gebundenes ViewModel-Property)
+    /// veraendert wird.</summary>
+    private void OnStateLoggerFailed(Exception ex)
+    {
+        System.Windows.Application.Current?.Dispatcher.Invoke(() =>
+        {
+            IsLogging = false;
+            System.Windows.MessageBox.Show(
+                $"Protokollierung fuer \"{DisplayName}\" wurde wegen eines Fehlers beendet:\n{ex.Message}",
+                "Protokollierung beendet", System.Windows.MessageBoxButton.OK, System.Windows.MessageBoxImage.Warning);
+        });
+    }
+
+    private void StopLogging()
+    {
+        if (_stateLogger is null)
+        {
+            IsLogging = false;
+            return;
+        }
+
+        _stateLogger.LogFailed -= OnStateLoggerFailed;
+        _stateLogger.Dispose();
+        _stateLogger = null;
+        IsLogging = false;
+    }
+
+    /// <summary>Oeffnet (bzw. aktiviert ein bereits offenes) Echtzeit-Anzeigefenster fuer den Hardware-Benchmark
+    /// dieses Geraets (siehe <see cref="Views.BenchmarkWindow"/>). Das Fenster ist bewusst NICHT modal und
+    /// besitzt keinen eigenen Lebenszyklus fuer die Sitzung selbst: Schliessen des Fensters stoppt einen
+    /// laufenden Benchmark NICHT - die Sitzung laeuft, wie <see cref="IsBenchmarking"/> es bereits fuer den
+    /// Inline-Button dokumentiert, unabhaengig von jeglicher UI-Sichtbarkeit weiter, bis der Nutzer explizit
+    /// stoppt (per Button im Popup oder erneutem Aufruf von <see cref="ToggleBenchmarkCommand"/>).</summary>
+    [RelayCommand]
+    private void OpenBenchmarkWindow()
+        => Views.BenchmarkWindow.ShowFor(this, System.Windows.Application.Current?.MainWindow);
+
+    /// <summary>Liefert eine Momentaufnahme des bisherigen Benchmark-Ergebnisses waehrend eine Sitzung noch
+    /// laeuft (siehe <see cref="BenchmarkSession.GetSnapshot"/>) - fuer die Echtzeit-Anzeige im Popup-Fenster
+    /// (<see cref="Views.BenchmarkWindow"/>). Liefert null, solange <see cref="IsBenchmarking"/> false ist.</summary>
+    public BenchmarkResult? GetLiveBenchmarkSnapshot() => _benchmarkSession?.GetSnapshot();
+
+    /// <summary>Startet bzw. stoppt eine Hardware-Benchmark-Sitzung dieses Geraets (siehe <see cref="BenchmarkSession"/>) -
+    /// analog zu <see cref="ToggleLogging"/> unabhaengig von <see cref="IsSelected"/>/Tab-Sichtbarkeit. Beim
+    /// Stoppen wird das Ergebnis sofort als JSON exportiert (siehe <see cref="BenchmarkJsonExporter"/>), damit
+    /// der Nutzer es nicht separat "speichern" muss.</summary>
+    [RelayCommand]
+    private void ToggleBenchmark()
+    {
+        if (IsBenchmarking)
+        {
+            StopBenchmark();
+            return;
+        }
+
+        if (!IsConnected)
+        {
+            System.Windows.MessageBox.Show(
+                $"\"{DisplayName}\" ist aktuell nicht angeschlossen - der Benchmark kann erst nach dem Anschliessen gestartet werden.",
+                "Benchmark nicht moeglich", System.Windows.MessageBoxButton.OK, System.Windows.MessageBoxImage.Information);
+            return;
+        }
+
+        try
+        {
+            _benchmarkSession = BenchmarkSession.TryCreate(Device);
+            if (_benchmarkSession is null)
+            {
+                System.Windows.MessageBox.Show(
+                    $"Fuer \"{DisplayName}\" konnte kein zugehoeriges HID-Geraet ermittelt werden - der Hardware-Benchmark " +
+                    "steht nur fuer Geraete mit erkennbarem HID-Pfad zur Verfuegung (z.B. nicht fuer manche reinen XInput-Geraete).",
+                    "Benchmark nicht moeglich", System.Windows.MessageBoxButton.OK, System.Windows.MessageBoxImage.Information);
+                return;
+            }
+
+            _benchmarkSession.BenchmarkFailed += OnBenchmarkFailed;
+            _benchmarkSession.Start();
+            IsBenchmarking = true;
+        }
+        catch (Exception ex)
+        {
+            // Analog zu ToggleLogging: ein Fehlschlag beim Start (z.B. Geraet bereits exklusiv durch eine
+            // andere Anwendung geoeffnet) darf die restliche Konfiguration nicht beeintraechtigen.
+            _benchmarkSession?.Dispose();
+            _benchmarkSession = null;
+            System.Windows.MessageBox.Show(
+                $"Benchmark fuer \"{DisplayName}\" konnte nicht gestartet werden:\n{ex.Message}",
+                "Benchmark fehlgeschlagen", System.Windows.MessageBoxButton.OK, System.Windows.MessageBoxImage.Error);
+        }
+    }
+
+    /// <summary>Wird auf dem Benchmark-Hintergrund-Thread ausgeloest (siehe <see cref="BenchmarkSession.BenchmarkFailed"/>),
+    /// z.B. wenn das Geraet waehrend einer laufenden Sitzung getrennt wird - wechselt daher per Dispatcher auf
+    /// den UI-Thread, bevor <see cref="IsBenchmarking"/> (ein gebundenes ViewModel-Property) veraendert wird.
+    /// Exportiert das bis dahin gesammelte (Teil-)Ergebnis trotzdem, statt es zu verwerfen.</summary>
+    private void OnBenchmarkFailed(Exception ex)
+    {
+        System.Windows.Application.Current?.Dispatcher.Invoke(() =>
+        {
+            FinishBenchmark();
+            System.Windows.MessageBox.Show(
+                $"Benchmark fuer \"{DisplayName}\" wurde wegen eines Fehlers beendet:\n{ex.Message}",
+                "Benchmark beendet", System.Windows.MessageBoxButton.OK, System.Windows.MessageBoxImage.Warning);
+        });
+    }
+
+    private void StopBenchmark() => FinishBenchmark();
+
+    /// <summary>Gemeinsame Beendigungslogik fuer regulaeres Stoppen (<see cref="StopBenchmark"/>) und den
+    /// Fehlerfall (<see cref="OnBenchmarkFailed"/>): stoppt die Sitzung, exportiert das Ergebnis als JSON
+    /// und gibt die Sitzung frei. Ein Exportfehler (z.B. fehlende Schreibrechte) wird dem Nutzer gemeldet,
+    /// darf aber den restlichen Aufraeumvorgang nicht verhindern.</summary>
+    private void FinishBenchmark()
+    {
+        if (_benchmarkSession is null)
+        {
+            IsBenchmarking = false;
+            return;
+        }
+
+        _benchmarkSession.BenchmarkFailed -= OnBenchmarkFailed;
+
+        try
+        {
+            var result = _benchmarkSession.Stop();
+            var path = BenchmarkJsonExporter.BuildDefaultFilePath(Device);
+            BenchmarkJsonExporter.Write(path, result);
+            LastBenchmarkFilePath = path;
+        }
+        catch (Exception ex)
+        {
+            System.Windows.MessageBox.Show(
+                $"Benchmark-Ergebnis fuer \"{DisplayName}\" konnte nicht exportiert werden:\n{ex.Message}",
+                "Export fehlgeschlagen", System.Windows.MessageBoxButton.OK, System.Windows.MessageBoxImage.Error);
+        }
+        finally
+        {
+            _benchmarkSession.Dispose();
+            _benchmarkSession = null;
+            IsBenchmarking = false;
+        }
+    }
 
     partial void OnIsConnectedChanged(bool value) => OnPropertyChanged(nameof(IsActiveIndicator));
 
@@ -344,20 +557,6 @@ public sealed partial class DeviceConfigDeviceViewModel : ObservableObject, IDis
             return;
         }
 
-        // TEMPORAERES DEBUG-LOGGING fuer den Bug "manche Achsen reagieren nicht auf Wertaenderung /
-        // Negativ-Richtung bleibt dauerhaft hervorgehoben" (DirectInput-Geraete): protokolliert einmalig
-        // beim Start der Live-Ueberwachung den kompletten Achsen-Katalog dieses Geraets (welche
-        // PhysicalAxisId-Slots laut Enumeration tatsaechlich vorhanden sind) sowie alle daraus erzeugten
-        // Eingabe-Referenzen (Index + Kind + Name), damit sich Slot-Indizes zweifelsfrei mit den unten in
-        // OnLiveTimerTick protokollierten Rohwerten abgleichen lassen. Bitte nach Abschluss der Diagnose
-        // wieder entfernen.
-        DebugLog.Write($"[AxisDebug] StartLiveMonitoring Device='{Device.DisplayName}' Api={Device.Api} " +
-            $"AvailableAxes=[{string.Join(", ", Device.AvailableAxes.Select(a => $"{(int)a}:{a}"))}]");
-        foreach (var inputRef in PhysicalInputCatalog.BuildInputs(Device))
-        {
-            DebugLog.Write($"[AxisDebug] Catalog Kind={inputRef.Kind} Index={inputRef.Index} Name='{inputRef.DisplayName}'");
-        }
-
         _liveTimer = new DispatcherTimer { Interval = LivePollInterval };
         _liveTimer.Tick += OnLiveTimerTick;
         _liveTimer.Start();
@@ -400,14 +599,6 @@ public sealed partial class DeviceConfigDeviceViewModel : ObservableObject, IDis
             return;
         }
 
-        // TEMPORAERES DEBUG-LOGGING fuer den Bug "manche Achsen reagieren nicht auf Wertaenderung /
-        // Negativ-Richtung bleibt dauerhaft hervorgehoben" (DirectInput-Geraete): protokolliert nur die
-        // Slots/Buttons, deren Rohwert sich seit dem letzten Tick tatsaechlich veraendert hat (Diff-Log),
-        // damit sich beim schrittweisen Bewegen jeder einzelnen Achse bzw. Druecken jeder einzelnen Taste
-        // exakt nachvollziehen laesst, welcher DeviceState.Axes[]-Slot reagiert (oder eben nicht). Bitte
-        // nach Abschluss der Diagnose wieder entfernen.
-        LogRawStateDiff(state);
-
         foreach (var group in InputGroups)
         {
             foreach (var row in group.AllRows)
@@ -419,50 +610,10 @@ public sealed partial class DeviceConfigDeviceViewModel : ObservableObject, IDis
         _axisGroup?.UpdateFromState(state);
     }
 
-    /// <summary>TEMPORAERES DEBUG-LOGGING (siehe <see cref="OnLiveTimerTick"/>) - letzter protokollierter
-    /// Rohzustand, um nur tatsaechliche Aenderungen zu loggen statt bei 30 Hz die komplette Konsole/Datei
-    /// zuzumuellen. Bitte nach Abschluss der Diagnose zusammen mit LogRawStateDiff wieder entfernen.</summary>
-    private float[]? _lastLoggedAxes;
-    private bool[]? _lastLoggedButtons;
-    private int _lastLoggedPov = int.MinValue;
-
-    private void LogRawStateDiff(DeviceState state)
+    public void Dispose()
     {
-        if (_lastLoggedAxes is null || _lastLoggedAxes.Length != state.Axes.Length)
-        {
-            _lastLoggedAxes = new float[state.Axes.Length];
-            Array.Fill(_lastLoggedAxes, float.NaN);
-        }
-
-        for (int i = 0; i < state.Axes.Length; i++)
-        {
-            if (MathF.Abs(state.Axes[i] - _lastLoggedAxes[i]) > 0.01f || (float.IsNaN(_lastLoggedAxes[i]) && state.Axes[i] != 0f))
-            {
-                DebugLog.Write($"[AxisDebug] Axes[{i}] ({(PhysicalAxisId)i}): {_lastLoggedAxes[i]:F3} -> {state.Axes[i]:F3}");
-                _lastLoggedAxes[i] = state.Axes[i];
-            }
-        }
-
-        if (_lastLoggedButtons is null || _lastLoggedButtons.Length != state.Buttons.Length)
-        {
-            _lastLoggedButtons = new bool[state.Buttons.Length];
-        }
-
-        for (int i = 0; i < state.Buttons.Length; i++)
-        {
-            if (state.Buttons[i] != _lastLoggedButtons[i])
-            {
-                DebugLog.Write($"[AxisDebug] Buttons[{i}]: {_lastLoggedButtons[i]} -> {state.Buttons[i]}");
-                _lastLoggedButtons[i] = state.Buttons[i];
-            }
-        }
-
-        if (state.PovDirectionDegrees != _lastLoggedPov)
-        {
-            DebugLog.Write($"[AxisDebug] PovDirectionDegrees: {_lastLoggedPov} -> {state.PovDirectionDegrees}");
-            _lastLoggedPov = state.PovDirectionDegrees;
-        }
+        StopLiveMonitoring();
+        StopLogging();
+        StopBenchmark();
     }
-
-    public void Dispose() => StopLiveMonitoring();
 }

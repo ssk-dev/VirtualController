@@ -213,8 +213,18 @@
     <DataTemplate DataType="{x:Type vm:DeviceConfigDeviceViewModel}">
         <ScrollViewer VerticalScrollBarVisibility="Auto">
             <StackPanel Margin="12">
-                <CheckBox IsChecked="{Binding Enabled}" Content="Geraet aktivieren" FontWeight="Bold"
-                          Margin="0,0,0,10" />
+                <DockPanel Margin="0,0,0,10">
+                    <Button DockPanel.Dock="Right" Padding="8,2" Margin="6,0,0,0"
+                            Content="Benchmark"
+                            Command="{Binding OpenBenchmarkWindowCommand}"
+                            ToolTip="Oeffnet ein Fenster mit Start/Stop-Steuerung und fortlaufend aktualisierten Live-Messwerten (Polling-Rate/Latenz/Zuverlaessigkeit/Signal) fuer den Hardware-Benchmark dieses Geraets." />
+                    <Button DockPanel.Dock="Right" Padding="8,2"
+                            Content="{Binding IsLogging, Converter={StaticResource BoolToLogButtonTextConverter}}"
+                            Command="{Binding ToggleLoggingCommand}"
+                            ToolTip="{Binding LastLogFilePath, TargetNullValue='Protokolliert den rohen Geraetezustand (Achsen/Buttons/D-Pad) fortlaufend in eine Textdatei, bis erneut geklickt wird - unabhaengig von Tab-Wechseln.'}" />
+                    <CheckBox IsChecked="{Binding Enabled}" Content="Geraet aktivieren" FontWeight="Bold"
+                              VerticalAlignment="Center" />
+                </DockPanel>
 
                 <StackPanel IsEnabled="{Binding Enabled}">
                     <ItemsControl ItemsSource="{Binding InputGroups}" />
