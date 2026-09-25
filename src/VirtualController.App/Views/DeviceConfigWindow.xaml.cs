@@ -6,8 +6,12 @@ namespace VirtualController.App.Views;
 /// <summary>
 /// Code-Behind des "Geraete konfigurieren"-Dialogs. Enthaelt bewusst keine Geschaeftslogik - diese
 /// lebt komplett im <see cref="DeviceConfigViewModel"/>. Beim Schliessen wird der aufrufenden
-/// <see cref="MainViewModel"/>-Instanz mitgeteilt, dass sich Geraeteeinstellungen geaendert haben
-/// koennten, damit die Geraeteauswahl neu gefiltert und laufende Sessions aktualisiert werden.
+/// <see cref="MainViewModel"/>-Instanz als Sicherheitsnetz mitgeteilt, dass sich die Verfuegbarkeit von
+/// Geraeten geaendert haben koennte (siehe <see cref="MainViewModel.NotifyDeviceAvailabilityChanged"/>),
+/// damit die Geraeteauswahl neu gefiltert und laufende Sessions aktualisiert werden. Reine
+/// Einstellungsaenderungen (Umbenennung, Kalibrierung etc.) werden dagegen bereits waehrend der
+/// Bearbeitung ueber den leichtgewichtigen <see cref="MainViewModel.NotifyDeviceSettingsChanged"/>-Pfad
+/// verteilt, siehe <see cref="DeviceConfigViewModel"/>.
 /// </summary>
 public partial class DeviceConfigWindow : Window
 {
@@ -25,7 +29,7 @@ public partial class DeviceConfigWindow : Window
 
     private void OnCloseClicked(object sender, RoutedEventArgs e)
     {
-        _mainViewModel.NotifyDeviceSettingsChanged();
+        _mainViewModel.NotifyDeviceAvailabilityChanged();
         Close();
     }
 }
