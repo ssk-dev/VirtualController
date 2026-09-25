@@ -34,9 +34,13 @@ public partial class MainWindow : Window
         StateChanged += (_, _) => _viewModel.IsWindowMinimized = WindowState == WindowState.Minimized;
 
         // Fix fuer den Bug "Ziel-Typ/Ziel-Wert wird nicht uebernommen": faengt jede Auswahl-Aenderung
-        // einer beliebigen ComboBox innerhalb der Mapping-DataGrid ab, um dort per UpdateSource()
-        // (siehe OnAnyComboBoxSelectionChanged) den Wert zuverlaessig ins ViewModel zu uebernehmen.
-        MappingsDataGrid.AddHandler(Selector.SelectionChangedEvent, new System.Windows.Controls.SelectionChangedEventHandler(OnAnyComboBoxSelectionChanged), true);
+        // einer beliebigen ComboBox innerhalb der (nun nach Ziel-Typ gruppierten, also auf mehrere
+        // DataGrids verteilten) Mapping-Tabelle ab, um dort per UpdateSource() (siehe
+        // OnAnyComboBoxSelectionChanged) den Wert zuverlaessig ins ViewModel zu uebernehmen. Die
+        // Registrierung erfolgt bewusst am gemeinsamen aeusseren Vorfahren "MappingsScrollViewer"
+        // statt an einer einzelnen DataGrid, da SelectionChangedEvent durch die dazwischenliegende
+        // ItemsControl/DataTemplate-Verschachtelung unveraendert bis hierher durchbubbelt.
+        MappingsScrollViewer.AddHandler(Selector.SelectionChangedEvent, new System.Windows.Controls.SelectionChangedEventHandler(OnAnyComboBoxSelectionChanged), true);
     }
 
     private void OnAnyComboBoxSelectionChanged(object sender, System.Windows.Controls.SelectionChangedEventArgs e)
@@ -169,26 +173,30 @@ public partial class MainWindow : Window
     {
         // Diagnose-Logging fuer den Bug "Mapping-Tabelle aktualisiert sich beim Modus-Wechsel waehrend
         // der Controller laeuft nicht": TargetUpdated feuert genau dann, wenn das ItemsSource-Binding
-        // der MappingsDataGrid tatsaechlich einen neuen Wert ins UI-Steuerelement uebernommen hat - das
-        // ist die "Ground Truth" dessen, was wirklich angezeigt wird, im Gegensatz zu dem, was das
-        // ViewModel ueber SelectedMode/ActiveModeId zu wissen glaubt (siehe DebugLog-Aufrufe in
-        // VirtualControllerViewModel.OnSelectedModeChanged). Wenn dieser Handler beim Tab-Wechsel waehrend
-        // der Laufzeit NICHT feuert (oder mit falscher Mapping-Anzahl/falschem Modus-Namen), liegt der
-        // Fehler tatsaechlich im UI-Rendering/Binding und nicht in der ViewModel-Logik.
+        // einer der (nach Ziel-Typ gruppierten) Mapping-DataGrids tatsaechlich einen neuen Wert ins
+        // UI-Steuerelement uebernommen hat - das ist die "Ground Truth" dessen, was wirklich angezeigt
+        // wird, im Gegensatz zu dem, was das ViewModel ueber SelectedMode/ActiveModeId zu wissen glaubt
+        // (siehe DebugLog-Aufrufe in VirtualControllerViewModel.OnSelectedModeChanged). Der DataContext
+        // dieser DataGrid ist seit der Gruppierung nach Ziel-Typ keine VirtualControllerViewModel mehr,
+        // sondern die MappingGroupViewModel der jeweiligen Gruppe (Button/Achse/Trigger/D-Pad) - daher
+        // wird hier deren Header/Kind statt des Controller-Namens protokolliert. Wenn dieser Handler
+        // beim Tab-Wechsel waehrend der Laufzeit NICHT feuert (oder mit falscher Mapping-Anzahl/falschem
+        // Gruppen-Header), liegt der Fehler tatsaechlich im UI-Rendering/Binding und nicht in der
+        // ViewModel-Logik.
         if (sender is not System.Windows.Controls.DataGrid grid)
         {
             return;
         }
 
-        string controllerInfo = grid.DataContext is VirtualControllerViewModel controller
-            ? $"Controller='{controller.Name}' IsRunning={controller.IsRunning} SelectedMode='{controller.SelectedMode?.Name ?? "null"}' (Id={controller.SelectedMode?.Mode.Id})"
-            : "Controller=<kein VirtualControllerViewModel als DataContext>";
+        string groupInfo = grid.DataContext is MappingGroupViewModel group
+            ? $"Gruppe='{group.Header}' (Kind={group.Kind})"
+            : "Gruppe=<keine MappingGroupViewModel als DataContext>";
 
         int itemCount = grid.ItemsSource is System.Collections.ICollection collection
             ? collection.Count
             : grid.ItemsSource?.Cast<object>().Count() ?? -1;
 
-        DebugLog.Write($"[MappingsGrid] TargetUpdated: {controllerInfo} AngezeigteMappingAnzahl={itemCount}");
+        DebugLog.Write($"[MappingsGrid] TargetUpdated: {groupInfo} AngezeigteMappingAnzahl={itemCount}");
     }
 
     private static T? FindVisualAncestor<T>(System.Windows.DependencyObject start) where T : System.Windows.DependencyObject

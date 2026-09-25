@@ -85,6 +85,14 @@ public sealed partial class MappingRowViewModel : ObservableObject
     [ObservableProperty]
     private bool _isSourceConnected;
 
+    /// <summary>Ob dieser Zeile bereits eine physische Quelle zugewiesen wurde (per "Erfassen" oder
+    /// "Zuweisen"). Frisch angelegte Zeilen haben noch keine Quelle (<see cref="MappingEntry.SourceDeviceId"/>
+    /// ist leer) - solche Zeilen werden von <see cref="ModeViewModel.RebuildMappingGroups"/> keiner
+    /// Ziel-Typ-Gruppe zugeordnet, sondern in einem eigenen, gruppierungslosen Bereich ganz oben in der
+    /// Mapping-Tabelle angezeigt, bis eine Quelle zugewiesen wurde.</summary>
+    [ObservableProperty]
+    private bool _isSourceAssigned;
+
     /// <summary>Ob die physische Quelle dieser Mapping-Zeile aktuell tatsaechlich aktiv ist (Taste
     /// gedrueckt, Achse ausgeschlagen, D-Pad-Richtung gehalten) - analog zu
     /// <see cref="PhysicalInputRowViewModel.IsActive"/> in der aufklappbaren Geraete-Eingabeliste, nur
@@ -216,6 +224,7 @@ public sealed partial class MappingRowViewModel : ObservableObject
         _getDeviceSettings = getDeviceSettings;
         _getLayout = getLayout;
         _sourceDisplayName = BuildSourceDisplayName(entry, knownDevices, getDeviceSettings(), out _isSourceConnected);
+        _isSourceAssigned = !string.IsNullOrEmpty(entry.SourceDeviceId);
         _targetDisplayName = BuildTargetDisplayName(entry, getLayout());
 
         _selectedTargetKind = entry.TargetKind;
@@ -252,6 +261,7 @@ public sealed partial class MappingRowViewModel : ObservableObject
 
         SourceDisplayName = BuildSourceDisplayName(Entry, knownDevices, _getDeviceSettings(), out bool isConnected);
         IsSourceConnected = isConnected;
+        IsSourceAssigned = true;
         Changed?.Invoke(this);
     }
 

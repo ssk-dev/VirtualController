@@ -1,4 +1,6 @@
 using System.Collections.ObjectModel;
+using System.ComponentModel;
+using System.Linq;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
 using VirtualController.Core.Devices;
@@ -51,6 +53,25 @@ public sealed partial class ModeViewModel : ObservableObject
 
     public ObservableCollection<MappingRowViewModel> Mappings { get; } = new();
 
+    /// <summary>Dieselben Zeilen wie <see cref="Mappings"/>, aber nach Ziel-Typ gruppiert (siehe
+    /// <see cref="MappingGroupViewModel"/>) - in derselben Reihenfolge wie die "Ziel-Typ"-ComboBox
+    /// jeder Zeile ihre Optionen anzeigt (<see cref="MappingRowViewModel.TargetKindOptions"/>). Eine
+    /// Gruppe erscheint hier ausschliesslich, solange mindestens eine Zeile ihrem Ziel-Typ zugeordnet
+    /// ist (siehe <see cref="RebuildMappingGroups"/>) - leere Gruppen werden nicht angezeigt. Wird von
+    /// der View verwendet, um vor jeder Gruppe eine Ueberschrift anzuzeigen, ohne dafuer auf natives
+    /// WPF-DataGrid-Gruppieren (mit dessen eigenwilligem Standard-Gruppenheader) angewiesen zu sein.</summary>
+    public ObservableCollection<MappingGroupViewModel> MappingGroups { get; } = new();
+
+    /// <summary>Mapping-Zeilen, denen noch keine physische Quelle zugewiesen wurde (<see cref="MappingRowViewModel.IsSourceAssigned"/>
+    /// ist false) - typischerweise eine ueber "+ Mapping-Zeile hinzufuegen" frisch angelegte Zeile, bevor
+    /// der Nutzer "Erfassen" oder "Zuweisen" benutzt hat. Solche Zeilen lassen sich noch nicht sinnvoll
+    /// nach Ziel-Typ einordnen (ihr <see cref="MappingRowViewModel.SelectedTargetKind"/> ist zu diesem
+    /// Zeitpunkt lediglich ein bedeutungsloser Standardwert) und werden daher ungruppiert ganz oben in
+    /// der Mapping-Tabelle angezeigt, oberhalb aller <see cref="MappingGroups"/>. Sobald eine Quelle
+    /// zugewiesen wird, wandert die Zeile automatisch in ihre passende Ziel-Typ-Gruppe (siehe
+    /// <see cref="RebuildMappingGroups"/>).</summary>
+    public ObservableCollection<MappingRowViewModel> UnassignedMappings { get; } = new();
+
     private readonly Func<IReadOnlyList<PhysicalDeviceInfo>> _getAvailableDevices;
     private readonly Func<IReadOnlyDictionary<string, DeviceSettings>> _getDeviceSettings;
 
@@ -99,7 +120,60 @@ public sealed partial class ModeViewModel : ObservableObject
         var row = new MappingRowViewModel(entry, knownDevices, getFilteredDevices, _getDeviceSettings, getLayout);
         row.RemoveRequested += OnRowRemoveRequested;
         row.Changed += OnRowChanged;
+        row.PropertyChanged += OnRowPropertyChanged;
         Mappings.Add(row);
+        RebuildMappingGroups();
+    }
+
+    /// <summary>Der Ziel-Typ einer Zeile (<see cref="MappingRowViewModel.SelectedTargetKind"/>) kann sich
+    /// jederzeit aendern, waehrend die Zeile bereits Teil einer Gruppe ist - eine reine Neuzuordnung ihrer
+    /// Gruppe (statt eines vollstaendigen Neuaufbaus wie in <see cref="RebuildMappingGroups"/>) wuerde bei
+    /// jeder Aenderung erneut alle Gruppen durchsuchen muessen; da Aenderungen des Ziel-Typs vergleichsweise
+    /// selten sind (Nutzerinteraktion), ist ein vollstaendiger Neuaufbau hier einfacher und ausreichend.</summary>
+    private void OnRowPropertyChanged(object? sender, PropertyChangedEventArgs e)
+    {
+        if (e.PropertyName == nameof(MappingRowViewModel.SelectedTargetKind)
+            || e.PropertyName == nameof(MappingRowViewModel.IsSourceAssigned))
+        {
+            RebuildMappingGroups();
+        }
+    }
+
+    /// <summary>Baut <see cref="UnassignedMappings"/> und <see cref="MappingGroups"/> vollstaendig aus dem
+    /// aktuellen Inhalt von <see cref="Mappings"/> neu auf: Zeilen ohne zugewiesene physische Quelle
+    /// (<see cref="MappingRowViewModel.IsSourceAssigned"/> == false) landen ungruppiert in
+    /// <see cref="UnassignedMappings"/>; alle uebrigen Zeilen werden - wie zuvor - eine Gruppe je
+    /// <see cref="MappingTargetKind"/>, in derselben Reihenfolge wie die "Ziel-Typ"-ComboBox ihre Optionen
+    /// anzeigt (<see cref="MappingRowViewModel.TargetKindOptions"/>), und ausschliesslich fuer Ziel-Typen,
+    /// denen aktuell mindestens eine (bereits zugewiesene) Zeile zugeordnet ist - leere Gruppen werden
+    /// nicht angezeigt.</summary>
+    private void RebuildMappingGroups()
+    {
+        UnassignedMappings.Clear();
+        foreach (var row in Mappings.Where(row => !row.IsSourceAssigned))
+        {
+            UnassignedMappings.Add(row);
+        }
+
+        MappingGroups.Clear();
+
+        var assignedRows = Mappings.Where(row => row.IsSourceAssigned).ToList();
+        foreach (var kind in MappingRowViewModel.TargetKindOptions)
+        {
+            var rowsForKind = assignedRows.Where(row => row.SelectedTargetKind == kind).ToList();
+            if (rowsForKind.Count == 0)
+            {
+                continue;
+            }
+
+            var group = new MappingGroupViewModel(kind, kind.ToString());
+            foreach (var row in rowsForKind)
+            {
+                group.Rows.Add(row);
+            }
+
+            MappingGroups.Add(group);
+        }
     }
 
     private void OnRowChanged(MappingRowViewModel row) => Changed?.Invoke(this);
@@ -108,8 +182,10 @@ public sealed partial class ModeViewModel : ObservableObject
     {
         row.RemoveRequested -= OnRowRemoveRequested;
         row.Changed -= OnRowChanged;
+        row.PropertyChanged -= OnRowPropertyChanged;
         Mode.Mappings.Remove(row.Entry);
         Mappings.Remove(row);
+        RebuildMappingGroups();
         Changed?.Invoke(this);
     }
 
@@ -220,6 +296,7 @@ public sealed partial class ModeViewModel : ObservableObject
         {
             row.RemoveRequested -= OnRowRemoveRequested;
             row.Changed -= OnRowChanged;
+            row.PropertyChanged -= OnRowPropertyChanged;
         }
     }
 }

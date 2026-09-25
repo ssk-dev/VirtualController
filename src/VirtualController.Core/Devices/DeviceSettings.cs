@@ -1,3 +1,5 @@
+using System.Text.Json.Serialization;
+
 namespace VirtualController.Core.Devices;
 
 /// <summary>Antwortkurve, mit der ein kalibrierter Achsenwert (-1.0 .. 1.0 bzw. 0.0 .. 1.0) vor der
@@ -105,7 +107,11 @@ public sealed class DeviceSettings
 
     public List<PhysicalAxisId>? LastKnownAvailableAxes { get; set; }
 
-    /// <summary>Einstellungen je physischem Eingabeelement, Key = <see cref="PhysicalInputCatalog.BuildStorageKey"/>.</summary>
+    /// <summary>Einstellungen je physischem Eingabeelement, Key = <see cref="PhysicalInputCatalog.BuildStorageKey"/>.
+    /// Die Serialisierung blendet fuer rein digitale Eingaben (Buttons, D-Pad-Richtungen) die nur fuer
+    /// Achsen/Slider relevanten Felder (Kalibrierung, Deadzone, Antwortkurve) aus - siehe
+    /// <see cref="InputSettingsDictionaryConverter"/>.</summary>
+    [JsonConverter(typeof(InputSettingsDictionaryConverter))]
     public Dictionary<string, InputSettings> Inputs { get; set; } = new();
 
     /// <summary>Vom Nutzer vergebene Anzeigenamen fuer kombinierte 2D-Sticks (z.B. "Linker Stick" -> "Flugstick"),

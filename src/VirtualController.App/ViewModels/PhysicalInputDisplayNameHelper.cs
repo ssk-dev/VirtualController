@@ -20,6 +20,17 @@ public static class PhysicalInputDisplayNameHelper
         IReadOnlyDictionary<string, DeviceSettings> deviceSettings,
         out bool isConnected)
     {
+        // Noch keine physische Quelle zugewiesen (frisch angelegte Mapping-Zeile, bevor "Erfassen"
+        // oder "Zuweisen" benutzt wurde): weder ein sinnvoller Anzeigename noch ein "nicht verbunden"-
+        // Hinweis sind hier zutreffend - es handelt sich nicht um ein getrenntes Geraet, sondern schlicht
+        // um eine noch offene Auswahl. isConnected wird bewusst auf true gesetzt, damit der rote
+        // "(nicht verbunden)"-Hinweis in der View (an IsSourceConnected gebunden) nicht angezeigt wird.
+        if (string.IsNullOrEmpty(deviceId))
+        {
+            isConnected = true;
+            return string.Empty;
+        }
+
         var device = knownDevices.FirstOrDefault(d => d.DeviceId == deviceId);
         isConnected = device is not null;
 

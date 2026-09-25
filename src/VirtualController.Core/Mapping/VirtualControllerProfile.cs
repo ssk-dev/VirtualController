@@ -1,3 +1,4 @@
+using System.Text.Json.Serialization;
 using VirtualController.Core.Devices;
 using VirtualController.Core.Virtual;
 
@@ -101,6 +102,7 @@ public sealed class ControllerMode
     /// <see cref="VirtualControllerProfile"/>); ein deaktivierter Modus wird beim Umschalten uebersprungen.</summary>
     public bool Enabled { get; set; } = true;
 
+    [JsonConverter(typeof(MappingEntryListConverter))]
     public List<MappingEntry> Mappings { get; set; } = new();
 
     /// <summary>Nur relevant, wenn <see cref="VirtualControllerProfile.ModeSwitchMechanism"/> auf

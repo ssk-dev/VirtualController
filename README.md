@@ -44,7 +44,12 @@ eigenstaendige, systemweit sichtbare Geraete (kein DLL-Hijacking pro Spiel).
 - **Tray-Icon**: laeuft bei Bedarf im Hintergrund weiter (Fenster schliessen minimiert ins
   Tray, ueber das Tray-Icon jederzeit wieder erreichbar).
 - **Persistenz**: alle virtuellen Controller, Mapping-Tabellen und Geraete-Einstellungen
-  werden automatisch als JSON unter `%AppData%\VirtualController\profiles.json` gespeichert.
+  werden automatisch als JSON unter `%AppData%\VirtualController\` gespeichert - aufgeteilt in
+  je eine Datei pro virtuellem Controller (`Controllers\controller-{name}.json`), je eine Datei
+  pro physischem Geraet (`Devices\device-{marke}-{name}.json`, z.B. `device-logitech-x56.json`)
+  sowie eine kleine `settings.json` fuer allgemeine Einstellungen. Eine noch vorhandene alte,
+  kombinierte `profiles.json` aus einer fruehen Version wird beim ersten Start automatisch in
+  dieses Format aufgeteilt und zu `profiles.json.migrated` umbenannt.
 
 ## Voraussetzungen (einmalig, auf dem Zielrechner)
 
@@ -117,7 +122,10 @@ Alternativ laesst sich der Workflow auch manuell ueber den "Actions"-Tab auf Git
   - `Mapping/` Profil-Modell (virtueller Controller + Modi + Mapping-Tabelle) und die Mapping-Engine
   - `Timing/` High-Resolution-Loop (bis 1000 Hz+), rein User-Mode, kein Treiber noetig
   - `Engine/` Verbindet alles zu laufenden Sessions je virtuellem Controller
-  - `Profiles/` JSON-Persistenz unter `%AppData%\VirtualController\profiles.json`
+  - `Profiles/` JSON-Persistenz unter `%AppData%\VirtualController\` - aufgeteilt in
+    `Controllers\controller-{name}.json` (je virtuellem Controller), `Devices\device-{marke}-{name}.json`
+    (je physischem Geraet) und `settings.json` (allgemeine Einstellungen); migriert eine evtl. noch
+    vorhandene alte, kombinierte `profiles.json` beim ersten Start automatisch in dieses Format
 - **VirtualController.App** - WPF-Oberflaeche (MVVM via CommunityToolkit.Mvvm), Tray-Icon.
 
 ## Bekannte Einschraenkung: Layouts

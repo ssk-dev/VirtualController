@@ -228,97 +228,224 @@
                                 <Button DockPanel.Dock="Top" Content="+ Mapping-Zeile hinzufuegen" HorizontalAlignment="Left"
                                         Margin="0,0,0,8" Padding="6,4" Command="{Binding AddMappingCommand}" />
 
-                                <DataGrid x:Name="MappingsDataGrid" ItemsSource="{Binding SelectedMode.Mappings, NotifyOnTargetUpdated=True}"
-                                          AutoGenerateColumns="False" CanUserAddRows="False"
-                                          EnableRowVirtualization="False"
-                                          Binding.TargetUpdated="OnMappingsDataGridTargetUpdated">
-                                    <DataGrid.RowStyle>
-                                        <!-- Live-Hervorhebung der Mapping-Zeile, waehrend ihre zugewiesene physische
-                                             Quelle gerade aktiv ist (Taste gedrueckt, Achse ausgeschlagen, D-Pad
-                                             gehalten) - identisches Verhalten wie in der Liste "Verfügbare Geräte"
-                                             (siehe PhysicalInputRowViewModel.IsActive), nur hier fuer die komplette
-                                             Zeile der Mapping-Tabelle statt fuer eine einzelne Eingabezeile. -->
-                                        <Style TargetType="DataGridRow">
-                                            <Setter Property="Background" Value="{Binding IsSourceActive, Converter={StaticResource BoolToHighlightBrushConverter}}" />
-                                        </Style>
-                                    </DataGrid.RowStyle>
-                                    <DataGrid.Columns>
-                                        <DataGridTemplateColumn Header="Physische Quelle" Width="220">
-                                            <DataGridTemplateColumn.CellTemplate>
-                                                <DataTemplate DataType="{x:Type vm:MappingRowViewModel}">
-                                                    <StackPanel Orientation="Horizontal">
-                                                        <Button Content="Erfassen" Command="{Binding CaptureCommand}" Padding="6,2" Margin="0,0,6,0" />
-                                                        <Button Content="Zuweisen" Click="OnAssignInputClicked" Padding="6,2" Margin="0,0,6,0"
-                                                                ToolTip="Physische Eingabe aus einer Liste auswaehlen, statt sie zu druecken/bewegen." />
-                                                        <TextBlock Text="{Binding SourceDisplayName}" VerticalAlignment="Center" />
-                                                        <TextBlock Text=" (nicht verbunden)" Foreground="Red" FontWeight="Bold" VerticalAlignment="Center"
-                                                                   Visibility="{Binding IsSourceConnected, Converter={StaticResource BoolToVisibilityConverter}, ConverterParameter=Invert}" />
-                                                        <TextBlock Text="{Binding CaptureCountdownSeconds, StringFormat=' (druecke Taste... noch {0}s)'}" Foreground="OrangeRed"
-                                                                   Visibility="{Binding IsCapturing, Converter={StaticResource BoolToVisibilityConverter}}" />
-                                                    </StackPanel>
-                                                </DataTemplate>
-                                            </DataGridTemplateColumn.CellTemplate>
-                                        </DataGridTemplateColumn>
+                                <!-- Mapping-Tabelle gruppiert nach Ziel-Typ (Button/Achse/Trigger/D-Pad): statt einer
+                                     einzigen flachen DataGrid (frueher x:Name="MappingsDataGrid") wird hier je
+                                     Ziel-Typ eine eigene Ueberschrift + DataGrid gerendert (siehe
+                                     ModeViewModel.MappingGroups/RebuildMappingGroups). Eine Gruppe erscheint
+                                     ausschliesslich, solange ihr mindestens eine Mapping-Zeile zugeordnet ist;
+                                     die Reihenfolge der Gruppen entspricht der Reihenfolge der "Ziel-Typ"-
+                                     ComboBox-Optionen (MappingRowViewModel.TargetKindOptions). Gruppen sind
+                                     bewusst nicht ein-/ausklappbar. Der aeussere ScrollViewer trägt weiterhin
+                                     den Namen "MappingsScrollViewer", damit der bestehende Workaround fuer
+                                     ComboBox-SelectionChanged (siehe MainWindow.xaml.cs) unveraendert an einem
+                                     Vorfahren aller (nun mehreren) DataGrids registriert werden kann - das
+                                     Bubbling des Selector.SelectionChangedEvent funktioniert dabei unabhaengig
+                                     von der Anzahl/Verschachtelung der dazwischenliegenden ItemsControls. -->
+                                <ScrollViewer x:Name="MappingsScrollViewer" VerticalScrollBarVisibility="Auto">
+                                    <StackPanel Orientation="Vertical">
+                                        <!-- Noch nicht zugewiesene Mapping-Zeilen (ModeViewModel.UnassignedMappings): frisch ueber
+                                             "+ Mapping-Zeile hinzufuegen" angelegte Zeilen, denen noch keine physische Quelle per
+                                             "Erfassen"/"Zuweisen" zugewiesen wurde. Werden bewusst OHNE Ueberschrift und AUSSERHALB
+                                             jeder Ziel-Typ-Gruppe ganz oben angezeigt, da sich eine solche Zeile noch nicht sinnvoll
+                                             nach Ziel-Typ einordnen laesst - vorher erschien hier stattdessen faelschlicherweise ein
+                                             bedeutungsloser Platzhalter wie "- Button 0 (nicht verbunden)" innerhalb der "Button"-
+                                             Gruppe. Der gesamte Bereich bleibt unsichtbar, solange keine derartige Zeile existiert. -->
+                                        <DataGrid ItemsSource="{Binding SelectedMode.UnassignedMappings, NotifyOnTargetUpdated=True}"
+                                                  AutoGenerateColumns="False" CanUserAddRows="False"
+                                                  EnableRowVirtualization="False" Margin="0,0,0,16"
+                                                  Binding.TargetUpdated="OnMappingsDataGridTargetUpdated"
+                                                  Visibility="{Binding SelectedMode.UnassignedMappings.Count, Converter={StaticResource CountToVisibilityConverter}}">
+                                            <DataGrid.RowStyle>
+                                                <Style TargetType="DataGridRow">
+                                                    <Setter Property="Background" Value="{Binding IsSourceActive, Converter={StaticResource BoolToHighlightBrushConverter}}" />
+                                                </Style>
+                                            </DataGrid.RowStyle>
+                                            <DataGrid.Columns>
+                                                <DataGridTemplateColumn Header="Physische Quelle" Width="220">
+                                                    <DataGridTemplateColumn.CellTemplate>
+                                                        <DataTemplate DataType="{x:Type vm:MappingRowViewModel}">
+                                                            <StackPanel Orientation="Horizontal">
+                                                                <Button Content="Erfassen" Command="{Binding CaptureCommand}" Padding="6,2" Margin="0,0,6,0" />
+                                                                <Button Content="Zuweisen" Click="OnAssignInputClicked" Padding="6,2" Margin="0,0,6,0"
+                                                                        ToolTip="Physische Eingabe aus einer Liste auswaehlen, statt sie zu druecken/bewegen." />
+                                                                <TextBlock Text="{Binding SourceDisplayName}" VerticalAlignment="Center" />
+                                                                <TextBlock Text=" (nicht verbunden)" Foreground="Red" FontWeight="Bold" VerticalAlignment="Center"
+                                                                           Visibility="{Binding IsSourceConnected, Converter={StaticResource BoolToVisibilityConverter}, ConverterParameter=Invert}" />
+                                                                <TextBlock Text="{Binding CaptureCountdownSeconds, StringFormat=' (druecke Taste... noch {0}s)'}" Foreground="OrangeRed"
+                                                                           Visibility="{Binding IsCapturing, Converter={StaticResource BoolToVisibilityConverter}}" />
+                                                            </StackPanel>
+                                                        </DataTemplate>
+                                                    </DataGridTemplateColumn.CellTemplate>
+                                                </DataGridTemplateColumn>
 
-                                        <DataGridTemplateColumn Header="Ziel-Typ" Width="110">
-                                            <DataGridTemplateColumn.CellTemplate>
-                                                <DataTemplate DataType="{x:Type vm:MappingRowViewModel}">
-                                                    <ComboBox ItemsSource="{x:Static vm:MappingRowViewModel.TargetKindOptions}"
-                                                              IsSynchronizedWithCurrentItem="False"
-                                                              SelectedItem="{Binding SelectedTargetKind}" />
-                                                </DataTemplate>
-                                            </DataGridTemplateColumn.CellTemplate>
-                                        </DataGridTemplateColumn>
+                                                <DataGridTemplateColumn Header="Ziel-Typ" Width="110">
+                                                    <DataGridTemplateColumn.CellTemplate>
+                                                        <DataTemplate DataType="{x:Type vm:MappingRowViewModel}">
+                                                            <ComboBox ItemsSource="{x:Static vm:MappingRowViewModel.TargetKindOptions}"
+                                                                      IsSynchronizedWithCurrentItem="False"
+                                                                      SelectedItem="{Binding SelectedTargetKind}" />
+                                                        </DataTemplate>
+                                                    </DataGridTemplateColumn.CellTemplate>
+                                                </DataGridTemplateColumn>
 
-                                        <DataGridTemplateColumn Header="Ziel-Wert" Width="150">
-                                            <DataGridTemplateColumn.CellTemplate>
-                                                <DataTemplate DataType="{x:Type vm:MappingRowViewModel}">
-                                                    <ComboBox ItemsSource="{Binding CurrentTargetOptions}"
-                                                              DisplayMemberPath="Label"
-                                                              SelectedValuePath="Value"
-                                                              IsSynchronizedWithCurrentItem="False"
-                                                              SelectedValue="{Binding SelectedTargetValue}" />
-                                                </DataTemplate>
-                                            </DataGridTemplateColumn.CellTemplate>
-                                        </DataGridTemplateColumn>
+                                                <DataGridTemplateColumn Header="Ziel-Wert" Width="150">
+                                                    <DataGridTemplateColumn.CellTemplate>
+                                                        <DataTemplate DataType="{x:Type vm:MappingRowViewModel}">
+                                                            <ComboBox ItemsSource="{Binding CurrentTargetOptions}"
+                                                                      DisplayMemberPath="Label"
+                                                                      SelectedValuePath="Value"
+                                                                      IsSynchronizedWithCurrentItem="False"
+                                                                      SelectedValue="{Binding SelectedTargetValue}" />
+                                                        </DataTemplate>
+                                                    </DataGridTemplateColumn.CellTemplate>
+                                                </DataGridTemplateColumn>
 
-                                        <DataGridTemplateColumn Header="Invertieren" Width="80">
-                                            <DataGridTemplateColumn.CellTemplate>
-                                                <DataTemplate DataType="{x:Type vm:MappingRowViewModel}">
-                                                    <CheckBox IsChecked="{Binding Invert}" HorizontalAlignment="Center"
-                                                              Visibility="{Binding IsAxisTarget, Converter={StaticResource BoolToVisibilityConverter}}" />
-                                                </DataTemplate>
-                                            </DataGridTemplateColumn.CellTemplate>
-                                        </DataGridTemplateColumn>
+                                                <DataGridTemplateColumn Header="Invertieren" Width="80">
+                                                    <DataGridTemplateColumn.CellTemplate>
+                                                        <DataTemplate DataType="{x:Type vm:MappingRowViewModel}">
+                                                            <CheckBox IsChecked="{Binding Invert}" HorizontalAlignment="Center"
+                                                                      Visibility="{Binding IsAxisTarget, Converter={StaticResource BoolToVisibilityConverter}}" />
+                                                        </DataTemplate>
+                                                    </DataGridTemplateColumn.CellTemplate>
+                                                </DataGridTemplateColumn>
 
-                                        <DataGridTemplateColumn Header="Nur diese Richtung" Width="80">
-                                            <DataGridTemplateColumn.CellTemplate>
-                                                <DataTemplate DataType="{x:Type vm:MappingRowViewModel}">
-                                                    <CheckBox IsChecked="{Binding DirectionalOnly}" HorizontalAlignment="Center"
-                                                              ToolTip="Nur die erfasste Achsenhaelfte (z.B. Y+) auf diese Ziel-Achse anwenden, statt der vollen Achse - ermoeglicht das Aufteilen zweier physischer Achsenhaelften auf unterschiedliche virtuelle Achsen."
-                                                              Visibility="{Binding IsAxisTarget, Converter={StaticResource BoolToVisibilityConverter}}" />
-                                                </DataTemplate>
-                                            </DataGridTemplateColumn.CellTemplate>
-                                        </DataGridTemplateColumn>
+                                                <DataGridTemplateColumn Header="Nur diese Richtung" Width="80">
+                                                    <DataGridTemplateColumn.CellTemplate>
+                                                        <DataTemplate DataType="{x:Type vm:MappingRowViewModel}">
+                                                            <CheckBox IsChecked="{Binding DirectionalOnly}" HorizontalAlignment="Center"
+                                                                      ToolTip="Nur die erfasste Achsenhaelfte (z.B. Y+) auf diese Ziel-Achse anwenden, statt der vollen Achse - ermoeglicht das Aufteilen zweier physischer Achsenhaelften auf unterschiedliche virtuelle Achsen."
+                                                                      Visibility="{Binding IsAxisTarget, Converter={StaticResource BoolToVisibilityConverter}}" />
+                                                        </DataTemplate>
+                                                    </DataGridTemplateColumn.CellTemplate>
+                                                </DataGridTemplateColumn>
 
-                                        <DataGridTemplateColumn Header="Deadzone" Width="90">
-                                            <DataGridTemplateColumn.CellTemplate>
-                                                <DataTemplate DataType="{x:Type vm:MappingRowViewModel}">
-                                                    <TextBox Text="{Binding DeadzoneText, UpdateSourceTrigger=PropertyChanged}"
-                                                             Visibility="{Binding IsAxisTarget, Converter={StaticResource BoolToVisibilityConverter}}" />
-                                                </DataTemplate>
-                                            </DataGridTemplateColumn.CellTemplate>
-                                        </DataGridTemplateColumn>
+                                                <DataGridTemplateColumn Header="Deadzone" Width="90">
+                                                    <DataGridTemplateColumn.CellTemplate>
+                                                        <DataTemplate DataType="{x:Type vm:MappingRowViewModel}">
+                                                            <TextBox Text="{Binding DeadzoneText, UpdateSourceTrigger=PropertyChanged}"
+                                                                     Visibility="{Binding IsAxisTarget, Converter={StaticResource BoolToVisibilityConverter}}" />
+                                                        </DataTemplate>
+                                                    </DataGridTemplateColumn.CellTemplate>
+                                                </DataGridTemplateColumn>
 
-                                        <DataGridTemplateColumn Header="" Width="90">
-                                            <DataGridTemplateColumn.CellTemplate>
-                                                <DataTemplate DataType="{x:Type vm:MappingRowViewModel}">
-                                                    <Button Content="Entfernen" Command="{Binding RemoveCommand}" Padding="6,2" />
-                                                </DataTemplate>
-                                            </DataGridTemplateColumn.CellTemplate>
-                                        </DataGridTemplateColumn>
-                                    </DataGrid.Columns>
-                                </DataGrid>
+                                                <DataGridTemplateColumn Header="" Width="90">
+                                                    <DataGridTemplateColumn.CellTemplate>
+                                                        <DataTemplate DataType="{x:Type vm:MappingRowViewModel}">
+                                                            <Button Content="Entfernen" Command="{Binding RemoveCommand}" Padding="6,2" />
+                                                        </DataTemplate>
+                                                    </DataGridTemplateColumn.CellTemplate>
+                                                </DataGridTemplateColumn>
+                                            </DataGrid.Columns>
+                                        </DataGrid>
+
+                                        <ItemsControl ItemsSource="{Binding SelectedMode.MappingGroups}">
+                                            <ItemsControl.ItemsPanel>
+                                                <ItemsPanelTemplate>
+                                                    <StackPanel Orientation="Vertical" />
+                                                </ItemsPanelTemplate>
+                                            </ItemsControl.ItemsPanel>
+                                            <ItemsControl.ItemTemplate>
+                                                <DataTemplate DataType="{x:Type vm:MappingGroupViewModel}">
+                                                    <StackPanel Margin="0,0,0,16">
+                                                        <TextBlock Text="{Binding Header}" FontWeight="Bold" FontSize="14" Margin="0,0,0,4" />
+
+                                                        <DataGrid ItemsSource="{Binding Rows, NotifyOnTargetUpdated=True}"
+                                                                  AutoGenerateColumns="False" CanUserAddRows="False"
+                                                                  EnableRowVirtualization="False"
+                                                                  Binding.TargetUpdated="OnMappingsDataGridTargetUpdated">
+                                                            <DataGrid.RowStyle>
+                                                                <!-- Live-Hervorhebung der Mapping-Zeile, waehrend ihre zugewiesene physische
+                                                                     Quelle gerade aktiv ist (Taste gedrueckt, Achse ausgeschlagen, D-Pad
+                                                                     gehalten) - identisches Verhalten wie in der Liste "Verfügbare Geräte"
+                                                                     (siehe PhysicalInputRowViewModel.IsActive), nur hier fuer die komplette
+                                                                 Zeile der Mapping-Tabelle statt fuer eine einzelne Eingabezeile. -->
+                                                            <Style TargetType="DataGridRow">
+                                                                <Setter Property="Background" Value="{Binding IsSourceActive, Converter={StaticResource BoolToHighlightBrushConverter}}" />
+                                                            </Style>
+                                                        </DataGrid.RowStyle>
+                                                        <DataGrid.Columns>
+                                                            <DataGridTemplateColumn Header="Physische Quelle" Width="220">
+                                                                <DataGridTemplateColumn.CellTemplate>
+                                                                    <DataTemplate DataType="{x:Type vm:MappingRowViewModel}">
+                                                                        <StackPanel Orientation="Horizontal">
+                                                                            <Button Content="Erfassen" Command="{Binding CaptureCommand}" Padding="6,2" Margin="0,0,6,0" />
+                                                                            <Button Content="Zuweisen" Click="OnAssignInputClicked" Padding="6,2" Margin="0,0,6,0"
+                                                                                    ToolTip="Physische Eingabe aus einer Liste auswaehlen, statt sie zu druecken/bewegen." />
+                                                                            <TextBlock Text="{Binding SourceDisplayName}" VerticalAlignment="Center" />
+                                                                            <TextBlock Text=" (nicht verbunden)" Foreground="Red" FontWeight="Bold" VerticalAlignment="Center"
+                                                                                       Visibility="{Binding IsSourceConnected, Converter={StaticResource BoolToVisibilityConverter}, ConverterParameter=Invert}" />
+                                                                            <TextBlock Text="{Binding CaptureCountdownSeconds, StringFormat=' (druecke Taste... noch {0}s)'}" Foreground="OrangeRed"
+                                                                                       Visibility="{Binding IsCapturing, Converter={StaticResource BoolToVisibilityConverter}}" />
+                                                                        </StackPanel>
+                                                                    </DataTemplate>
+                                                                </DataGridTemplateColumn.CellTemplate>
+                                                            </DataGridTemplateColumn>
+
+                                                            <DataGridTemplateColumn Header="Ziel-Typ" Width="110">
+                                                                <DataGridTemplateColumn.CellTemplate>
+                                                                    <DataTemplate DataType="{x:Type vm:MappingRowViewModel}">
+                                                                        <ComboBox ItemsSource="{x:Static vm:MappingRowViewModel.TargetKindOptions}"
+                                                                                  IsSynchronizedWithCurrentItem="False"
+                                                                                  SelectedItem="{Binding SelectedTargetKind}" />
+                                                                    </DataTemplate>
+                                                                </DataGridTemplateColumn.CellTemplate>
+                                                            </DataGridTemplateColumn>
+
+                                                            <DataGridTemplateColumn Header="Ziel-Wert" Width="150">
+                                                                <DataGridTemplateColumn.CellTemplate>
+                                                                    <DataTemplate DataType="{x:Type vm:MappingRowViewModel}">
+                                                                        <ComboBox ItemsSource="{Binding CurrentTargetOptions}"
+                                                                                  DisplayMemberPath="Label"
+                                                                                  SelectedValuePath="Value"
+                                                                                  IsSynchronizedWithCurrentItem="False"
+                                                                                  SelectedValue="{Binding SelectedTargetValue}" />
+                                                                    </DataTemplate>
+                                                                </DataGridTemplateColumn.CellTemplate>
+                                                            </DataGridTemplateColumn>
+
+                                                            <DataGridTemplateColumn Header="Invertieren" Width="80">
+                                                                <DataGridTemplateColumn.CellTemplate>
+                                                                    <DataTemplate DataType="{x:Type vm:MappingRowViewModel}">
+                                                                        <CheckBox IsChecked="{Binding Invert}" HorizontalAlignment="Center"
+                                                                                  Visibility="{Binding IsAxisTarget, Converter={StaticResource BoolToVisibilityConverter}}" />
+                                                                    </DataTemplate>
+                                                                </DataGridTemplateColumn.CellTemplate>
+                                                            </DataGridTemplateColumn>
+
+                                                            <DataGridTemplateColumn Header="Nur diese Richtung" Width="80">
+                                                                <DataGridTemplateColumn.CellTemplate>
+                                                                    <DataTemplate DataType="{x:Type vm:MappingRowViewModel}">
+                                                                        <CheckBox IsChecked="{Binding DirectionalOnly}" HorizontalAlignment="Center"
+                                                                                  ToolTip="Nur die erfasste Achsenhaelfte (z.B. Y+) auf diese Ziel-Achse anwenden, statt der vollen Achse - ermoeglicht das Aufteilen zweier physischer Achsenhaelften auf unterschiedliche virtuelle Achsen."
+                                                                                  Visibility="{Binding IsAxisTarget, Converter={StaticResource BoolToVisibilityConverter}}" />
+                                                                    </DataTemplate>
+                                                                </DataGridTemplateColumn.CellTemplate>
+                                                            </DataGridTemplateColumn>
+
+                                                            <DataGridTemplateColumn Header="Deadzone" Width="90">
+                                                                <DataGridTemplateColumn.CellTemplate>
+                                                                    <DataTemplate DataType="{x:Type vm:MappingRowViewModel}">
+                                                                        <TextBox Text="{Binding DeadzoneText, UpdateSourceTrigger=PropertyChanged}"
+                                                                                 Visibility="{Binding IsAxisTarget, Converter={StaticResource BoolToVisibilityConverter}}" />
+                                                                    </DataTemplate>
+                                                                </DataGridTemplateColumn.CellTemplate>
+                                                            </DataGridTemplateColumn>
+
+                                                            <DataGridTemplateColumn Header="" Width="90">
+                                                                <DataGridTemplateColumn.CellTemplate>
+                                                                    <DataTemplate DataType="{x:Type vm:MappingRowViewModel}">
+                                                                        <Button Content="Entfernen" Command="{Binding RemoveCommand}" Padding="6,2" />
+                                                                    </DataTemplate>
+                                                                </DataGridTemplateColumn.CellTemplate>
+                                                            </DataGridTemplateColumn>
+                                                        </DataGrid.Columns>
+                                                    </DataGrid>
+                                                </StackPanel>
+                                            </DataTemplate>
+                                        </ItemsControl.ItemTemplate>
+                                    </ItemsControl>
+                                </StackPanel>
+                            </ScrollViewer>
                             </DockPanel>
 
                             <!-- Rechte Spalte: vertikales Panel mit allen fuer diesen Controller verfuegbaren physischen Geraeten -->
