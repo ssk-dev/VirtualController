@@ -1,48 +1,126 @@
 using System.Text.Json;
-using System.Text.Json.Serialization;
 using VirtualController.Core.Devices;
 using VirtualController.Core.Mapping;
 
 namespace VirtualController.Core.Profiles;
 
 /// <summary>
-/// Speichert und laedt die komplette Konfiguration (alle virtuellen Controller + Mapping-Tabellen)
-/// als lesbare JSON-Datei, standardmaessig unter %AppData%\VirtualController\profiles.json.
-/// Save() schreibt atomar (ueber eine temporaere Datei + Replace), damit ein Absturz oder
-/// Stromausfall waehrend des Schreibens niemals eine bereits vorhandene, gueltige Profildatei
-/// beschaedigt.
+/// Speichert und laedt die komplette Konfiguration (alle virtuellen Controller + Mapping-Tabellen +
+/// Geraete-Einstellungen), aufgeteilt in mehrere, sprechend benannte Dateien statt einer einzigen
+/// profiles.json:
+/// <list type="bullet">
+/// <item><description>Ein virtueller Controller je Datei: "Controllers\controller-{name}.json"
+/// (siehe <see cref="ControllerStore"/>).</description></item>
+/// <item><description>Ein physisches Geraet je Datei: "Devices\device-{marke}-{name}.json"
+/// (siehe <see cref="DeviceSettingsStore"/>).</description></item>
+/// <item><description>Allgemeine Einstellungen in einer einzigen kleinen "settings.json"
+/// (siehe <see cref="SettingsStore"/>).</description></item>
+/// </list>
+/// Jede Einzeldatei wird von ihrem jeweiligen Teilspeicher weiterhin atomar geschrieben (siehe
+/// <see cref="AtomicJsonWriter"/>), damit ein Absturz oder Stromausfall waehrend des Schreibens niemals
+/// eine bereits vorhandene, gueltige Datei beschaedigt. Existiert noch eine alte, kombinierte
+/// profiles.json aus einer fruehen Version dieser App, wird sie beim ersten <see cref="Load"/> einmalig
+/// automatisch in dieses neue Format aufgeteilt (siehe <see cref="LoadLegacyAndMigrate"/>).
 /// </summary>
 public static class ProfileStore
 {
-    private static readonly JsonSerializerOptions SerializerOptions = BuildSerializerOptions();
+    /// <summary>Basisordner aller Profildateien, standardmaessig %AppData%\VirtualController. Ueber den
+    /// optionalen Parameter von <see cref="Load"/>/<see cref="Save"/> ueberschreibbar, z.B. fuer Tests.</summary>
+    public static string BaseDirectory =>
+        Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData), "VirtualController");
 
-    public static string DefaultFilePath =>
-        Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData),
-            "VirtualController", "profiles.json");
+    private static string ControllersDirectory(string baseDirectory) => Path.Combine(baseDirectory, "Controllers");
 
-    public static AppProfile Load(string? filePath = null)
+    private static string DevicesDirectory(string baseDirectory) => Path.Combine(baseDirectory, "Devices");
+
+    private static string SettingsFilePath(string baseDirectory) => Path.Combine(baseDirectory, "settings.json");
+
+    /// <summary>Pfad der alten, kombinierten Profildatei aus fruehen Versionen dieser App - wird nur noch
+    /// fuer die einmalige Migration nach dem Aufteilen in mehrere Dateien benoetigt (siehe
+    /// <see cref="LoadLegacyAndMigrate"/>).</summary>
+    private static string LegacyFilePath(string baseDirectory) => Path.Combine(baseDirectory, "profiles.json");
+
+    public static AppProfile Load(string? baseDirectory = null)
     {
-        var targetPath = filePath ?? DefaultFilePath;
+        var baseDir = baseDirectory ?? BaseDirectory;
+        var legacyPath = LegacyFilePath(baseDir);
 
-        if (!File.Exists(targetPath))
+        if (File.Exists(legacyPath) && !HasAnySplitFiles(baseDir))
         {
-            return new AppProfile();
+            return LoadLegacyAndMigrate(legacyPath, baseDir);
         }
 
-        var jsonBytes = File.ReadAllBytes(targetPath);
+        var profile = new AppProfile
+        {
+            Controllers = ControllerStore.LoadAll(ControllersDirectory(baseDir)),
+            DeviceSettings = DeviceSettingsStore.LoadAll(DevicesDirectory(baseDir))
+        };
+
+        var settings = SettingsStore.Load(SettingsFilePath(baseDir));
+        profile.AutoDeviceDetectionEnabled = settings.AutoDeviceDetectionEnabled;
+        profile.CustomInputNames = settings.CustomInputNames;
+
+        MigrateLegacyCustomInputNames(profile);
+
+        return profile;
+    }
+
+    /// <summary>Ob bereits mindestens eine der neuen, aufgeteilten Dateien existiert - dann gilt diese
+    /// Installation als bereits migriert und eine evtl. noch vorhandene alte profiles.json wird
+    /// ignoriert (verhindert, dass laengst geloeschte Controller/Geraete durch eine erneute Migration
+    /// wieder auftauchen).</summary>
+    private static bool HasAnySplitFiles(string baseDirectory)
+    {
+        var controllersDir = ControllersDirectory(baseDirectory);
+        if (Directory.Exists(controllersDir) && Directory.EnumerateFiles(controllersDir, "controller-*.json").Any())
+        {
+            return true;
+        }
+
+        var devicesDir = DevicesDirectory(baseDirectory);
+        if (Directory.Exists(devicesDir) && Directory.EnumerateFiles(devicesDir, "device-*.json").Any())
+        {
+            return true;
+        }
+
+        return File.Exists(SettingsFilePath(baseDirectory));
+    }
+
+    /// <summary>Liest eine alte, kombinierte profiles.json (inkl. aller bisherigen Legacy-Migrationen),
+    /// speichert das Ergebnis einmalig im neuen, aufgeteilten Format und benennt die alte Datei zu
+    /// "profiles.json.migrated" um (statt sie zu loeschen, als Sicherheitsnetz), damit sie beim naechsten
+    /// <see cref="Load"/> nicht erneut als Migrationsquelle erkannt wird.</summary>
+    private static AppProfile LoadLegacyAndMigrate(string legacyPath, string baseDirectory)
+    {
+        var jsonBytes = File.ReadAllBytes(legacyPath);
+        var legacyOptions = ProfileJsonOptions.Create();
 
         // Muss vor der typisierten Deserialisierung ausgewertet werden: aeltere Profile speicherten die
         // Mapping-Tabelle als flaches "Mappings"-Array direkt am Controller-Objekt - diese Eigenschaft
         // existiert seit Einfuehrung der Modi nicht mehr auf VirtualControllerProfile, wuerde also von
         // JsonSerializer.Deserialize<AppProfile> stillschweigend verworfen (unbekannte Property).
-        var legacyMappingsByControllerId = ExtractLegacyMappingsByControllerId(jsonBytes);
+        var legacyMappingsByControllerId = ExtractLegacyMappingsByControllerId(jsonBytes, legacyOptions);
 
-        var loaded = JsonSerializer.Deserialize<AppProfile>(jsonBytes, SerializerOptions);
+        var loaded = JsonSerializer.Deserialize<AppProfile>(jsonBytes, legacyOptions);
         var profile = loaded ?? new AppProfile();
 
         MigrateLegacyDPadMappings(legacyMappingsByControllerId);
         MigrateLegacyModes(profile, legacyMappingsByControllerId);
         MigrateLegacyCustomInputNames(profile);
+
+        Save(profile, baseDirectory);
+
+        var migratedPath = legacyPath + ".migrated";
+        try
+        {
+            File.Delete(migratedPath); // Falls von einem vorherigen, abgebrochenen Migrationsversuch uebrig.
+            File.Move(legacyPath, migratedPath);
+        }
+        catch (IOException)
+        {
+            // Umbenennen fehlgeschlagen (z.B. Datei gesperrt) -> unkritisch, HasAnySplitFiles verhindert
+            // beim naechsten Load ohnehin eine erneute Migration.
+        }
 
         return profile;
     }
@@ -53,7 +131,8 @@ public static class ProfileStore
     /// verloren geht. Liefert nur Eintraege fuer Controller, die tatsaechlich ein solches Legacy-Array
     /// besitzen (neuere Profile ohne dieses Feld liefern hier nichts).
     /// </summary>
-    private static Dictionary<Guid, List<MappingEntry>> ExtractLegacyMappingsByControllerId(byte[] jsonBytes)
+    private static Dictionary<Guid, List<MappingEntry>> ExtractLegacyMappingsByControllerId(
+        byte[] jsonBytes, JsonSerializerOptions options)
     {
         var result = new Dictionary<Guid, List<MappingEntry>>();
 
@@ -74,7 +153,7 @@ public static class ProfileStore
                 continue;
             }
 
-            var mappings = mappingsElement.Deserialize<List<MappingEntry>>(SerializerOptions);
+            var mappings = mappingsElement.Deserialize<List<MappingEntry>>(options);
             if (mappings is { Count: > 0 })
             {
                 result[controllerId] = mappings;
@@ -184,7 +263,7 @@ public static class ProfileStore
     {
         foreach (var (key, customName) in profile.CustomInputNames)
         {
-            if (!TryParseStorageKey(key, out var deviceId, out var kind, out var index))
+            if (!PhysicalInputCatalog.TryParseStorageKey(key, out var deviceId, out _, out _))
             {
                 continue; // Unerwartetes/fehlerhaftes Key-Format -> Eintrag einfach ignorieren statt zu werfen.
             }
@@ -205,67 +284,19 @@ public static class ProfileStore
         }
     }
 
-    /// <summary>Parst einen Storage-Key im Format "{DeviceId}|{PhysicalInputKind}|{Index}" (siehe
-    /// <see cref="PhysicalInputCatalog.BuildStorageKey"/>) zurueck in seine Bestandteile. Die letzten
-    /// zwei durch '|' getrennten Segmente muessen Kind bzw. Index sein, alle davor liegenden Segmente
-    /// werden wieder zur DeviceId zusammengefuegt (falls diese selbst jemals ein '|' enthalten sollte).</summary>
-    private static bool TryParseStorageKey(string key, out string deviceId, out PhysicalInputKind kind, out int index)
+    public static void Save(AppProfile profile, string? baseDirectory = null)
     {
-        deviceId = string.Empty;
-        kind = default;
-        index = 0;
+        var baseDir = baseDirectory ?? BaseDirectory;
 
-        var segments = key.Split('|');
-        if (segments.Length < 3)
-        {
-            return false;
-        }
-
-        if (!Enum.TryParse(segments[^2], out kind) || !int.TryParse(segments[^1], out index))
-        {
-            return false;
-        }
-
-        deviceId = string.Join('|', segments[..^2]);
-        return true;
-    }
-
-    public static void Save(AppProfile profile, string? filePath = null)
-    {
-        var targetPath = filePath ?? DefaultFilePath;
-        EnsureDirectoryExists(targetPath);
-
-        var tempPath = targetPath + ".tmp";
-
-        using (var writeStream = File.Create(tempPath))
-        {
-            JsonSerializer.Serialize(writeStream, profile, SerializerOptions);
-        }
-
-        if (File.Exists(targetPath))
-        {
-            File.Replace(tempPath, targetPath, destinationBackupFileName: null);
-        }
-        else
-        {
-            File.Move(tempPath, targetPath);
-        }
-    }
-
-    private static void EnsureDirectoryExists(string targetPath)
-    {
-        var directory = Path.GetDirectoryName(targetPath);
-        if (!string.IsNullOrEmpty(directory) && !Directory.Exists(directory))
-        {
-            Directory.CreateDirectory(directory);
-        }
-    }
-
-    private static JsonSerializerOptions BuildSerializerOptions()
-    {
-        var options = new JsonSerializerOptions { WriteIndented = true };
-        options.Converters.Add(new JsonStringEnumConverter());
-        return options;
+        ControllerStore.SaveAll(profile.Controllers, ControllersDirectory(baseDir));
+        DeviceSettingsStore.SaveAll(profile.DeviceSettings, DevicesDirectory(baseDir));
+        SettingsStore.Save(
+            new AppSettings
+            {
+                AutoDeviceDetectionEnabled = profile.AutoDeviceDetectionEnabled,
+                CustomInputNames = profile.CustomInputNames
+            },
+            SettingsFilePath(baseDir));
     }
 }
 

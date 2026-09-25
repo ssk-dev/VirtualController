@@ -92,4 +92,32 @@ public static class PhysicalInputCatalog
     /// (siehe <see cref="DeviceSettings.StickNames"/>), identifiziert ueber den Achsen-Index der X-Achse
     /// dieses Sticks - eindeutig innerhalb eines Geraets, da jede Achse nur einem Stick zugeordnet sein kann.</summary>
     public static string BuildStickStorageKey(int xAxisIndex) => $"stick:{xAxisIndex}";
+
+    /// <summary>Parst einen Storage-Key im Format "{DeviceId}|{PhysicalInputKind}|{Index}" (siehe
+    /// <see cref="BuildStorageKey"/>) zurueck in seine Bestandteile. Die letzten zwei durch '|' getrennten
+    /// Segmente muessen Kind bzw. Index sein, alle davor liegenden Segmente werden wieder zur DeviceId
+    /// zusammengefuegt (falls diese selbst jemals ein '|' enthalten sollte). Zentral hier statt in
+    /// <see cref="Profiles.ProfileStore"/> definiert, damit auch <see cref="InputSettingsDictionaryConverter"/>
+    /// beim Serialisieren anhand des Keys entscheiden kann, ob eine Eingabe analoge Einstellungen
+    /// (Kalibrierung/Deadzone/Kurve) ueberhaupt unterstuetzt.</summary>
+    public static bool TryParseStorageKey(string key, out string deviceId, out PhysicalInputKind kind, out int index)
+    {
+        deviceId = string.Empty;
+        kind = default;
+        index = 0;
+
+        var segments = key.Split('|');
+        if (segments.Length < 3)
+        {
+            return false;
+        }
+
+        if (!Enum.TryParse(segments[^2], out kind) || !int.TryParse(segments[^1], out index))
+        {
+            return false;
+        }
+
+        deviceId = string.Join('|', segments[..^2]);
+        return true;
+    }
 }
