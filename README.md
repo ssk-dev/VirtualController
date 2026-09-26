@@ -1,3 +1,15 @@
+[![OS](https://img.shields.io/badge/OS-Windows%2010%20%7C%20Windows%2011-0078D6?logo=windows)](https://www.microsoft.com/windows)
+[![ARCH](https://img.shields.io/badge/ARCH-x64-555555)](https://en.wikipedia.org/wiki/X86-64)
+[![Version](https://img.shields.io/github/v/release/ssk-dev/VirtualController?label=Version&color=green)](https://github.com/ssk-dev/VirtualController/releases/latest)
+[![Downloads](https://img.shields.io/github/downloads/ssk-dev/VirtualController/total?label=Downloads)](https://github.com/ssk-dev/VirtualController/releases)
+
+[![Build](https://img.shields.io/github/actions/workflow/status/ssk-dev/VirtualController/release.yaml?label=Build)](https://github.com/ssk-dev/VirtualController/actions/workflows/release.yaml)
+[![License](https://img.shields.io/github/license/ssk-dev/VirtualController?label=License)](https://github.com/ssk-dev/VirtualController/blob/main/LICENSE)
+![GitHub License](https://img.shields.io/github/license/ssk-dev/VirtualController)
+
+![Discord](https://img.shields.io/discord/:serverId)
+
+
 # Virtual Controller
 
 Windows-Tool zum Erstellen mehrerer virtueller Gamecontroller (Xbox 360 / DualShock 4 als
