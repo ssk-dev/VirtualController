@@ -1,16 +1,18 @@
-[![OS](https://img.shields.io/badge/OS-Windows%2010%20%7C%20Windows%2011-0078D6?logo=windows)](https://www.microsoft.com/windows)
-[![ARCH](https://img.shields.io/badge/ARCH-x64-555555)](https://en.wikipedia.org/wiki/X86-64)
-[![Version](https://img.shields.io/github/v/release/ssk-dev/VirtualController?label=Version&color=green)](https://github.com/ssk-dev/VirtualController/releases/latest)
-[![Downloads](https://img.shields.io/github/downloads/ssk-dev/VirtualController/total?label=Downloads)](https://github.com/ssk-dev/VirtualController/releases)
+[![Windows](https://img.shields.io/badge/Windows-10%20%7C%2011-0078D6?logo=windows&logoColor=white)](https://www.microsoft.com/windows)
+[![Architecture](https://img.shields.io/badge/Architecture-x64-555555?logo=cpu&logoColor=white)](https://en.wikipedia.org/wiki/X86-64)
+[![.NET](https://img.shields.io/badge/.NET-8.0-512BD4?logo=dotnet&logoColor=white)](https://dotnet.microsoft.com/)
+[![WPF](https://img.shields.io/badge/UI-WPF-512BD4?logo=windows&logoColor=white)](https://learn.microsoft.com/dotnet/desktop/wpf/)
 
-[![Build](https://img.shields.io/github/actions/workflow/status/ssk-dev/VirtualController/release.yaml?label=Build)](https://github.com/ssk-dev/VirtualController/actions/workflows/release.yaml)
-[![License](https://img.shields.io/github/license/ssk-dev/VirtualController?label=License)](https://github.com/ssk-dev/VirtualController/blob/main/LICENSE)
-![GitHub License](https://img.shields.io/github/license/ssk-dev/VirtualController)
+![Status](https://img.shields.io/badge/Status-Alpha%20Development-yellow)
+[![Version](https://img.shields.io/github/v/release/ssk-dev/VirtualController?label=Version&logo=github&logoColor=white)](https://github.com/ssk-dev/VirtualController/releases/latest)
+[![Build](https://img.shields.io/github/actions/workflow/status/ssk-dev/VirtualController/release.yaml?label=Build&logo=githubactions&logoColor=white)](https://github.com/ssk-dev/VirtualController/actions/workflows/release.yaml)
+[![License](https://img.shields.io/github/license/ssk-dev/VirtualController?label=License&logo=opensourceinitiative&logoColor=white)](https://github.com/ssk-dev/VirtualController/blob/main/LICENSE)
+[![Downloads](https://img.shields.io/github/downloads/ssk-dev/VirtualController/total?label=Downloads&logo=github&logoColor=white)](https://github.com/ssk-dev/VirtualController/releases)
 
-![Discord](https://img.shields.io/discord/:serverId)
-
+[![Discord](https://img.shields.io/badge/Discord-Join%20our%20server-5865F2?logo=discord&logoColor=white)](DEIN-DISCORD-INVITE)
 
 # Virtual Controller
+
 
 Windows-Tool zum Erstellen mehrerer virtueller Gamecontroller (Xbox 360 / DualShock 4 als
 Windows-Backend, "Nintendo"-Layout ist rein kosmetisch), auf die beliebige angeschlossene
