@@ -3,6 +3,7 @@
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         xmlns:vm="clr-namespace:VirtualController.App.ViewModels"
         Title="Virtual Controller" Height="720" Width="1100"
+        Icon="pack://application:,,,/Icons/VirtualController.ico"
         Closing="MainWindow_OnClosing">
 
     <DockPanel>

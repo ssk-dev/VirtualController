@@ -8,6 +8,8 @@
     <UseWindowsForms>true</UseWindowsForms>
     <RootNamespace>VirtualController.App</RootNamespace>
     <AssemblyName>VirtualController</AssemblyName>
+    <!-- Programm-Icon fuer die erzeugte EXE (Explorer, Taskleiste, Fenstertitel, Alt+Tab) -->
+    <ApplicationIcon>..\..\assets\VirtualController.ico</ApplicationIcon>
   </PropertyGroup>
 
   <!--
@@ -25,6 +27,14 @@
 
   <ItemGroup>
     <ProjectReference Include="..\VirtualController.Core\VirtualController.Core.csproj" />
+  </ItemGroup>
+
+  <!-- Icon zusaetzlich als eingebettete WPF-Resource verfuegbar machen, damit einzelne Fenster (siehe
+       Window.Icon-Bindungen in den .xaml-Dateien) es per pack://application:,,,/ referenzieren koennen -
+       die ApplicationIcon-Eigenschaft oben setzt nur das Icon-Resource der EXE-Datei selbst (Explorer/
+       Taskleiste), nicht zwangslaeufig das Titelleisten-Icon jedes einzelnen WPF-Fensters. -->
+  <ItemGroup>
+    <Resource Include="..\..\assets\VirtualController.ico" Link="Icons\VirtualController.ico" />
   </ItemGroup>
 
   <ItemGroup>

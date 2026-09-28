@@ -87,9 +87,23 @@ public sealed partial class BenchmarkWindowViewModel : ObservableObject, IDispos
     [ObservableProperty]
     private long _totalReportCount;
 
+    /// <summary>True, wenn mehr als ein HID-Interface mit passender Vendor-/Product-ID gefunden wurde
+    /// (siehe <see cref="HidCandidates"/>) - deutet auf ein Composite-Geraet hin, bei dem die Sitzung
+    /// versehentlich ein falsches (kein Reports liefernde) Interface geoeffnet haben könnte, falls trotz
+    /// Aktivitaet am Geraet <see cref="PollingSampleCount"/> bei 0 bleibt.</summary>
+    [ObservableProperty]
+    private bool _hasMultipleHidCandidates;
+
     /// <summary>Je Achse ein Eintrag mit den aktuell gemessenen Signal-Kennzahlen (siehe <see cref="SignalAxisResult"/>) -
     /// leer, falls das Geraet keine erkannten Achsen hat oder noch keine Sitzung lief.</summary>
     public ObservableCollection<SignalAxisResult> SignalAxes { get; } = new();
+
+    /// <summary>Alle bei der Sitzungserstellung gefundenen HID-Interfaces mit passender Vendor-/Product-ID
+    /// (siehe <see cref="BenchmarkDiagnosticsInfo"/>) - fuer die Fehlersuche sichtbar gemacht, falls eine
+    /// Sitzung trotz erfolgreich geoeffneter Report-Quelle durchgehend 0 Messwerte liefert: mehr als ein
+    /// Eintrag deutet auf ein Composite-Geraet hin, bei dem ggf. das falsche Interface geoeffnet wurde
+    /// (markiert per <see cref="BenchmarkHidCandidateInfo.IsResolved"/>).</summary>
+    public ObservableCollection<BenchmarkHidCandidateInfo> HidCandidates { get; } = new();
 
     public BenchmarkWindowViewModel(DeviceConfigDeviceViewModel device)
     {
@@ -172,6 +186,13 @@ public sealed partial class BenchmarkWindowViewModel : ObservableObject, IDispos
         {
             SignalAxes.Add(axis);
         }
+
+        HidCandidates.Clear();
+        foreach (var candidate in snapshot.Diagnostics.Candidates)
+        {
+            HidCandidates.Add(candidate);
+        }
+        HasMultipleHidCandidates = snapshot.Diagnostics.Candidates.Count > 1;
     }
 
     public void Dispose()

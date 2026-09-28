@@ -3,7 +3,9 @@
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         xmlns:vm="clr-namespace:VirtualController.App.ViewModels"
         xmlns:metrics="clr-namespace:VirtualController.Core.Benchmark.Metrics;assembly=VirtualController.Core"
+        xmlns:benchmark="clr-namespace:VirtualController.Core.Benchmark;assembly=VirtualController.Core"
         Title="{Binding Device.DisplayName, StringFormat='Benchmark - {0}'}"
+        Icon="pack://application:,,,/Icons/VirtualController.ico"
         Height="520" Width="480"
         WindowStartupLocation="CenterOwner">
 
@@ -102,6 +104,32 @@
                                                Visibility="{Binding NoiseSupported, Converter={StaticResource BoolToVisibilityConverter}, ConverterParameter=Invert}" />
                                     <TextBlock Text="{Binding DeadzonePercentOfRange, StringFormat='Geschaetzte Totzone: {0:P1} des Wertebereichs'}"
                                                Visibility="{Binding DeadzoneSupported, Converter={StaticResource BoolToVisibilityConverter}}" />
+                                </StackPanel>
+                            </Border>
+                        </DataTemplate>
+                    </ItemsControl.ItemTemplate>
+                </ItemsControl>
+
+                <!-- HID-Diagnose: alle bei der Sitzungserstellung gefundenen HID-Interfaces mit passender
+                     Vendor-/Product-ID (siehe BenchmarkDiagnosticsInfo). Mehr als ein Eintrag ist der
+                     wahrscheinlichste Grund dafuer, dass eine Sitzung trotz erfolgreich geoeffneter
+                     Report-Quelle durchgehend 0 Messwerte liefert (Composite-Geraet, falsches Interface
+                     geoeffnet) - siehe BenchmarkWindowViewModel.HasMultipleHidCandidates. -->
+                <TextBlock Text="HID-Diagnose" FontWeight="Bold" Margin="0,0,0,4" />
+                <Border Margin="0,0,0,6" Padding="6" Background="#FFF3CD" BorderBrush="#FFECB5" BorderThickness="1"
+                        Visibility="{Binding HasMultipleHidCandidates, Converter={StaticResource BoolToVisibilityConverter}}">
+                    <TextBlock TextWrapping="Wrap" Foreground="#856404"
+                               Text="Mehrere HID-Interfaces mit derselben Vendor-/Product-ID gefunden. Falls trotz Aktivitaet am Geraet keine Messwerte eintreffen, wurde vermutlich das falsche Interface geoeffnet (siehe markierten Eintrag unten)." />
+                </Border>
+                <ItemsControl ItemsSource="{Binding HidCandidates}" Margin="0,0,0,12">
+                    <ItemsControl.ItemTemplate>
+                        <DataTemplate DataType="{x:Type benchmark:BenchmarkHidCandidateInfo}">
+                            <Border BorderBrush="#DDD" BorderThickness="1" Padding="6" Margin="0,0,0,6">
+                                <StackPanel>
+                                    <TextBlock Text="{Binding DevicePath}" TextWrapping="Wrap" FontFamily="Consolas" FontSize="11" />
+                                    <TextBlock Text="{Binding MaxInputReportLength, StringFormat='Max. Input-Report-Laenge: {0} Byte'}" Foreground="#666" />
+                                    <TextBlock Text="Verwendet fuer diese Sitzung" FontWeight="SemiBold" Foreground="#2E7D32"
+                                               Visibility="{Binding IsResolved, Converter={StaticResource BoolToVisibilityConverter}}" />
                                 </StackPanel>
                             </Border>
                         </DataTemplate>

@@ -4,6 +4,7 @@
         xmlns:vm="clr-namespace:VirtualController.App.ViewModels"
         xmlns:controls="clr-namespace:VirtualController.App.Views.Controls"
         Title="Geraete konfigurieren" Height="560" Width="520"
+        Icon="pack://application:,,,/Icons/VirtualController.ico"
         WindowStartupLocation="CenterOwner">
 
     <Window.Resources>

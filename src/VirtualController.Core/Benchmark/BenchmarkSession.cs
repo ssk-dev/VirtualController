@@ -29,6 +29,7 @@ public sealed class BenchmarkSession : IDisposable
 {
     private readonly PhysicalDeviceInfo _device;
     private readonly HidDeviceInfo _hidInfo;
+    private readonly IReadOnlyList<HidDeviceInfo> _hidCandidates;
     private readonly UsbConnectionInfo? _usbInfo;
     private readonly RawHidReportReader _reader;
     private readonly HidAxisReportParser? _axisParser;
@@ -58,11 +59,12 @@ public sealed class BenchmarkSession : IDisposable
     /// <summary>Ob die Sitzung aktuell laeuft - siehe <see cref="RawHidReportReader.IsRunning"/>.</summary>
     public bool IsRunning => _reader.IsRunning;
 
-    private BenchmarkSession(PhysicalDeviceInfo device, HidDeviceInfo hidInfo, UsbConnectionInfo? usbInfo,
-        RawHidReportReader reader, HidAxisReportParser? axisParser)
+    private BenchmarkSession(PhysicalDeviceInfo device, HidDeviceInfo hidInfo, IReadOnlyList<HidDeviceInfo> hidCandidates,
+        UsbConnectionInfo? usbInfo, RawHidReportReader reader, HidAxisReportParser? axisParser)
     {
         _device = device;
         _hidInfo = hidInfo;
+        _hidCandidates = hidCandidates;
         _usbInfo = usbInfo;
         _reader = reader;
         _axisParser = axisParser;
@@ -80,10 +82,21 @@ public sealed class BenchmarkSession : IDisposable
     /// Loest anhand von <see cref="PhysicalDeviceInfo.VendorId"/>/<see cref="PhysicalDeviceInfo.ProductId"/>
     /// das zugehoerige HID-Geraet auf und oeffnet dessen Report-Quelle - siehe Klassendokumentation fuer die
     /// Faelle, in denen dies fehlschlaegt (kein HID-Geraet, keine VID/PID bekannt, Geraet bereits exklusiv
-    /// geoeffnet). Bei mehreren gleichzeitig angeschlossenen, identischen Geraeten (gleiche VID/PID) wird -
-    /// wie bei <see cref="HidDeviceInfoReader.TryResolve"/> dokumentiert - bewusst das erste gefundene
-    /// verwendet, da <see cref="PhysicalDeviceInfo"/> aktuell keine Seriennummer fuehrt, ueber die sich
-    /// eindeutig disambiguieren liesse.
+    /// geoeffnet).
+    ///
+    /// Bei mehreren HID-Interfaces desselben Composite-Geraets (gleiche VID/PID, z.B. Saitek X-56 Rhino
+    /// Stick mit getrennten Interfaces fuer Joystick-Input und Vendor-/Firmware-Funktionen) wird NICHT
+    /// mehr blind das erste gefundene Interface verwendet (das kann - wie bei diesem Geraet beobachtet -
+    /// ein Nicht-Input-Interface ohne jegliche Achsen sein, was zu einer Sitzung mit durchgehend 0
+    /// Messwerten fuehrt). Stattdessen wird jeder Kandidat per <see cref="HidAxisReportParser"/> auf
+    /// deklarierte Generic-Desktop-Achsen (siehe <see cref="HidAxisUsage"/>) geprueft und bevorzugt der
+    /// erste Kandidat mit mindestens einer Achse gewaehlt - dies ist ein zuverlaessiges Signal fuer das
+    /// tatsaechliche Eingabe-Interface eines Joysticks/Gamepads. Deklariert KEIN Kandidat irgendeine Achse
+    /// (z.B. bei einem reinen Tastatur-/Button-Geraet ohne Achsen), wird auf das bisherige Verhalten
+    /// (erster gefundener Kandidat) zurueckgefallen, da <see cref="PhysicalDeviceInfo"/> aktuell keine
+    /// Seriennummer fuehrt, ueber die sich in diesem Fall eindeutig disambiguieren liesse. Alle gefundenen
+    /// Kandidaten werden unabhaengig von der Auswahl fuer die Fehlersuche im Ergebnis mitgefuehrt (siehe
+    /// <see cref="BenchmarkDiagnosticsInfo"/>).
     /// </summary>
     public static BenchmarkSession? TryCreate(PhysicalDeviceInfo device)
     {
@@ -92,10 +105,24 @@ public sealed class BenchmarkSession : IDisposable
             return null;
         }
 
-        var hidInfo = HidDeviceInfoReader.TryResolve(vendorId, productId);
-        if (hidInfo is null)
+        var hidCandidates = HidDeviceInfoReader.TryResolveAll(vendorId, productId);
+        if (hidCandidates.Count == 0)
         {
             return null;
+        }
+
+        var hidInfo = hidCandidates[0];
+        HidAxisReportParser? axisParser = null;
+
+        foreach (var candidate in hidCandidates)
+        {
+            var candidateAxisParser = HidAxisReportParser.TryCreate(candidate.DevicePath);
+            if (candidateAxisParser is { AvailableAxes.Count: > 0 })
+            {
+                hidInfo = candidate;
+                axisParser = candidateAxisParser;
+                break;
+            }
         }
 
         var source = HidDeviceInfoReader.TryOpenReportSource(hidInfo.DevicePath);
@@ -105,10 +132,10 @@ public sealed class BenchmarkSession : IDisposable
         }
 
         var usbInfo = UsbTopologyResolver.TryResolve(hidInfo);
-        var axisParser = HidAxisReportParser.TryCreate(hidInfo.DevicePath);
+        axisParser ??= HidAxisReportParser.TryCreate(hidInfo.DevicePath);
         var reader = new RawHidReportReader(source);
 
-        return new BenchmarkSession(device, hidInfo, usbInfo, reader, axisParser);
+        return new BenchmarkSession(device, hidInfo, hidCandidates, usbInfo, reader, axisParser);
     }
 
     public void Start()
@@ -191,8 +218,18 @@ public sealed class BenchmarkSession : IDisposable
             signal = _signalMetrics?.ComputeResult().Values.ToList() ?? new List<SignalAxisResult>();
         }
 
+        var diagnostics = new BenchmarkDiagnosticsInfo(
+            Candidates: _hidCandidates
+                .Select(c => new BenchmarkHidCandidateInfo(
+                    DevicePath: c.DevicePath,
+                    MaxInputReportLength: c.MaxInputReportLength,
+                    MaxOutputReportLength: c.MaxOutputReportLength,
+                    MaxFeatureReportLength: c.MaxFeatureReportLength,
+                    IsResolved: c.DevicePath == _hidInfo.DevicePath))
+                .ToList());
+
         return new BenchmarkResult(
-            SchemaVersion: 1,
+            SchemaVersion: 2,
             GeneratedAtUtc: DateTime.UtcNow,
             DurationSeconds: _durationStopwatch.Elapsed.TotalSeconds,
             Identification: identification,
@@ -201,7 +238,8 @@ public sealed class BenchmarkSession : IDisposable
             Latency: latency,
             Reliability: reliability,
             Signal: signal,
-            Environment: environment);
+            Environment: environment,
+            Diagnostics: diagnostics);
     }
 
     /// <summary>Liefert eine Momentaufnahme des bisherigen Ergebnisses, WAEHREND die Sitzung noch laeuft -

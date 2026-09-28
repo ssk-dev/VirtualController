@@ -24,7 +24,13 @@ public partial class App : Application
 
         _trayIcon = new NotifyIcon
         {
-            Icon = System.Drawing.SystemIcons.Application,
+            // Verwendet dasselbe Icon wie die EXE selbst (siehe ApplicationIcon in
+            // VirtualController.App.csproj) statt des generischen Windows-Standardsymbols - so zeigen
+            // Taskleiste, Alt+Tab UND das Tray-Icon einheitlich das App-Logo. ExtractAssociatedIcon liest
+            // das bereits in die EXE eingebettete Icon direkt aus der laufenden Datei, ohne dass eine
+            // separate .ico-Datei mit ausgeliefert werden muss.
+            Icon = System.Drawing.Icon.ExtractAssociatedIcon(System.Windows.Forms.Application.ExecutablePath)
+                ?? System.Drawing.SystemIcons.Application,
             Visible = true,
             Text = "Virtual Controller"
         };
