@@ -160,14 +160,14 @@ public static class DeviceEnumerator
         // HID-Usage-IDs der "Generic Desktop"-Page sind - im Gegensatz zum von DirectInput vor
         // SetDataFormat() nicht-deterministisch (gepackt nach interner Enumerationsreihenfolge)
         // vergebenen Offset - fest und herstellerunabhaengig: 0x30=X, 0x31=Y, 0x32=Z, 0x33=RotationX,
-        // 0x34=RotationY, 0x35=RotationZ, 0x36=Slider. Ein reiner Offset-Abgleich schlaegt bei
-        // Geraeten mit Luecken im Achsen-Layout (z.B. RzAxis + Slider, aber kein RxAxis/RyAxis)
-        // fehl, weil DirectInput die vorhandenen Achsen-Objekte dann lueckenlos ab Offset 0 packt -
-        // das fuehrt zu einer falschen Zuordnung (z.B. RzAxis wird faelschlich als RotationX
-        // erkannt), wodurch der eigentlich bewegte Wert nie ausgelesen wird, waehrend der falsch
-        // zugeordnete Slot (RotationX/RotationY) mangels Treiber-Daten dauerhaft bei Rohwert 0
+        // 0x34=RotationY, 0x35=RotationZ, 0x36=Slider, 0x37=Dial, 0x38=Wheel. Ein reiner Offset-Abgleich
+        // schlaegt bei Geraeten mit Luecken im Achsen-Layout (z.B. RzAxis + Slider, aber kein
+        // RxAxis/RyAxis) fehl, weil DirectInput die vorhandenen Achsen-Objekte dann lueckenlos ab
+        // Offset 0 packt - das fuehrt zu einer falschen Zuordnung (z.B. RzAxis wird faelschlich als
+        // RotationX erkannt), wodurch der eigentlich bewegte Wert nie ausgelesen wird, waehrend der
+        // falsch zugeordnete Slot (RotationX/RotationY) mangels Treiber-Daten dauerhaft bei Rohwert 0
         // (normalisiert -1.0) verbleibt.
-        var usageToAxis = new Dictionary<int, PhysicalAxisId>
+        var primaryAxisUsages = new Dictionary<int, PhysicalAxisId>
         {
             [0x30] = PhysicalAxisId.X,
             [0x31] = PhysicalAxisId.Y,
@@ -175,26 +175,36 @@ public static class DeviceEnumerator
             [0x33] = PhysicalAxisId.RotationX,
             [0x34] = PhysicalAxisId.RotationY,
             [0x35] = PhysicalAxisId.RotationZ,
-            [0x36] = PhysicalAxisId.Slider0,
         };
+
+        // DirectInput bildet JEDE zusaetzliche Analog-Achse jenseits der primaeren sechs (X/Y/Z/
+        // RotationX/Y/Z) positionsbasiert auf genau zwei generische "Slider"-Slots im
+        // DIJOYSTATE2.lSlider[]-Array ab - UNABHAENGIG von der konkreten HID-Usage-ID (0x36=Slider,
+        // 0x37=Dial, 0x38=Wheel). Manche Geraete (z.B. die Rotationsregler des Saitek X-56 Rhino
+        // Throttle) deklarieren ihre zweite Zusatzachse als Dial statt als zweiten Slider - ein reiner
+        // Abgleich auf 0x36 wuerde diese Achse dann faelschlich komplett ignorieren, obwohl
+        // DirectInput ihren Rohwert bereits zuverlaessig in Sliders[1] liefert (siehe
+        // <see cref="DirectInputDeviceReader.Poll"/>, das Slider0/Slider1 bereits generisch daraus liest).
+        var extraAxisUsages = new HashSet<int> { 0x36, 0x37, 0x38 };
 
         var axes = new List<PhysicalAxisId>();
         bool slider0Assigned = false;
         foreach (var objectInfo in device.GetObjects(DeviceObjectTypeFlags.Axis))
         {
-            if (!usageToAxis.TryGetValue(objectInfo.Usage, out var axisId))
+            PhysicalAxisId axisId;
+            if (primaryAxisUsages.TryGetValue(objectInfo.Usage, out axisId))
+            {
+                // Primaerachse - direkt uebernehmen, keine Slider0/1-Zuordnung noetig.
+            }
+            else if (extraAxisUsages.Contains(objectInfo.Usage))
+            {
+                // Erste gefundene Zusatzachse (egal welcher Usage) -> Slider0, zweite -> Slider1.
+                axisId = slider0Assigned ? PhysicalAxisId.Slider1 : PhysicalAxisId.Slider0;
+                slider0Assigned = true;
+            }
+            else
             {
                 continue;
-            }
-
-            // Zweiten Slider (falls vorhanden) auf Slider1 statt erneut Slider0 mappen.
-            if (axisId == PhysicalAxisId.Slider0 && slider0Assigned)
-            {
-                axisId = PhysicalAxisId.Slider1;
-            }
-            else if (axisId == PhysicalAxisId.Slider0)
-            {
-                slider0Assigned = true;
             }
 
             if (!axes.Contains(axisId))
