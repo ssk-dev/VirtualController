@@ -43,6 +43,28 @@ public partial class MainWindow : Window
         MappingsScrollViewer.AddHandler(Selector.SelectionChangedEvent, new System.Windows.Controls.SelectionChangedEventHandler(OnAnyComboBoxSelectionChanged), true);
     }
 
+    private void OnMappingsScrollViewerPreviewMouseWheel(object sender, System.Windows.Input.MouseWheelEventArgs e)
+    {
+        // Fix fuer den Bug "Mapping-Tabelle laesst sich mit dem Mausrad nicht scrollen, wenn sich der
+        // Mauszeiger ueber einer DataGrid-Zeile innerhalb der Tabelle befindet": WPFs DataGrid besitzt
+        // (als Teil seines Standard-Steuerelement-Templates) einen eigenen internen ScrollViewer, der
+        // das MouseWheel-Ereignis IMMER als Handled markiert, sobald sich der Mauszeiger ueber einer
+        // Zeile befindet - unabhaengig davon, ob dieser innere DataGrid ueberhaupt scrollen muesste.
+        // Dadurch bubbelt das Ereignis niemals bis zu diesem aeusseren ScrollViewer hoch. Da
+        // PreviewMouseWheel jedoch ein Tunneling-Event ist, erreicht es diesen aeusseren ScrollViewer
+        // bereits VOR dem inneren DataGrid-ScrollViewer. Hier wird daher manuell um das Mausrad-Delta
+        // gescrollt und das Ereignis als Handled markiert, sodass das eigentliche (fehlerhafte)
+        // Scroll-Verhalten des inneren DataGrid komplett uebersprungen wird und ausschliesslich dieser
+        // aeussere ScrollViewer scrollt.
+        if (sender is not System.Windows.Controls.ScrollViewer scrollViewer)
+        {
+            return;
+        }
+
+        scrollViewer.ScrollToVerticalOffset(scrollViewer.VerticalOffset - e.Delta);
+        e.Handled = true;
+    }
+
     private void OnAnyComboBoxSelectionChanged(object sender, System.Windows.Controls.SelectionChangedEventArgs e)
     {
         // Fix fuer den Bug "Ziel-Typ/Ziel-Wert wird nicht uebernommen bzw. faellt auf den alten

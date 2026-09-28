@@ -242,7 +242,8 @@
                                      Vorfahren aller (nun mehreren) DataGrids registriert werden kann - das
                                      Bubbling des Selector.SelectionChangedEvent funktioniert dabei unabhaengig
                                      von der Anzahl/Verschachtelung der dazwischenliegenden ItemsControls. -->
-                                <ScrollViewer x:Name="MappingsScrollViewer" VerticalScrollBarVisibility="Auto">
+                                <ScrollViewer x:Name="MappingsScrollViewer" VerticalScrollBarVisibility="Auto"
+                                              PreviewMouseWheel="OnMappingsScrollViewerPreviewMouseWheel">
                                     <StackPanel Orientation="Vertical">
                                         <!-- Noch nicht zugewiesene Mapping-Zeilen (ModeViewModel.UnassignedMappings): frisch ueber
                                              "+ Mapping-Zeile hinzufuegen" angelegte Zeilen, denen noch keine physische Quelle per
