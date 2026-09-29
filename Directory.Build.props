@@ -13,6 +13,14 @@
     <LangVersion>latest</LangVersion>
     <Platforms>x64</Platforms>
     <PlatformTarget>x64</PlatformTarget>
+    <!--
+      Verhindert, dass der .NET SDK die per Directory.Build.targets ("ComputeVersionFromGitTag") aus dem
+      Git-Tag ermittelte Version (z.B. "1.4.2") automatisch um ein "+<Commit-SHA>"-Suffix im
+      AssemblyInformationalVersionAttribute ergaenzt. Ohne diese Einstellung wuerde die in der Titelzeile
+      angezeigte Version (siehe AppVersionProvider) je nach Commit variieren, obwohl sie fuer denselben
+      Git-Tag stets identisch sein soll.
+    -->
+    <IncludeSourceRevisionInInformationalVersion>false</IncludeSourceRevisionInInformationalVersion>
   </PropertyGroup>
 
 </Project>

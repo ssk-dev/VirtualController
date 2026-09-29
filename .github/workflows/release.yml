@@ -21,6 +21,12 @@ jobs:
     steps:
       - name: Repository auschecken
         uses: actions/checkout@v4
+        with:
+          # Voller Verlauf inkl. aller Tags statt des Standard-Shallow-Checkouts (fetch-depth: 1) - stellt
+          # sicher, dass "git describe --tags --exact-match" (siehe Directory.Build.targets) beim Build
+          # zuverlaessig den auslösenden Tag findet, unabhaengig vom genauen Checkout-Verhalten von
+          # actions/checkout fuer Tag-Pushes.
+          fetch-depth: 0
 
       - name: .NET 8 SDK einrichten
         uses: actions/setup-dotnet@v4

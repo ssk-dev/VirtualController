@@ -1,0 +1,72 @@
+<Project>
+
+  <!--
+    Ermittelt die App-Version automatisch aus dem Git-Tag, mit dem der aktuelle Checkout gebaut wird
+    (z.B. Tag "v1.4.2" -> Version "1.4.2"), statt sie manuell in jeder .csproj oder an mehreren Stellen
+    im Quellcode pflegen zu muessen. MSBuild importiert Directory.Build.targets automatisch NACH jeder
+    einzelnen .csproj (im Gegensatz zu Directory.Build.props, das VOR der .csproj importiert wird) - das
+    ist hier notwendig, damit dieses Target zuverlaessig vor GetAssemblyVersion/GenerateAssemblyInfo
+    laeuft und $(Version) noch rechtzeitig setzen kann.
+
+    Zur Laufzeit ist die ermittelte Version ueber
+    VirtualController.Core.Updates.AppVersionProvider.CurrentVersion abrufbar (liest das hier gesetzte
+    AssemblyInformationalVersionAttribute aus der kompilierten Assembly aus).
+  -->
+  <Target Name="ComputeVersionFromGitTag" BeforeTargets="GetAssemblyVersion;GenerateAssemblyInfo;CoreCompile" Condition="'$(VirtualControllerVersion)' == ''">
+
+    <!--
+      Die Option "exact-match" (siehe Exec Command unten) liefert den Tag-Namen NUR, wenn der aktuelle
+      Commit (HEAD) exakt mit diesem Tag versehen ist (nicht bloss ein Nachfolge-Commit davon) - das
+      entspricht exakt "die Version, mit der dieser Build gebaut wurde" statt einer ungefaehren/abgeleiteten
+      Versionsnummer. Der Release-Workflow (.github/workflows/release.yml) checkt beim Bauen immer genau
+      den gepushten Tag aus, daher liefert dies dort zuverlaessig die korrekte Version. Bei lokalen
+      Entwicklungs-Builds (kein Tag auf dem aktuellen Commit, kein Git installiert, oder gar kein
+      Git-Repository, z.B. bei einem aus einem Quellcode-ZIP gebauten Checkout) schlaegt der Befehl
+      absichtlich fehl; ContinueOnError sorgt dafuer,
+      dass dies den Build niemals zum Scheitern bringt, der Fallback weiter unten greift dann stattdessen.
+    -->
+    <Exec Command="git describe --tags --exact-match --match &quot;v[0-9]*.[0-9]*.[0-9]*&quot;"
+          ConsoleToMSBuild="true"
+          StandardOutputImportance="low"
+          StandardErrorImportance="low"
+          IgnoreExitCode="true"
+          ContinueOnError="WarnAndContinue"
+          WorkingDirectory="$(MSBuildThisFileDirectory)">
+      <Output TaskParameter="ConsoleOutput" ItemName="_GitDescribeOutput" />
+      <Output TaskParameter="ExitCode" PropertyName="_GitDescribeExitCode" />
+    </Exec>
+
+    <PropertyGroup>
+      <_GitTag>@(_GitDescribeOutput)</_GitTag>
+      <_GitTagVersion>$(_GitTag.TrimStart('v'))</_GitTagVersion>
+      <!-- Zusaetzliche Validierung ueber das reine Glob-Match von "git describe" hinaus: stellt sicher,
+           dass wirklich exakt drei durch Punkte getrennte Zahlengruppen vorliegen (echtes SemVer
+           Major.Minor.Patch), bevor daraus AssemblyVersion/FileVersion abgeleitet werden. -->
+      <_GitTagVersionIsValid Condition="$([System.Text.RegularExpressions.Regex]::IsMatch('$(_GitTagVersion)', '^\d+\.\d+\.\d+$'))">true</_GitTagVersionIsValid>
+    </PropertyGroup>
+
+    <PropertyGroup Condition="'$(_GitDescribeExitCode)' == '0' AND '$(_GitTagVersionIsValid)' == 'true'">
+      <VirtualControllerVersion>$(_GitTagVersion)</VirtualControllerVersion>
+    </PropertyGroup>
+
+    <!-- Fallback fuer Entwicklungsbuilds ohne passenden Git-Tag auf dem aktuellen Commit. -->
+    <PropertyGroup Condition="'$(VirtualControllerVersion)' == ''">
+      <VirtualControllerVersion>0.0.0-dev</VirtualControllerVersion>
+    </PropertyGroup>
+
+    <PropertyGroup>
+      <Version>$(VirtualControllerVersion)</Version>
+      <InformationalVersion>$(VirtualControllerVersion)</InformationalVersion>
+      <!-- AssemblyVersion/FileVersion erfordern ein rein numerisches 4-Komponenten-Format und vertragen
+           daher kein "-dev"-Suffix - werden nur bei einer tatsaechlich aus einem gueltigen Git-Tag
+           ermittelten Version gesetzt; im Dev-Fallback behaelt die Assembly die MSBuild-Standardversion
+           "1.0.0.0", waehrend die per AppVersionProvider ausgelesene InformationalVersion trotzdem
+           korrekt "0.0.0-dev" anzeigt. -->
+      <AssemblyVersion Condition="'$(_GitTagVersionIsValid)' == 'true'">$(_GitTagVersion).0</AssemblyVersion>
+      <FileVersion Condition="'$(_GitTagVersionIsValid)' == 'true'">$(_GitTagVersion).0</FileVersion>
+    </PropertyGroup>
+
+    <Message Importance="high" Text="VirtualController-Version aus Git-Tag ermittelt: $(VirtualControllerVersion)" />
+  </Target>
+
+</Project>

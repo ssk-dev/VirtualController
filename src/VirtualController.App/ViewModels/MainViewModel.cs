@@ -6,6 +6,7 @@ using VirtualController.Core.Devices;
 using VirtualController.Core.Engine;
 using VirtualController.Core.Mapping;
 using VirtualController.Core.Profiles;
+using VirtualController.Core.Updates;
 using VirtualController.Core.Virtual;
 
 namespace VirtualController.App.ViewModels;
@@ -112,6 +113,18 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
     /// <see cref="VirtualControllerViewModel.ModeActivated"/>) - <see cref="Views.MainWindow"/> nutzt
     /// dies, um eine kurze Bildschirmbenachrichtigung anzuzeigen.</summary>
     public event Action<VirtualControllerViewModel, ModeViewModel>? ModeActivated;
+
+    /// <summary>Verwaltet die Update-Pruefung (automatisch beim Start und manuell ueber den
+    /// "Einstellungen"-Tab) sowie die Einstellung "Automatisch auf Updates pruefen" - siehe
+    /// <see cref="Views.MainWindow"/>, "Einstellungen"-Tab. <see cref="Views.MainWindow"/> abonniert
+    /// <see cref="UpdateViewModel.UpdateAvailable"/>, um bei einer neu verfuegbaren Version das
+    /// Update-Popup anzuzeigen (siehe <see cref="Views.UpdateAvailableDialog"/>).</summary>
+    public UpdateViewModel Update { get; } = new();
+
+    /// <summary>Fenstertitel inkl. der zur Build-Zeit aus dem Git-Tag ermittelten App-Version (siehe
+    /// <see cref="AppVersionProvider"/>), z.B. "Virtual Controller - Version 1.4.2" - direkt an
+    /// <c>Window.Title</c> gebunden (siehe MainWindow.xaml).</summary>
+    public string WindowTitle => $"Virtual Controller - Version {AppVersionProvider.RawVersion}";
 
     public MainViewModel()
     {

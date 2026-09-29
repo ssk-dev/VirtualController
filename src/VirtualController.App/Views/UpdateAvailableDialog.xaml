@@ -1,0 +1,34 @@
+<Window x:Class="VirtualController.App.Views.UpdateAvailableDialog"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        Title="Update verfügbar" Height="220" Width="420"
+        Icon="pack://application:,,,/Icons/VirtualController.ico"
+        WindowStartupLocation="CenterOwner"
+        ResizeMode="NoResize"
+        ShowInTaskbar="False">
+
+    <!-- Modales Update-Popup (siehe UpdateAvailableDialog.xaml.cs): informiert den Nutzer ueber eine
+         neu verfuegbare Version und bietet "Update installieren" bzw. "Update ueberspringen" an. Waehrend
+         einer laufenden Installation (IsInstalling) werden beide Buttons deaktiviert und stattdessen ein
+         Statustext angezeigt, damit der Nutzer erkennen kann, dass eine Aktion laeuft. -->
+    <DockPanel Margin="16">
+        <StackPanel DockPanel.Dock="Bottom" Orientation="Horizontal" HorizontalAlignment="Right" Margin="0,16,0,0">
+            <TextBlock Text="{Binding InstallStatusText}" Foreground="Gray" FontStyle="Italic"
+                       VerticalAlignment="Center" Margin="0,0,12,0"
+                       Visibility="{Binding IsInstalling, Converter={StaticResource BoolToVisibilityConverter}}" />
+            <Button Content="Update überspringen" Command="{Binding SkipUpdateCommand}" Padding="8,4" Margin="0,0,8,0" />
+            <Button Content="Update installieren" Command="{Binding InstallCommand}" Padding="8,4" IsDefault="True"
+                    FontWeight="Bold" />
+        </StackPanel>
+
+        <StackPanel VerticalAlignment="Top">
+            <TextBlock Text="{Binding TitleText}" FontSize="16" FontWeight="Bold" TextWrapping="Wrap" />
+            <TextBlock Margin="0,10,0,0" TextWrapping="Wrap"
+                       Text="Eine neue Version der Anwendung ist verfügbar." />
+            <TextBlock Margin="0,10,0,0" Foreground="Gray">
+                <Run Text="Installiert: " /><Run Text="{Binding InstalledVersionText, Mode=OneWay}" />
+                <Run Text="   Verfügbar: " /><Run Text="{Binding AvailableVersionText, Mode=OneWay}" />
+            </TextBlock>
+        </StackPanel>
+    </DockPanel>
+</Window>

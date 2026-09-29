@@ -2,6 +2,7 @@ using System.Windows;
 using System.Windows.Controls.Primitives;
 using VirtualController.App.Diagnostics;
 using VirtualController.App.ViewModels;
+using VirtualController.Core.Updates;
 
 namespace VirtualController.App.Views;
 
@@ -19,6 +20,19 @@ public partial class MainWindow : Window
         InitializeComponent();
         DataContext = _viewModel;
         Loaded += (_, _) => _viewModel.ConnectDriverCommand.Execute(null);
+
+        // Automatische Update-Pruefung beim Start (nur falls "Automatisch auf Updates prüfen" aktiv ist,
+        // siehe UpdateViewModel.RunStartupCheckAsync) - bewusst "fire-and-forget" (async void-artig ueber
+        // den Lambda-Ausdruck) statt den Start des Fensters darauf warten zu lassen: die Pruefung selbst
+        // blockiert dank interner Ausnahmebehandlung (UpdateCheckException wird dort verworfen) niemals
+        // die Anwendung, auch nicht bei fehlender Internetverbindung.
+        Loaded += (_, _) => _ = _viewModel.Update.RunStartupCheckAsync();
+
+        // Zeigt das Update-Popup (siehe UpdateAvailableDialog), sobald eine neuere, noch nicht per
+        // "Update ueberspringen" markierte Version gefunden wurde - ausgeloest sowohl von der
+        // automatischen Start-Pruefung als auch vom manuellen "Auf Updates prüfen"-Button im
+        // "Einstellungen"-Tab.
+        _viewModel.Update.UpdateAvailable += OnUpdateAvailable;
 
         // Zeigt eine kurze Bildschirmbenachrichtigung (unten links, 2 Sekunden), wenn sich der aktive
         // Modus eines virtuellen Controllers tatsaechlich geaendert hat und dieser Controller
@@ -86,6 +100,7 @@ public partial class MainWindow : Window
 
     private void MainWindow_OnClosing(object sender, System.ComponentModel.CancelEventArgs e)
     {
+        _viewModel.Update.UpdateAvailable -= OnUpdateAvailable;
         _viewModel.Dispose();
     }
 
@@ -219,6 +234,23 @@ public partial class MainWindow : Window
             : grid.ItemsSource?.Cast<object>().Count() ?? -1;
 
         DebugLog.Write($"[MappingsGrid] TargetUpdated: {groupInfo} AngezeigteMappingAnzahl={itemCount}");
+    }
+
+    /// <summary>
+    /// Zeigt das Update-Popup (siehe <see cref="UpdateAvailableDialog"/>) fuer <paramref name="details"/>
+    /// an - aufgerufen sowohl von der automatischen Start-Pruefung als auch vom manuellen "Auf Updates
+    /// prüfen"-Button (siehe <see cref="MainViewModel.Update"/>). Hat der Nutzer im Popup erfolgreich
+    /// eine Installation gestartet (<see cref="UpdateAvailableDialog.InstallationStarted"/>), wird die
+    /// Anwendung anschliessend beendet, damit der bereits gestartete, separate Updater-Prozess die
+    /// aktuell durch die laufende EXE gesperrten Installationsdateien ueberschreiben und die neue Version
+    /// starten kann (siehe VirtualController.Core.Updates.UpdateInstaller).
+    /// </summary>
+    private void OnUpdateAvailable(UpdateCheckResult details)
+    {
+        var dialogViewModel = _viewModel.Update.CreateAvailableDialogViewModel(details);
+        var dialog = new UpdateAvailableDialog(dialogViewModel) { Owner = this };
+        dialog.InstallationStarted += () => System.Windows.Application.Current.Shutdown();
+        dialog.ShowDialog();
     }
 
     private static T? FindVisualAncestor<T>(System.Windows.DependencyObject start) where T : System.Windows.DependencyObject
