@@ -62,6 +62,18 @@ jobs:
           Copy-Item "wpfgfx_cor3.dll" -Destination $stagingDir
           Compress-Archive -Path "$stagingDir/*" -DestinationPath "VirtualController-win-x64.zip"
 
+      # Ermittelt, ob der gepushte Tag einen SemVer-PreRelease-Suffix enthaelt (z.B. "v1.2.0-alpha",
+      # "v1.2.0-beta", "v1.2.0-nightly") - solche Releases werden weiter unten automatisch mit dem
+      # GitHub-Label "Pre-release" statt "Latest" versehen (siehe naechster Schritt), damit Nutzer klar
+      # erkennen koennen, dass es sich nicht um eine vollwertige, stabile Version handelt.
+      - name: Pre-Release-Status ermitteln
+        id: prerelease_check
+        shell: pwsh
+        run: |
+          $tag = "${{ github.ref_name }}"
+          $isPrerelease = if ($tag -match '^v\d+\.\d+\.\d+-.+$') { 'true' } else { 'false' }
+          "is_prerelease=$isPrerelease" | Out-File -FilePath $env:GITHUB_OUTPUT -Append -Encoding utf8
+
       - name: GitHub Release erstellen und Dateien anhaengen
         uses: softprops/action-gh-release@v2
         with:
@@ -71,3 +83,6 @@ jobs:
           files: VirtualController-win-x64.zip
           # Der Tag-Name (z.B. "v1.0.0") wird automatisch als Release-Titel/-Version verwendet.
           generate_release_notes: true
+          # Markiert Tags mit PreRelease-Suffix (z.B. "-alpha") automatisch als "Pre-release" statt
+          # "Latest" (siehe Schritt "Pre-Release-Status ermitteln" oben).
+          prerelease: ${{ steps.prerelease_check.outputs.is_prerelease }}

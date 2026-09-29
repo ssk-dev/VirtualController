@@ -26,6 +26,8 @@ public sealed record UpdateCoordinatorResult(UpdateCheckOutcome Outcome, UpdateC
 /// "Update ueberspringen"-Markierung (<see cref="UpdateSettingsStore"/>). Sowohl die automatische
 /// Pruefung beim Programmstart als auch die manuelle Pruefung ueber den "Auf Updates pruefen"-Button
 /// nutzen ausschliesslich diese eine Klasse, damit beide Pfade exakt dieselbe Skip-Logik anwenden.
+/// Bietet zusaetzlich <see cref="GetAllVersionsAsync"/> fuer den "Version wechseln"-Dialog (Rollback-
+/// Funktion), mit dem der Nutzer explizit auch zu einer aelteren Version zurueckwechseln kann.
 /// </summary>
 public sealed class UpdateCoordinator
 {
@@ -63,6 +65,27 @@ public sealed class UpdateCoordinator
         }
     }
 
+    /// <summary>Ob bei der Update-Pruefung auch als "Pre-release" markierte Versionen (z.B. Tags mit
+    /// Suffix "-alpha"/"-beta"/"-nightly") beruecksichtigt werden sollen, statt ausschliesslich
+    /// vollwertige, stabile Releases. Liest/schreibt sofort (kein Batching) von/nach
+    /// "update-settings.json" (siehe <see cref="UpdateSettingsStore"/>), analog zu
+    /// <see cref="AutoCheckEnabled"/>.</summary>
+    public bool IncludePreReleases
+    {
+        get => UpdateSettingsStore.Load(_baseDirectory).IncludePreReleases;
+        set
+        {
+            var settings = UpdateSettingsStore.Load(_baseDirectory);
+            if (settings.IncludePreReleases == value)
+            {
+                return;
+            }
+
+            settings.IncludePreReleases = value;
+            UpdateSettingsStore.Save(settings, _baseDirectory);
+        }
+    }
+
     /// <summary>
     /// Fuehrt eine Update-Pruefung durch und ordnet das Ergebnis anhand der zuletzt uebersprungenen
     /// Version einer der <see cref="UpdateCheckOutcome"/>-Kategorien zu.
@@ -71,7 +94,7 @@ public sealed class UpdateCoordinator
     /// ungueltige Antwort der Update-Quelle) - siehe <see cref="UpdateChecker.CheckAsync"/>.</exception>
     public async Task<UpdateCoordinatorResult> CheckAsync(CancellationToken cancellationToken = default)
     {
-        var details = await _checker.CheckAsync(cancellationToken).ConfigureAwait(false);
+        var details = await _checker.CheckAsync(IncludePreReleases, cancellationToken).ConfigureAwait(false);
 
         if (!details.IsUpdateAvailable)
         {
@@ -99,4 +122,17 @@ public sealed class UpdateCoordinator
         settings.SkippedVersion = version.ToString();
         UpdateSettingsStore.Save(settings, _baseDirectory);
     }
+
+    /// <summary>
+    /// Ermittelt ALLE an der Update-Quelle verfuegbaren Versionen (absteigend sortiert), fuer den
+    /// "Version wechseln"-Dialog: im Gegensatz zu <see cref="CheckAsync"/> nicht auf ein einzelnes,
+    /// bewertetes Ergebnis (neuer/uebersprungen/aktuell) beschraenkt, sondern die vollstaendige Liste
+    /// installierbarer Versionen - einschliesslich solcher, die AELTER als die aktuell installierte
+    /// Version sind, um einen gezielten Rollback zu ermoeglichen. Beruecksichtigt dabei die persistierte
+    /// <see cref="IncludePreReleases"/>-Einstellung genau wie <see cref="CheckAsync"/>.
+    /// </summary>
+    /// <exception cref="UpdateCheckException">Die Abfrage ist fehlgeschlagen (Verbindungsfehler oder
+    /// ungueltige Antwort der Update-Quelle) - siehe <see cref="UpdateChecker.GetAllAvailableAsync"/>.</exception>
+    public Task<IReadOnlyList<UpdateInfo>> GetAllVersionsAsync(CancellationToken cancellationToken = default) =>
+        _checker.GetAllAvailableAsync(IncludePreReleases, cancellationToken);
 }

@@ -19,18 +19,21 @@ public sealed class UpdateChecker
     /// <summary>
     /// Ermittelt, ob eine neuere Version als die installierte verfuegbar ist.
     /// </summary>
+    /// <param name="includePreReleases">Ob auch als "Pre-release" markierte Versionen beruecksichtigt
+    /// werden sollen (siehe <see cref="UpdateSettings.IncludePreReleases"/>), statt ausschliesslich
+    /// vollwertige, stabile Releases.</param>
     /// <exception cref="UpdateCheckException">
     /// Die Pruefung ist fehlgeschlagen (Verbindungsfehler oder ungueltige Antwort der Update-Quelle).
     /// Enthaelt eine fuer die Anzeige an den Nutzer geeignete <see cref="Exception.Message"/>.
     /// </exception>
-    public async Task<UpdateCheckResult> CheckAsync(CancellationToken cancellationToken = default)
+    public async Task<UpdateCheckResult> CheckAsync(bool includePreReleases = false, CancellationToken cancellationToken = default)
     {
         var installed = AppVersionProvider.CurrentVersion;
 
         UpdateInfo? latest;
         try
         {
-            latest = await _source.GetLatestAsync(cancellationToken).ConfigureAwait(false);
+            latest = await _source.GetLatestAsync(includePreReleases, cancellationToken).ConfigureAwait(false);
         }
         catch (OperationCanceledException)
         {
@@ -50,5 +53,34 @@ public sealed class UpdateChecker
 
         bool isUpdateAvailable = latest.Version > installed;
         return new UpdateCheckResult(installed, latest.Version, isUpdateAvailable, latest.DownloadUrl);
+    }
+
+    /// <summary>
+    /// Ermittelt ALLE aktuell an der Update-Quelle verfuegbaren Versionen (nicht nur die neueste) - wird
+    /// vom "Version wechseln"-Dialog (Rollback-Funktion, siehe <see cref="UpdateCoordinator.GetAllVersionsAsync"/>)
+    /// benoetigt, damit der Nutzer explizit auch zu einer aelteren als der aktuell installierten Version
+    /// zurueckwechseln kann.
+    /// </summary>
+    /// <param name="includePreReleases">Siehe <see cref="CheckAsync"/>.</param>
+    /// <exception cref="UpdateCheckException">
+    /// Die Abfrage ist fehlgeschlagen (Verbindungsfehler oder ungueltige Antwort der Update-Quelle).
+    /// Enthaelt eine fuer die Anzeige an den Nutzer geeignete <see cref="Exception.Message"/>.
+    /// </exception>
+    public async Task<IReadOnlyList<UpdateInfo>> GetAllAvailableAsync(bool includePreReleases, CancellationToken cancellationToken = default)
+    {
+        try
+        {
+            return await _source.GetAllAsync(includePreReleases, cancellationToken).ConfigureAwait(false);
+        }
+        catch (OperationCanceledException)
+        {
+            throw;
+        }
+        catch (Exception ex)
+        {
+            throw new UpdateCheckException(
+                "Die verfügbaren Versionen konnten nicht ermittelt werden. Bitte Internetverbindung prüfen und später erneut versuchen.",
+                ex);
+        }
     }
 }

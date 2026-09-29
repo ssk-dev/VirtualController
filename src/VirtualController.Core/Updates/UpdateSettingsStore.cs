@@ -19,6 +19,12 @@ public sealed class UpdateSettings
     /// ist. Standard: aktiviert.</summary>
     public bool AutoCheckEnabled { get; set; } = true;
 
+    /// <summary>Ob bei der Update-Pruefung auch als "Pre-release" markierte Versionen (Tags mit Suffix wie
+    /// "-alpha"/"-beta"/"-nightly", siehe release.yml) beruecksichtigt werden sollen, statt ausschliesslich
+    /// vollwertige, stabile Releases. Standard: deaktiviert, damit Nutzer nicht ungewollt zu instabilen
+    /// Vorabversionen aufgefordert werden.</summary>
+    public bool IncludePreReleases { get; set; }
+
     /// <summary>Versionsnummer (z.B. "1.5.0"), die der Nutzer zuletzt ueber "Update ueberspringen"
     /// dauerhaft uebersprungen hat, oder null, falls noch keine Version uebersprungen wurde.</summary>
     public string? SkippedVersion { get; set; }

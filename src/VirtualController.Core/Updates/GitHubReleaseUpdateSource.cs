@@ -4,10 +4,17 @@ namespace VirtualController.Core.Updates;
 
 /// <summary>
 /// <see cref="IUpdateSource"/>-Implementierung gegen die GitHub-Releases-API des Projekts
-/// (https://api.github.com/repos/{owner}/{repo}/releases/latest) - dieselbe Quelle, in die der
+/// (https://api.github.com/repos/{owner}/{repo}/releases) - dieselbe Quelle, in die der
 /// bestehende Release-Workflow (.github/workflows/release.yml) bei jedem gepushten Git-Tag
-/// automatisch ein neues Release samt ZIP-Anhang veroeffentlicht. Liest daraus den Tag-Namen
-/// ("tag_name", z.B. "v1.5.0" -> Version "1.5.0") sowie die Download-URL des passenden ZIP-Assets aus.
+/// automatisch ein neues Release samt ZIP-Anhang veroeffentlicht. Bewusst wird die komplette
+/// Release-Liste abgefragt statt nur "/releases/latest" - letzteres liefert ausschliesslich das von
+/// GitHub mit dem Label "Latest" markierte Release und ignoriert alle als "Pre-release" markierten
+/// Eintraege (z.B. Tags mit Suffix "-alpha"/"-beta"/"-nightly", siehe release.yml). Ob solche
+/// Vorabversionen bei der Auswahl beruecksichtigt werden, steuert der Aufrufer explizit ueber den
+/// Parameter <see cref="GetLatestAsync"/>.includePreReleases (siehe <see cref="UpdateSettings.IncludePreReleases"/>) -
+/// aus allen dafuer in Frage kommenden (nicht als Entwurf/"draft" markierten) Releases wird dasjenige
+/// mit der hoechsten semantischen Versionsnummer ausgewaehlt. Liest daraus den Tag-Namen ("tag_name",
+/// z.B. "v1.5.0" -> Version "1.5.0") sowie die Download-URL des passenden ZIP-Assets aus.
 /// </summary>
 public sealed class GitHubReleaseUpdateSource : IUpdateSource
 {
@@ -19,33 +26,113 @@ public sealed class GitHubReleaseUpdateSource : IUpdateSource
     /// entspricht exakt dem vom Release-Workflow erzeugten Archiv (siehe release.yml, "Compress-Archive").</summary>
     private const string AssetFileName = "VirtualController-win-x64.zip";
 
-    private static readonly Uri LatestReleaseUri =
-        new($"https://api.github.com/repos/{RepositoryOwner}/{RepositoryName}/releases/latest");
+    private static readonly Uri ReleasesListUri =
+        new($"https://api.github.com/repos/{RepositoryOwner}/{RepositoryName}/releases");
 
     private static readonly Lazy<HttpClient> HttpClientLazy = new(CreateHttpClient);
 
-    public async Task<UpdateInfo?> GetLatestAsync(CancellationToken cancellationToken = default)
+    public async Task<UpdateInfo?> GetLatestAsync(bool includePreReleases, CancellationToken cancellationToken = default)
     {
-        using var response = await HttpClientLazy.Value.GetAsync(LatestReleaseUri, cancellationToken).ConfigureAwait(false);
+        var eligibleReleases = await FetchEligibleReleasesAsync(includePreReleases, cancellationToken).ConfigureAwait(false);
+
+        JsonElement? newestRelease = null;
+        SemanticVersion newestVersion = default;
+
+        foreach (var (version, release) in eligibleReleases)
+        {
+            // Entscheidend ist ausschliesslich die hoechste semantische Versionsnummer unter den
+            // dafuer in Frage kommenden Releases, nicht das von GitHub vergebene "Latest"-Label.
+            if (newestRelease is null || version.CompareTo(newestVersion) > 0)
+            {
+                newestRelease = release;
+                newestVersion = version;
+            }
+        }
+
+        if (newestRelease is null)
+        {
+            return null;
+        }
+
+        string? downloadUrl = FindAssetDownloadUrl(newestRelease.Value);
+        return downloadUrl is null ? null : new UpdateInfo(newestVersion, downloadUrl);
+    }
+
+    public async Task<IReadOnlyList<UpdateInfo>> GetAllAsync(bool includePreReleases, CancellationToken cancellationToken = default)
+    {
+        var eligibleReleases = await FetchEligibleReleasesAsync(includePreReleases, cancellationToken).ConfigureAwait(false);
+
+        var result = new List<UpdateInfo>(eligibleReleases.Count);
+        foreach (var (version, release) in eligibleReleases.OrderByDescending(entry => entry.Version))
+        {
+            string? downloadUrl = FindAssetDownloadUrl(release);
+            if (downloadUrl is not null)
+            {
+                result.Add(new UpdateInfo(version, downloadUrl));
+            }
+        }
+
+        return result;
+    }
+
+    /// <summary>Fragt die komplette Release-Liste ab und filtert daraus alle fuer eine Installation in
+    /// Frage kommenden Eintraege heraus: Entwuerfe ("draft": true) werden immer ausgeschlossen, als
+    /// "Pre-release" markierte Eintraege nur, falls <paramref name="includePreReleases"/> false ist -
+    /// gemeinsam genutzt von <see cref="GetLatestAsync"/> (waehlt daraus die hoechste Version) und
+    /// <see cref="GetAllAsync"/> (gibt alle davon zurueck, fuer den Versionswechsel-/Rollback-Dialog).</summary>
+    private static async Task<List<(SemanticVersion Version, JsonElement Release)>> FetchEligibleReleasesAsync(
+        bool includePreReleases, CancellationToken cancellationToken)
+    {
+        using var response = await HttpClientLazy.Value.GetAsync(ReleasesListUri, cancellationToken).ConfigureAwait(false);
         response.EnsureSuccessStatusCode();
 
         using var stream = await response.Content.ReadAsStreamAsync(cancellationToken).ConfigureAwait(false);
         using var document = await JsonDocument.ParseAsync(stream, cancellationToken: cancellationToken).ConfigureAwait(false);
 
-        if (!document.RootElement.TryGetProperty("tag_name", out var tagElement)
-            || tagElement.GetString() is not { Length: > 0 } tagName)
+        var result = new List<(SemanticVersion Version, JsonElement Release)>();
+
+        if (document.RootElement.ValueKind != JsonValueKind.Array)
         {
-            return null;
+            return result;
         }
 
-        string versionText = tagName.StartsWith('v') ? tagName[1..] : tagName;
-        if (!SemanticVersion.TryParse(versionText, out var version))
+        foreach (var release in document.RootElement.EnumerateArray())
         {
-            return null;
+            // Entwuerfe ("draft": true) sind noch nicht veroeffentlicht und duerfen nicht als
+            // installierbares Update angeboten werden.
+            if (release.TryGetProperty("draft", out var draftElement) && draftElement.ValueKind == JsonValueKind.True)
+            {
+                continue;
+            }
+
+            // Als "Pre-release" markierte Eintraege (siehe release.yml, "prerelease"-Flag) werden nur
+            // beruecksichtigt, wenn der Aufrufer dies ueber includePreReleases explizit angefordert hat -
+            // Standardverhalten ist, Nutzern ausschliesslich vollwertige, stabile Versionen anzubieten.
+            bool isPrerelease = release.TryGetProperty("prerelease", out var prereleaseElement)
+                && prereleaseElement.ValueKind == JsonValueKind.True;
+            if (isPrerelease && !includePreReleases)
+            {
+                continue;
+            }
+
+            if (!release.TryGetProperty("tag_name", out var tagElement)
+                || tagElement.GetString() is not { Length: > 0 } tagName)
+            {
+                continue;
+            }
+
+            string versionText = tagName.StartsWith('v') ? tagName[1..] : tagName;
+            if (!SemanticVersion.TryParse(versionText, out var version))
+            {
+                continue;
+            }
+
+            // ACHTUNG: document wird am Ende dieser Methode disposed - JsonElement.Clone() erzeugt eine
+            // eigenstaendige Kopie, die unabhaengig vom JsonDocument weiterverwendet werden kann.
+            result.Add((version, release.Clone()));
         }
 
-        string? downloadUrl = FindAssetDownloadUrl(document.RootElement);
-        return downloadUrl is null ? null : new UpdateInfo(version, downloadUrl);
+        return result;
     }
 
     private static string? FindAssetDownloadUrl(JsonElement releaseElement)

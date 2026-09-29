@@ -253,6 +253,21 @@ public partial class MainWindow : Window
         dialog.ShowDialog();
     }
 
+    /// <summary>
+    /// Oeffnet den "Version wechseln"-Dialog (<see cref="RollbackDialog"/>), ueber den der Nutzer gezielt
+    /// zu einer beliebigen an der Update-Quelle verfuegbaren Version wechseln kann - einschliesslich
+    /// aelterer Versionen (Rollback), was die reguläre Update-Pruefung bewusst nicht anbietet. Hat der
+    /// Nutzer erfolgreich eine Installation gestartet (<see cref="RollbackDialog.InstallationStarted"/>),
+    /// wird die Anwendung anschliessend beendet, analog zu <see cref="OnUpdateAvailable"/>.
+    /// </summary>
+    private void RollbackButton_Click(object sender, System.Windows.RoutedEventArgs e)
+    {
+        var dialogViewModel = _viewModel.Update.CreateRollbackDialogViewModel();
+        var dialog = new RollbackDialog(dialogViewModel) { Owner = this };
+        dialog.InstallationStarted += () => System.Windows.Application.Current.Shutdown();
+        dialog.ShowDialog();
+    }
+
     private static T? FindVisualAncestor<T>(System.Windows.DependencyObject start) where T : System.Windows.DependencyObject
     {
         var current = start;

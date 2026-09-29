@@ -590,6 +590,11 @@
                     <TextBlock Margin="24,4,0,0" Foreground="Gray" FontStyle="Italic" TextWrapping="Wrap" MaxWidth="500"
                                Text="Prüft bei jedem Start der Anwendung automatisch, ob eine neuere Version verfügbar ist. Bei fehlender Internetverbindung wird die Anwendung dadurch nicht beeinträchtigt." />
 
+                    <CheckBox Content="Auch Vorabversionen berücksichtigen" IsChecked="{Binding Update.IncludePreReleases}"
+                              FontWeight="Bold" Margin="0,12,0,0" />
+                    <TextBlock Margin="24,4,0,0" Foreground="Gray" FontStyle="Italic" TextWrapping="Wrap" MaxWidth="500"
+                               Text="Bezieht bei der Update-Prüfung auch als Pre-release markierte Versionen ein (z.B. Tags mit dem Suffix '-alpha', '-beta' oder '-nightly'), statt ausschließlich vollwertige, stabile Versionen anzubieten." />
+
                     <StackPanel Orientation="Horizontal" Margin="0,12,0,0">
                         <Button Content="Auf Updates prüfen" Command="{Binding Update.CheckForUpdatesCommand}"
                                 Padding="8,4" IsEnabled="{Binding Update.IsCheckingForUpdates, Converter={StaticResource InverseBoolConverter}}" />
@@ -598,6 +603,11 @@
                                    Visibility="{Binding Update.IsCheckingForUpdates, Converter={StaticResource BoolToVisibilityConverter}}" />
                     </StackPanel>
                     <TextBlock Margin="0,8,0,0" Text="{Binding Update.StatusText}" TextWrapping="Wrap" MaxWidth="500" />
+
+                    <Button Content="Version wechseln..." Click="RollbackButton_Click" Padding="8,4"
+                            Margin="0,12,0,0" HorizontalAlignment="Left" />
+                    <TextBlock Margin="0,4,0,0" Foreground="Gray" FontStyle="Italic" TextWrapping="Wrap" MaxWidth="500"
+                               Text="Ermöglicht den gezielten Wechsel zu einer beliebigen verfügbaren Version, einschließlich älterer Versionen (Rollback)." />
 
                     <TextBlock Margin="0,16,0,0" Text="Hier entstehen zukuenftig weitere globale Anwendungseinstellungen." Foreground="Gray" FontStyle="Italic" />
                 </StackPanel>

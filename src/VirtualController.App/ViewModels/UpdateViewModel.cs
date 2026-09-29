@@ -24,6 +24,13 @@ public sealed partial class UpdateViewModel : ObservableObject
     [ObservableProperty]
     private bool _autoCheckEnabled;
 
+    /// <summary>Ob bei der Update-Pruefung auch als "Pre-release" markierte Versionen (z.B. Tags mit
+    /// Suffix "-alpha"/"-beta"/"-nightly") beruecksichtigt werden sollen, statt ausschliesslich
+    /// vollwertige, stabile Releases. Aenderungen werden sofort persistiert (siehe
+    /// <see cref="UpdateCoordinator.IncludePreReleases"/>), analog zu <see cref="AutoCheckEnabled"/>.</summary>
+    [ObservableProperty]
+    private bool _includePreReleases;
+
     /// <summary>Ob aktuell eine Update-Pruefung laeuft (manuell oder automatisch beim Start) - blendet in
     /// der View einen Ladeindikator ein und deaktiviert den "Auf Updates pruefen"-Button, damit der Nutzer
     /// erkennen kann, dass eine Pruefung bereits laeuft, statt sie versehentlich mehrfach parallel
@@ -47,9 +54,12 @@ public sealed partial class UpdateViewModel : ObservableObject
     public UpdateViewModel()
     {
         _autoCheckEnabled = _coordinator.AutoCheckEnabled;
+        _includePreReleases = _coordinator.IncludePreReleases;
     }
 
     partial void OnAutoCheckEnabledChanged(bool value) => _coordinator.AutoCheckEnabled = value;
+
+    partial void OnIncludePreReleasesChanged(bool value) => _coordinator.IncludePreReleases = value;
 
     partial void OnIsCheckingForUpdatesChanged(bool value) => CheckForUpdatesCommand.NotifyCanExecuteChanged();
 
@@ -141,4 +151,9 @@ public sealed partial class UpdateViewModel : ObservableObject
     /// Klick auf "Update ueberspringen").</summary>
     public UpdateAvailableDialogViewModel CreateAvailableDialogViewModel(UpdateCheckResult details) =>
         new(details, _coordinator);
+
+    /// <summary>Erzeugt das ViewModel des "Version wechseln"-Dialogs (Rollback-Funktion), mit Zugriff auf
+    /// denselben <see cref="UpdateCoordinator"/> (fuer <see cref="UpdateCoordinator.GetAllVersionsAsync"/>,
+    /// unter Beruecksichtigung der aktuellen <see cref="IncludePreReleases"/>-Einstellung).</summary>
+    public RollbackDialogViewModel CreateRollbackDialogViewModel() => new(_coordinator);
 }

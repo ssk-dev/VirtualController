@@ -17,5 +17,20 @@ public interface IUpdateSource
     /// stattdessen als Exception durchgereicht werden, damit <see cref="UpdateChecker"/> beide Faelle
     /// (ungueltige Antwort vs. Verbindungsfehler) einheitlich als fehlgeschlagene Pruefung behandeln kann.
     /// </summary>
-    Task<UpdateInfo?> GetLatestAsync(CancellationToken cancellationToken = default);
+    /// <param name="includePreReleases">Ob auch als "Pre-release" markierte Versionen (z.B. Tags mit
+    /// Suffix "-alpha"/"-beta"/"-nightly") beruecksichtigt werden sollen, statt ausschliesslich
+    /// vollwertige, stabile Releases. Entspricht der Einstellung "Auch Vorabversionen beruecksichtigen"
+    /// (siehe <see cref="UpdateSettings.IncludePreReleases"/>).</param>
+    Task<UpdateInfo?> GetLatestAsync(bool includePreReleases, CancellationToken cancellationToken = default);
+
+    /// <summary>
+    /// Ermittelt ALLE aktuell an der Update-Quelle verfuegbaren Versionen, absteigend sortiert (hoechste
+    /// Version zuerst). Im Gegensatz zu <see cref="GetLatestAsync"/> nicht auf die jeweils neueste Version
+    /// beschraenkt - wird benoetigt, damit der Nutzer ueber den "Zu einer anderen Version wechseln"-Dialog
+    /// (siehe <see cref="VirtualController.App.ViewModels.RollbackDialogViewModel"/>) explizit auch eine
+    /// aeltere Version als die aktuell installierte auswaehlen kann (Rollback) - ein Vorgang, den die
+    /// automatische Update-Pruefung (<see cref="UpdateChecker.CheckAsync"/>) bewusst nicht anbietet.
+    /// </summary>
+    /// <param name="includePreReleases">Siehe <see cref="GetLatestAsync"/>.</param>
+    Task<IReadOnlyList<UpdateInfo>> GetAllAsync(bool includePreReleases, CancellationToken cancellationToken = default);
 }
