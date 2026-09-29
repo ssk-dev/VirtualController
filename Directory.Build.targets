@@ -40,9 +40,15 @@
       <_GitTag>@(_GitDescribeOutput)</_GitTag>
       <_GitTagVersion>$(_GitTag.TrimStart('v'))</_GitTagVersion>
       <!-- Zusaetzliche Validierung ueber das reine Glob-Match von "git describe" hinaus: stellt sicher,
-           dass wirklich exakt drei durch Punkte getrennte Zahlengruppen vorliegen (echtes SemVer
-           Major.Minor.Patch), bevor daraus AssemblyVersion/FileVersion abgeleitet werden. -->
-      <_GitTagVersionIsValid Condition="$([System.Text.RegularExpressions.Regex]::IsMatch('$(_GitTagVersion)', '^\d+\.\d+\.\d+$'))">true</_GitTagVersionIsValid>
+           dass wirklich eine gueltige SemVer-Version "Major.Minor.Patch" mit optionalem
+           "-PreRelease"-Suffix vorliegt (z.B. "1.2.0" oder "1.2.0-alpha" - Tags dieses Projekts nutzen
+           haeufig Suffixe wie "-alpha"), bevor daraus Version/InformationalVersion/AssemblyVersion/
+           FileVersion abgeleitet werden. Entspricht demselben Format wie SemanticVersion.cs. -->
+      <_GitTagVersionIsValid Condition="$([System.Text.RegularExpressions.Regex]::IsMatch('$(_GitTagVersion)', '^\d+\.\d+\.\d+(?:-[0-9A-Za-z.\-]+)?$'))">true</_GitTagVersionIsValid>
+      <!-- Nur der numerische Major.Minor.Patch-Anteil ohne PreRelease-Suffix - AssemblyVersion/
+           FileVersion erfordern ein rein numerisches 4-Komponenten-Format und vertragen daher kein
+           "-alpha"-Suffix (siehe Verwendung weiter unten). -->
+      <_GitTagVersionCore Condition="'$(_GitTagVersionIsValid)' == 'true'">$([System.Text.RegularExpressions.Regex]::Match('$(_GitTagVersion)', '^\d+\.\d+\.\d+').Value)</_GitTagVersionCore>
     </PropertyGroup>
 
     <PropertyGroup Condition="'$(_GitDescribeExitCode)' == '0' AND '$(_GitTagVersionIsValid)' == 'true'">
@@ -62,8 +68,8 @@
            ermittelten Version gesetzt; im Dev-Fallback behaelt die Assembly die MSBuild-Standardversion
            "1.0.0.0", waehrend die per AppVersionProvider ausgelesene InformationalVersion trotzdem
            korrekt "0.0.0-dev" anzeigt. -->
-      <AssemblyVersion Condition="'$(_GitTagVersionIsValid)' == 'true'">$(_GitTagVersion).0</AssemblyVersion>
-      <FileVersion Condition="'$(_GitTagVersionIsValid)' == 'true'">$(_GitTagVersion).0</FileVersion>
+      <AssemblyVersion Condition="'$(_GitTagVersionIsValid)' == 'true'">$(_GitTagVersionCore).0</AssemblyVersion>
+      <FileVersion Condition="'$(_GitTagVersionIsValid)' == 'true'">$(_GitTagVersionCore).0</FileVersion>
     </PropertyGroup>
 
     <Message Importance="high" Text="VirtualController-Version aus Git-Tag ermittelt: $(VirtualControllerVersion)" />

@@ -31,6 +31,17 @@ public sealed partial class UpdateAvailableDialogViewModel : ObservableObject
     [ObservableProperty]
     private string? _installStatusText;
 
+    /// <summary>Fortschritt (0-100) des GESAMTEN Installationsvorgangs ueber alle Schritte hinweg (siehe
+    /// <see cref="UpdateInstallProgress.OverallPercent"/>), fuer die Anzeige eines Fortschrittsbalkens in
+    /// der View.</summary>
+    [ObservableProperty]
+    private double _installProgressPercent;
+
+    /// <summary>Beschreibung des aktuellen Installationsschritts inkl. Schrittzaehler, z.B. "Schritt 1
+    /// von 4: Dateien werden heruntergeladen" - wird unterhalb des Fortschrittsbalkens angezeigt.</summary>
+    [ObservableProperty]
+    private string? _installStepText;
+
     /// <summary>Titeltext des Popups, z.B. "Neue Version verfügbar: Version 1.5.0".</summary>
     public string TitleText => $"Neue Version verfügbar: Version {_details.AvailableVersion}";
 
@@ -63,13 +74,18 @@ public sealed partial class UpdateAvailableDialogViewModel : ObservableObject
     private async Task InstallAsync()
     {
         IsInstalling = true;
-        InstallStatusText = "Update wird heruntergeladen...";
+
+        var progress = new Progress<UpdateInstallProgress>(p =>
+        {
+            InstallProgressPercent = p.OverallPercent;
+            InstallStepText = $"Schritt {p.StepNumber} von {p.TotalSteps}: {p.StepDescription}";
+            InstallStatusText = p.StepDescription;
+        });
 
         try
         {
-            var preparation = await _installer.PrepareAsync(_details.DownloadUrl).ConfigureAwait(true);
-            InstallStatusText = "Update wird installiert...";
-            _installer.LaunchUpdaterProcess(preparation);
+            var preparation = await _installer.PrepareAsync(_details.DownloadUrl, progress).ConfigureAwait(true);
+            _installer.LaunchUpdaterProcess(preparation, progress);
 
             // Ab hier ist der separate Updater-Prozess gestartet und wartet auf die Beendigung dieses
             // Prozesses (siehe UpdateInstaller.LaunchUpdaterProcess) - das eigentliche Beenden der
@@ -81,6 +97,8 @@ public sealed partial class UpdateAvailableDialogViewModel : ObservableObject
         {
             IsInstalling = false;
             InstallStatusText = null;
+            InstallStepText = null;
+            InstallProgressPercent = 0;
             System.Windows.MessageBox.Show(
                 ex.Message, "Update-Installation fehlgeschlagen", System.Windows.MessageBoxButton.OK, System.Windows.MessageBoxImage.Error);
         }

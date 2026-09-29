@@ -19,6 +19,11 @@ namespace VirtualController.Core.Updates;
 /// </summary>
 public sealed class UpdateInstaller
 {
+    /// <summary>Gesamtzahl der Installationsschritte (siehe <see cref="UpdateInstallProgress"/>): 1=Download,
+    /// 2=Entpacken, 3=Vorbereitung abschliessen, 4=Update wird gestartet - fuer die Anzeige "Schritt X
+    /// von <see cref="TotalSteps"/>: ..." im Update-Popup.</summary>
+    public const int TotalSteps = 4;
+
     private static readonly Lazy<HttpClient> HttpClientLazy = new(() => new HttpClient { Timeout = TimeSpan.FromMinutes(5) });
 
     /// <summary>
@@ -27,7 +32,14 @@ public sealed class UpdateInstaller
     /// Verbindungsabbruch, beschaedigtes/unerwartetes Archiv) - in diesem Fall wurde die laufende
     /// Installation nicht veraendert.
     /// </summary>
-    public async Task<UpdateInstallPreparation> PrepareAsync(string downloadUrl, CancellationToken cancellationToken = default)
+    /// <param name="downloadUrl">Download-URL des Update-Archivs.</param>
+    /// <param name="progress">Optionaler Fortschritts-Reporter fuer die Anzeige im Update-Popup (siehe
+    /// <see cref="UpdateInstallProgress"/>) - meldet den Download-Fortschritt anhand der empfangenen
+    /// Bytes (soweit die Serverantwort einen Content-Length-Header liefert) sowie den Beginn der
+    /// nachfolgenden Schritte (Entpacken, Validierung).</param>
+    /// <param name="cancellationToken">Abbruchtoken.</param>
+    public async Task<UpdateInstallPreparation> PrepareAsync(
+        string downloadUrl, IProgress<UpdateInstallProgress>? progress = null, CancellationToken cancellationToken = default)
     {
         string stagingDirectory = Path.Combine(Path.GetTempPath(), "VirtualControllerUpdate_" + Guid.NewGuid().ToString("N"));
         string archivePath = stagingDirectory + ".zip";
@@ -36,16 +48,23 @@ public sealed class UpdateInstaller
         {
             Directory.CreateDirectory(stagingDirectory);
 
+            progress?.Report(new UpdateInstallProgress(1, TotalSteps, "Dateien werden heruntergeladen", OverallPercent(1, 0)));
+
             using (var response = await HttpClientLazy.Value.GetAsync(downloadUrl, HttpCompletionOption.ResponseHeadersRead, cancellationToken).ConfigureAwait(false))
             {
                 response.EnsureSuccessStatusCode();
 
+                long? totalBytes = response.Content.Headers.ContentLength;
+
                 await using var httpStream = await response.Content.ReadAsStreamAsync(cancellationToken).ConfigureAwait(false);
                 await using var fileStream = File.Create(archivePath);
-                await httpStream.CopyToAsync(fileStream, cancellationToken).ConfigureAwait(false);
+                await CopyWithProgressAsync(httpStream, fileStream, totalBytes, progress, cancellationToken).ConfigureAwait(false);
             }
 
+            progress?.Report(new UpdateInstallProgress(2, TotalSteps, "Archiv wird entpackt", OverallPercent(2, 0)));
             ZipFile.ExtractToDirectory(archivePath, stagingDirectory, overwriteFiles: true);
+
+            progress?.Report(new UpdateInstallProgress(3, TotalSteps, "Vorbereitung wird abgeschlossen", OverallPercent(3, 0)));
 
             string executableFileName = Path.GetFileName(Environment.ProcessPath)
                 ?? throw new UpdateInstallException("Der Pfad der aktuell laufenden Anwendung konnte nicht ermittelt werden.");
@@ -84,6 +103,37 @@ public sealed class UpdateInstaller
         }
     }
 
+    /// <summary>Kopiert <paramref name="source"/> nach <paramref name="destination"/> und meldet dabei
+    /// den Download-Fortschritt (Schritt 1) anhand der bereits kopierten Bytes im Verhaeltnis zu
+    /// <paramref name="totalBytes"/> - bleibt <paramref name="totalBytes"/> unbekannt (kein
+    /// Content-Length-Header), wird lediglich der Schrittbeginn ohne feingranulare Prozentanzeige
+    /// gemeldet (siehe Aufrufer).</summary>
+    private static async Task CopyWithProgressAsync(
+        Stream source, Stream destination, long? totalBytes, IProgress<UpdateInstallProgress>? progress, CancellationToken cancellationToken)
+    {
+        byte[] buffer = new byte[81920];
+        long totalRead = 0;
+        int bytesRead;
+
+        while ((bytesRead = await source.ReadAsync(buffer, cancellationToken).ConfigureAwait(false)) > 0)
+        {
+            await destination.WriteAsync(buffer.AsMemory(0, bytesRead), cancellationToken).ConfigureAwait(false);
+            totalRead += bytesRead;
+
+            if (totalBytes is > 0)
+            {
+                double stepFraction = Math.Clamp((double)totalRead / totalBytes.Value, 0d, 1d);
+                progress?.Report(new UpdateInstallProgress(1, TotalSteps, "Dateien werden heruntergeladen", OverallPercent(1, stepFraction)));
+            }
+        }
+    }
+
+    /// <summary>Berechnet den Fortschritt (0-100) des GESAMTEN Installationsvorgangs anhand des aktuellen
+    /// Schritts (1-basiert) und des Fortschritts (0.0-1.0) innerhalb dieses Schritts - siehe
+    /// <see cref="UpdateInstallProgress.OverallPercent"/>.</summary>
+    private static double OverallPercent(int stepNumber, double stepFraction) =>
+        ((stepNumber - 1) + Math.Clamp(stepFraction, 0d, 1d)) / TotalSteps * 100d;
+
     /// <summary>
     /// Erzeugt und startet den separaten Updater-Prozess (ein kleines, generiertes PowerShell-Skript):
     /// dieser wartet auf die Beendigung des aktuellen Prozesses (<see cref="UpdateInstallPreparation.ProcessId"/>),
@@ -93,7 +143,7 @@ public sealed class UpdateInstaller
     /// (z.B. direkt vor <c>Application.Current.Shutdown()</c>), da der laufende Prozess selbst seine
     /// eigene EXE/DLLs nicht ueberschreiben kann.
     /// </summary>
-    public void LaunchUpdaterProcess(UpdateInstallPreparation preparation)
+    public void LaunchUpdaterProcess(UpdateInstallPreparation preparation, IProgress<UpdateInstallProgress>? progress = null)
     {
         string scriptPath = Path.Combine(Path.GetTempPath(), $"VirtualControllerUpdater_{Guid.NewGuid():N}.ps1");
         File.WriteAllText(scriptPath, BuildUpdaterScript(preparation, scriptPath), Encoding.UTF8);
@@ -108,6 +158,8 @@ public sealed class UpdateInstaller
             UseShellExecute = false,
             CreateNoWindow = true,
         };
+
+        progress?.Report(new UpdateInstallProgress(4, TotalSteps, "Update wird gestartet", OverallPercent(4, 0)));
 
         try
         {
