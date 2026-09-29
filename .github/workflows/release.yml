@@ -74,6 +74,96 @@ jobs:
           $isPrerelease = if ($tag -match '^v\d+\.\d+\.\d+-.+$') { 'true' } else { 'false' }
           "is_prerelease=$isPrerelease" | Out-File -FilePath $env:GITHUB_OUTPUT -Append -Encoding utf8
 
+      # Fasst alle Commit-Nachrichten seit dem vorherigen Tag (bzw. der gesamten Historie, falls es noch
+      # keinen vorherigen Tag gibt) zu gruppierten Release Notes zusammen. Erwartet Commit-Nachrichten in
+      # folgendem Format (mehrere solcher Bloecke pro Commit sind moeglich):
+      #
+      #   feature:
+      #   - add versioncheck for version suffix e.g. alpha
+      #   - add rollback to older versions
+      #
+      #   fix:
+      #   - errorhandling
+      #
+      # Alle "-"-Aufzaehlungspunkte unterhalb einer "feature:"- bzw. "fix:"-Kopfzeile werden ueber ALLE
+      # Commits im Bereich hinweg gesammelt und zu genau einem "## Features"- bzw. "## Fixes"-Block
+      # zusammengefuehrt, statt (wie bei generate_release_notes) einer reinen Commit-Liste. Commits ohne
+      # ein solches Format tragen einfach nichts zu den Release Notes bei.
+      - name: Release Notes aus Commit-Nachrichten gruppieren
+        id: release_notes
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = 'Stop'
+
+          # Ermittelt den naechstgelegenen Tag VOR dem aktuellen Commit (falls vorhanden) - der aktuelle,
+          # gerade erst gepushte Tag selbst wird dabei bewusst ausgeschlossen (HEAD^ statt HEAD), damit
+          # nur Commits SEIT dem vorherigen Release beruecksichtigt werden.
+          git describe --tags --abbrev=0 "HEAD^" 2>$null | Out-Null
+          if ($LASTEXITCODE -eq 0) {
+              $previousTag = git describe --tags --abbrev=0 "HEAD^" 2>$null
+          } else {
+              $previousTag = $null
+          }
+
+          $logRange = if ($previousTag) { "$previousTag..HEAD" } else { "HEAD" }
+
+          # "%x00" (NUL-Byte) trennt einzelne Commits eindeutig voneinander - im Gegensatz zu einer
+          # Leerzeile kann dieses Zeichen nicht versehentlich Teil einer mehrzeiligen Commit-Nachricht sein.
+          $rawLogLines = git log $logRange --pretty=format:"%B%x00"
+          $rawLog = ($rawLogLines -join "`n")
+          $commitBodies = $rawLog -split "`0"
+
+          $features = [System.Collections.Generic.List[string]]::new()
+          $fixes = [System.Collections.Generic.List[string]]::new()
+
+          foreach ($commitBody in $commitBodies) {
+              $currentSection = $null
+              foreach ($line in ($commitBody -split "`n")) {
+                  $trimmed = $line.Trim()
+
+                  if ($trimmed -match '^(?i)feature\s*:\s*$') {
+                      $currentSection = 'feature'
+                      continue
+                  }
+                  if ($trimmed -match '^(?i)fix\s*:\s*$') {
+                      $currentSection = 'fix'
+                      continue
+                  }
+                  if ($trimmed -eq '') {
+                      $currentSection = $null
+                      continue
+                  }
+
+                  if ($trimmed -match '^-\s*(.+)$') {
+                      $item = $Matches[1].Trim()
+                      if ($currentSection -eq 'feature') { $features.Add($item) }
+                      elseif ($currentSection -eq 'fix') { $fixes.Add($item) }
+                  } else {
+                      # Eine Zeile, die weder eine Kopfzeile noch ein Aufzaehlungspunkt ist, beendet den
+                      # aktuellen Abschnitt - verhindert, dass unstrukturierter Freitext faelschlich als
+                      # Aufzaehlungspunkt interpretiert wird.
+                      $currentSection = $null
+                  }
+              }
+          }
+
+          $bodyLines = [System.Collections.Generic.List[string]]::new()
+          if ($features.Count -gt 0) {
+              $bodyLines.Add('## Features')
+              foreach ($item in $features) { $bodyLines.Add("- $item") }
+              $bodyLines.Add('')
+          }
+          if ($fixes.Count -gt 0) {
+              $bodyLines.Add('## Fixes')
+              foreach ($item in $fixes) { $bodyLines.Add("- $item") }
+              $bodyLines.Add('')
+          }
+          if ($bodyLines.Count -eq 0) {
+              $bodyLines.Add('Keine kategorisierten Änderungen (feature:/fix:) in diesem Release.')
+          }
+
+          $bodyLines -join "`n" | Out-File -FilePath 'release-notes.md' -Encoding utf8
+
       - name: GitHub Release erstellen und Dateien anhaengen
         uses: softprops/action-gh-release@v2
         with:
@@ -82,7 +172,9 @@ jobs:
           # und ein separater EXE-Download Nutzer sonst zu einer nicht lauffaehigen Datei verleiten wuerde.
           files: VirtualController-win-x64.zip
           # Der Tag-Name (z.B. "v1.0.0") wird automatisch als Release-Titel/-Version verwendet.
-          generate_release_notes: true
+          # Verwendet die im vorherigen Schritt aus den Commit-Nachrichten gruppierten Release Notes
+          # ("## Features" / "## Fixes") statt der von GitHub automatisch generierten reinen Commit-Liste.
+          body_path: release-notes.md
           # Markiert Tags mit PreRelease-Suffix (z.B. "-alpha") automatisch als "Pre-release" statt
           # "Latest" (siehe Schritt "Pre-Release-Status ermitteln" oben).
           prerelease: ${{ steps.prerelease_check.outputs.is_prerelease }}
