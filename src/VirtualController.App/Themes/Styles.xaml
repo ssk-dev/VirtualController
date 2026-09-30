@@ -537,4 +537,31 @@
         </Style.Triggers>
     </Style>
 
+    <!-- ToolTip: die zahlreichen einfachen ToolTip="..."-String-Attribute (MainWindow.xaml,
+         DeviceConfigTemplates.xaml, AssignInputDialog.xaml) rendern ohne eigenen Style als natives,
+         helles System-Popup, das auf dem dunklen Hintergrund deutlich als Fremdkoerper auffaellt.
+         Dunkler Hintergrund mit Akzent-Rahmen (bewusst AccentBrush statt PanelBorderBrush, da ToolTips
+         als kurzlebige Overlay-Elemente sich optisch von normalen Panels/Karten abheben sollen) und
+         MaxWidth, damit laengere Hinweistexte umbrechen statt sich ueber den ganzen Bildschirm zu ziehen. -->
+    <Style TargetType="ToolTip">
+        <Setter Property="Foreground" Value="{StaticResource TextBrush}" />
+        <Setter Property="MaxWidth" Value="320" />
+        <Setter Property="Template">
+            <Setter.Value>
+                <ControlTemplate TargetType="ToolTip">
+                    <Border Background="{StaticResource PanelBackgroundBrush}" BorderBrush="{StaticResource AccentBrush}"
+                            BorderThickness="1" CornerRadius="4" Padding="8,5">
+                        <ContentPresenter>
+                            <ContentPresenter.ContentTemplate>
+                                <DataTemplate>
+                                    <TextBlock Text="{Binding}" TextWrapping="Wrap" />
+                                </DataTemplate>
+                            </ContentPresenter.ContentTemplate>
+                        </ContentPresenter>
+                    </Border>
+                </ControlTemplate>
+            </Setter.Value>
+        </Setter>
+    </Style>
+
 </ResourceDictionary>
