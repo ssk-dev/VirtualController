@@ -376,4 +376,43 @@
         </Setter>
     </Style>
 
+    <!-- ListBox: analog zu DataGrid reichen hier einfache Property-Setter aus, da ListBox seine Optik
+         aus separat gestylten ListBoxItem-Subcontrols zusammensetzt statt eine eigene geschlossene Chrome
+         zu zeichnen. Betrifft insbesondere die bisher komplett ungestylten ListBoxen in RollbackDialog.xaml
+         (Versionsliste) sowie die Geraete-/Ausgeblendete-Geraete-Listen im "Gerätekonfiguration"-Tab von
+         MainWindow.xaml, die (im Gegensatz zur Controller-/Modus-Liste) keinen eigenen expliziten
+         ItemContainerStyle setzen. -->
+    <Style TargetType="ListBox">
+        <Setter Property="Background" Value="{StaticResource PanelBackgroundBrush}" />
+        <Setter Property="Foreground" Value="{StaticResource TextBrush}" />
+        <Setter Property="BorderBrush" Value="{StaticResource PanelBorderBrush}" />
+        <Setter Property="BorderThickness" Value="1" />
+    </Style>
+
+    <!-- ListBoxItem: wie bei ComboBoxItem reicht ein einfacher Setter nicht aus, da die native
+         ListBoxItem-Chrome ihre Hover-/Auswahl-Hervorhebung selbst ueber eine vom System-Theme
+         vorgegebene Farbe zeichnet (blauer Standard-Hintergrund statt Akzentfarbe). Eigenes
+         ControlTemplate mit transparentem Standard-Hintergrund, Hover in ButtonHoverBrush und Auswahl
+         in ButtonPressedBrush - dieselbe Farblogik wie bei ComboBoxItem. -->
+    <Style TargetType="ListBoxItem">
+        <Setter Property="Padding" Value="6,4" />
+        <Setter Property="Template">
+            <Setter.Value>
+                <ControlTemplate TargetType="ListBoxItem">
+                    <Border x:Name="ItemBorder" Background="Transparent" Padding="{TemplateBinding Padding}">
+                        <ContentPresenter />
+                    </Border>
+                    <ControlTemplate.Triggers>
+                        <Trigger Property="IsMouseOver" Value="True">
+                            <Setter TargetName="ItemBorder" Property="Background" Value="{StaticResource ButtonHoverBrush}" />
+                        </Trigger>
+                        <Trigger Property="IsSelected" Value="True">
+                            <Setter TargetName="ItemBorder" Property="Background" Value="{StaticResource ButtonPressedBrush}" />
+                        </Trigger>
+                    </ControlTemplate.Triggers>
+                </ControlTemplate>
+            </Setter.Value>
+        </Setter>
+    </Style>
+
 </ResourceDictionary>

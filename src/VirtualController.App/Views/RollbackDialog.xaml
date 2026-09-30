@@ -23,7 +23,7 @@
                     FontWeight="Bold" />
         </StackPanel>
 
-        <TextBlock DockPanel.Dock="Bottom" Margin="0,10,0,0" Foreground="Gray" FontStyle="Italic"
+        <TextBlock DockPanel.Dock="Bottom" Margin="0,10,0,0" Foreground="{StaticResource MutedTextBrush}" FontStyle="Italic"
                    Text="Versionen werden geladen..."
                    Visibility="{Binding IsLoading, Converter={StaticResource BoolToVisibilityConverter}}" />
 
@@ -34,7 +34,7 @@
         <StackPanel DockPanel.Dock="Bottom" Margin="0,10,0,0"
                     Visibility="{Binding IsInstalling, Converter={StaticResource BoolToVisibilityConverter}}">
             <ProgressBar Minimum="0" Maximum="100" Height="16" Value="{Binding InstallProgressPercent, Mode=OneWay}" />
-            <TextBlock Margin="0,6,0,0" Foreground="Gray" FontStyle="Italic" TextWrapping="Wrap"
+            <TextBlock Margin="0,6,0,0" Foreground="{StaticResource MutedTextBrush}" FontStyle="Italic" TextWrapping="Wrap"
                        Text="{Binding InstallStepText}" />
         </StackPanel>
 

@@ -22,8 +22,8 @@
                 <ColumnDefinition Width="*" />
                 <ColumnDefinition Width="Auto" />
             </Grid.ColumnDefinitions>
-            <TextBlock Grid.Column="0" Text="{Binding Name}" FontSize="11" Foreground="#666" />
-            <TextBlock Grid.Column="1" FontSize="11" Foreground="#999" FontFamily="Consolas">
+            <TextBlock Grid.Column="0" Text="{Binding Name}" FontSize="11" Foreground="{StaticResource MutedTextBrush}" />
+            <TextBlock Grid.Column="1" FontSize="11" Foreground="{StaticResource MutedTextBrush}" FontFamily="Consolas">
                 <TextBlock.Text>
                     <MultiBinding StringFormat="{}{0:F2}/{1:F2}">
                         <Binding Path="X.Value" />
@@ -33,7 +33,7 @@
             </TextBlock>
         </Grid>
 
-        <Border Width="120" Height="120" CornerRadius="3" Background="Transparent" BorderBrush="#CCC" BorderThickness="1" ClipToBounds="True">
+        <Border Width="120" Height="120" CornerRadius="3" Background="Transparent" BorderBrush="{StaticResource PanelBorderBrush}" BorderThickness="1" ClipToBounds="True">
             <Grid>
                 <!-- Deadzone-Bereich: quadratischer Rahmen um den Mittelpunkt, dessen Groesse proportional
                      zur konfigurierten (jeweils groesseren) X-/Y-Deadzone waechst. -->
@@ -50,7 +50,7 @@
                     </Grid.RowDefinitions>
 
                     <Border x:Name="DeadzoneBox" Grid.Column="1" Grid.Row="1" CornerRadius="2"
-                            BorderThickness="1" BorderBrush="#B0B0B0" Background="#D8D8D8">
+                            BorderThickness="1" BorderBrush="{StaticResource PanelBorderBrush}" Background="{StaticResource ButtonHoverBrush}">
                         <Border.Style>
                             <Style TargetType="Border">
                                 <Style.Triggers>
@@ -75,8 +75,8 @@
                 </Grid>
 
                 <!-- Faden-Kreuz durch den Mittelpunkt (Neutralpunkt 0,0). -->
-                <Rectangle Height="1" Fill="#C8C8C8" VerticalAlignment="Center" />
-                <Rectangle Width="1" Fill="#C8C8C8" HorizontalAlignment="Center" />
+                <Rectangle Height="1" Fill="{StaticResource MutedTextBrush}" VerticalAlignment="Center" />
+                <Rectangle Width="1" Fill="{StaticResource MutedTextBrush}" HorizontalAlignment="Center" />
 
                 <!-- Aktuelle Position als gut sichtbarer Punkt/Marker. Y invertiert (oben = positiv). -->
                 <Grid>

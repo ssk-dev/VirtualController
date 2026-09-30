@@ -236,7 +236,7 @@
                                             <TextBlock Text="Programm auswählen" VerticalAlignment="Center" />
                                         </StackPanel>
                                     </Button>
-                                    <TextBlock Text="{Binding AutoStartExecutableDisplayName}" VerticalAlignment="Center" FontStyle="Italic" Foreground="Gray" Margin="8,0,0,0" />
+                                    <TextBlock Text="{Binding AutoStartExecutableDisplayName}" VerticalAlignment="Center" FontStyle="Italic" Foreground="{StaticResource MutedTextBrush}" Margin="8,0,0,0" />
                                 </StackPanel>
                             </StackPanel>
                         </Border>
@@ -792,7 +792,7 @@
                 <StackPanel Margin="12">
                     <CheckBox Content="Automatische Geräteerkennung" IsChecked="{Binding AutoDeviceDetectionEnabled}"
                               FontWeight="Bold" />
-                    <TextBlock Margin="24,4,0,0" Foreground="Gray" FontStyle="Italic" TextWrapping="Wrap" MaxWidth="500"
+                    <TextBlock Margin="24,4,0,0" Foreground="{StaticResource MutedTextBrush}" FontStyle="Italic" TextWrapping="Wrap" MaxWidth="500"
                                Text="Erkennt neu angeschlossene oder getrennte Geräte automatisch im Hintergrund, ohne dass 'Geräte aktualisieren' geklickt werden muss. Deaktivieren stoppt den periodischen Scan vollständig." />
 
                     <Separator Margin="0,16,0,12" />
@@ -802,12 +802,12 @@
 
                     <CheckBox Content="Automatisch auf Updates prüfen" IsChecked="{Binding Update.AutoCheckEnabled}"
                               FontWeight="Bold" />
-                    <TextBlock Margin="24,4,0,0" Foreground="Gray" FontStyle="Italic" TextWrapping="Wrap" MaxWidth="500"
+                    <TextBlock Margin="24,4,0,0" Foreground="{StaticResource MutedTextBrush}" FontStyle="Italic" TextWrapping="Wrap" MaxWidth="500"
                                Text="Prüft bei jedem Start der Anwendung automatisch, ob eine neuere Version verfügbar ist. Bei fehlender Internetverbindung wird die Anwendung dadurch nicht beeinträchtigt." />
 
                     <CheckBox Content="Auch Vorabversionen berücksichtigen" IsChecked="{Binding Update.IncludePreReleases}"
                               FontWeight="Bold" Margin="0,12,0,0" />
-                    <TextBlock Margin="24,4,0,0" Foreground="Gray" FontStyle="Italic" TextWrapping="Wrap" MaxWidth="500"
+                    <TextBlock Margin="24,4,0,0" Foreground="{StaticResource MutedTextBrush}" FontStyle="Italic" TextWrapping="Wrap" MaxWidth="500"
                                Text="Bezieht bei der Update-Prüfung auch als Pre-release markierte Versionen ein (z.B. Tags mit dem Suffix '-alpha', '-beta' oder '-nightly'), statt ausschließlich vollwertige, stabile Versionen anzubieten." />
 
                     <StackPanel Orientation="Horizontal" Margin="0,12,0,0">
@@ -818,7 +818,7 @@
                                 <TextBlock Text="Auf Updates prüfen" VerticalAlignment="Center" />
                             </StackPanel>
                         </Button>
-                        <TextBlock Text="Prüfung läuft..." Foreground="Gray" FontStyle="Italic"
+                        <TextBlock Text="Prüfung läuft..." Foreground="{StaticResource MutedTextBrush}" FontStyle="Italic"
                                    VerticalAlignment="Center" Margin="12,0,0,0"
                                    Visibility="{Binding Update.IsCheckingForUpdates, Converter={StaticResource BoolToVisibilityConverter}}" />
                     </StackPanel>
@@ -831,7 +831,7 @@
                             <TextBlock Text="Version wechseln..." VerticalAlignment="Center" />
                         </StackPanel>
                     </Button>
-                    <TextBlock Margin="0,4,0,0" Foreground="Gray" FontStyle="Italic" TextWrapping="Wrap" MaxWidth="500"
+                    <TextBlock Margin="0,4,0,0" Foreground="{StaticResource MutedTextBrush}" FontStyle="Italic" TextWrapping="Wrap" MaxWidth="500"
                                Text="Ermöglicht den gezielten Wechsel zu einer beliebigen verfügbaren Version, einschließlich älterer Versionen (Rollback)." />
 
                     <Button Command="{Binding Update.OpenUpdateLogCommand}" Padding="8,4"
@@ -841,7 +841,7 @@
                             <TextBlock Text="Update-Log öffnen" VerticalAlignment="Center" />
                         </StackPanel>
                     </Button>
-                    <TextBlock Margin="0,4,0,0" Foreground="Gray" FontStyle="Italic" TextWrapping="Wrap" MaxWidth="500"
+                    <TextBlock Margin="0,4,0,0" Foreground="{StaticResource MutedTextBrush}" FontStyle="Italic" TextWrapping="Wrap" MaxWidth="500"
                                Text="Öffnet das Update-Protokoll (Download, Kopieren der neuen Dateien, Neustart) zur genauen Analyse, falls ein Update-Vorgang unerwartet verlaufen ist." />
 
                     <Button Command="{Binding Update.OpenAppDataFolderCommand}" Padding="8,4"
@@ -851,10 +851,10 @@
                             <TextBlock Text="AppData-Ordner öffnen" VerticalAlignment="Center" />
                         </StackPanel>
                     </Button>
-                    <TextBlock Margin="0,4,0,0" Foreground="Gray" FontStyle="Italic" TextWrapping="Wrap" MaxWidth="500"
+                    <TextBlock Margin="0,4,0,0" Foreground="{StaticResource MutedTextBrush}" FontStyle="Italic" TextWrapping="Wrap" MaxWidth="500"
                                Text="Öffnet den Anwendungsdatenordner (%AppData%\VirtualController) im Explorer, mit allen gespeicherten Profilen, Geräte-Einstellungen und Protokolldateien." />
 
-                    <TextBlock Margin="0,16,0,0" Text="Hier entstehen zukuenftig weitere globale Anwendungseinstellungen." Foreground="Gray" FontStyle="Italic" />
+                    <TextBlock Margin="0,16,0,0" Text="Hier entstehen zukuenftig weitere globale Anwendungseinstellungen." Foreground="{StaticResource MutedTextBrush}" FontStyle="Italic" />
                 </StackPanel>
             </TabItem>
         </TabControl>

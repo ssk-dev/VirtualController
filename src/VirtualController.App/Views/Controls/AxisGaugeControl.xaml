@@ -20,11 +20,11 @@
                 <ColumnDefinition Width="*" />
                 <ColumnDefinition Width="Auto" />
             </Grid.ColumnDefinitions>
-            <TextBlock Grid.Column="0" Text="{Binding Name}" FontSize="11" Foreground="#666" />
-            <TextBlock Grid.Column="1" Text="{Binding Value, StringFormat=F2}" FontSize="11" Foreground="#999" FontFamily="Consolas" />
+            <TextBlock Grid.Column="0" Text="{Binding Name}" FontSize="11" Foreground="{StaticResource MutedTextBrush}" />
+            <TextBlock Grid.Column="1" Text="{Binding Value, StringFormat=F2}" FontSize="11" Foreground="{StaticResource MutedTextBrush}" FontFamily="Consolas" />
         </Grid>
 
-        <Border Height="20" CornerRadius="3" Background="Transparent" BorderBrush="#CCC" BorderThickness="1" ClipToBounds="True">
+        <Border Height="20" CornerRadius="3" Background="Transparent" BorderBrush="{StaticResource PanelBorderBrush}" BorderThickness="1" ClipToBounds="True">
             <Grid>
                 <!-- Deadzone-Band: zentraler Bereich, dessen Breite proportional zum konfigurierten Deadzone-Wert waechst. -->
                 <Grid>
@@ -35,7 +35,7 @@
                     </Grid.ColumnDefinitions>
 
                     <Border x:Name="DeadzoneBand" Grid.Column="1" Margin="0,3" CornerRadius="2"
-                            BorderThickness="1" BorderBrush="#B0B0B0" Background="#D8D8D8">
+                            BorderThickness="1" BorderBrush="{StaticResource PanelBorderBrush}" Background="{StaticResource ButtonHoverBrush}">
                         <Border.Style>
                             <Style TargetType="Border">
                                 <Style.Triggers>
@@ -60,7 +60,7 @@
                 </Grid>
 
                 <!-- Nullpunkt-Markierung, nur fuer bidirektionale (zentrierte) Achsen sinnvoll. -->
-                <Rectangle Width="1" Fill="#999"
+                <Rectangle Width="1" Fill="{StaticResource MutedTextBrush}"
                            Visibility="{Binding IsBidirectional, Converter={StaticResource BoolToVisibilityConverter}}" />
 
                 <!-- Aktueller Wert als schmaler, gut sichtbarer Balken/Marker. -->
