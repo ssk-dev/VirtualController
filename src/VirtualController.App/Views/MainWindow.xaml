@@ -16,26 +16,69 @@
                 </Grid.ColumnDefinitions>
 
                 <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
-                    <Image Source="pack://application:,,,/Icons/logo.png" Height="24" Margin="0,0,12,0"
+                    <Image Source="pack://application:,,,/Icons/logo.png" Height="24" Margin="0,0,16,0"
                            VerticalAlignment="Center" />
-                    <Ellipse Width="12" Height="12" Margin="0,0,8,0"
-                             Fill="{Binding DriverReady, Converter={StaticResource BoolToStatusBrushConverter}}" />
-                    <TextBlock Text="{Binding DriverStatusText}" VerticalAlignment="Center" FontWeight="Bold" />
-                    <TextBlock Text="{Binding LastErrorMessage}" Foreground="Red" Margin="12,0,0,0" VerticalAlignment="Center" />
+
+                    <!-- ViGEmBus-Status als eigene "Pille": Punkt-Indikator + zweizeiliger Text (Haupttext/
+                         Untertitel), angelehnt an die urspruengliche Design-Vorlage (assets/layout-mapping.html,
+                         ".header-vigembus-box"). -->
+                    <Border BorderBrush="{StaticResource PanelBorderBrush}" BorderThickness="1" CornerRadius="6"
+                            Background="{StaticResource PanelBackgroundBrush}" Padding="10,4" Margin="0,0,12,0">
+                        <StackPanel Orientation="Horizontal">
+                            <Ellipse Width="12" Height="12" Margin="0,0,8,0" VerticalAlignment="Center"
+                                     Fill="{Binding DriverReady, Converter={StaticResource BoolToStatusBrushConverter}}" />
+                            <StackPanel>
+                                <TextBlock Text="{Binding DriverStatusText}" FontWeight="Bold" Foreground="{StaticResource TextBrush}" />
+                                <TextBlock Text="{Binding DriverReady, Converter={StaticResource BoolToDriverSubtextConverter}}"
+                                           FontSize="11" Foreground="{StaticResource MutedTextBrush}" />
+                            </StackPanel>
+                        </StackPanel>
+                    </Border>
+                    <TextBlock Text="{Binding LastErrorMessage}" Foreground="Red" VerticalAlignment="Center" />
                 </StackPanel>
 
                 <StackPanel Grid.Column="1" Orientation="Horizontal">
-                    <Button Content="Treiber verbinden" Command="{Binding ConnectDriverCommand}" Margin="4,0" Padding="8,4" />
-                    <Button Content="Geraete aktualisieren" Command="{Binding RefreshDevicesCommand}" Margin="4,0" Padding="8,4" />
-                    <Button Content="Profile laden" Command="{Binding LoadProfilesCommand}" Margin="4,0" Padding="8,4" />
-                    <TextBlock Text="Ungespeicherte Aenderungen" Foreground="#C00000" FontWeight="Bold"
-                               VerticalAlignment="Center" Margin="12,0,4,0"
-                               Visibility="{Binding HasUnsavedChanges, Converter={StaticResource BoolToVisibilityConverter}}" />
-                    <Button Content="Profile speichern" Command="{Binding SaveProfilesCommand}" Margin="4,0" Padding="8,4"
+                    <!-- Platzhalter-Icons (Segoe MDL2 Assets) vor jeder Button-Beschriftung, angelehnt an die
+                         Icon-Vorlage in assets/layout-mapping.html; werden spaeter durch eigene Icon-Assets
+                         ersetzt. -->
+                    <Button Command="{Binding ConnectDriverCommand}" Margin="4,0" Padding="8,4">
+                        <StackPanel Orientation="Horizontal">
+                            <TextBlock Text="&#xE71B;" FontFamily="Segoe MDL2 Assets" Margin="0,0,6,0" VerticalAlignment="Center" />
+                            <TextBlock Text="Treiber verbinden" VerticalAlignment="Center" />
+                        </StackPanel>
+                    </Button>
+                    <Button Command="{Binding RefreshDevicesCommand}" Margin="4,0" Padding="8,4">
+                        <StackPanel Orientation="Horizontal">
+                            <TextBlock Text="&#xE72C;" FontFamily="Segoe MDL2 Assets" Margin="0,0,6,0" VerticalAlignment="Center" />
+                            <TextBlock Text="Geraete aktualisieren" VerticalAlignment="Center" />
+                        </StackPanel>
+                    </Button>
+                    <Button Command="{Binding LoadProfilesCommand}" Margin="4,0" Padding="8,4">
+                        <StackPanel Orientation="Horizontal">
+                            <TextBlock Text="&#xE8B7;" FontFamily="Segoe MDL2 Assets" Margin="0,0,6,0" VerticalAlignment="Center" />
+                            <TextBlock Text="Profile laden" VerticalAlignment="Center" />
+                        </StackPanel>
+                    </Button>
+                    <StackPanel Orientation="Horizontal" Margin="12,0,4,0"
+                                Visibility="{Binding HasUnsavedChanges, Converter={StaticResource BoolToVisibilityConverter}}">
+                        <TextBlock Text="&#xE7BA;" FontFamily="Segoe MDL2 Assets" Foreground="#C00000" Margin="0,0,6,0" VerticalAlignment="Center" />
+                        <TextBlock Text="Ungespeicherte Aenderungen" Foreground="#C00000" FontWeight="Bold" VerticalAlignment="Center" />
+                    </StackPanel>
+                    <Button Command="{Binding SaveProfilesCommand}" Margin="4,0" Padding="8,4"
                             Foreground="{Binding HasUnsavedChanges, Converter={StaticResource BoolToUnsavedForegroundConverter}}"
-                            FontWeight="{Binding HasUnsavedChanges, Converter={StaticResource BoolToFontWeightConverter}}" />
-                    <Button Content="Windows Gamecontroller" Command="{Binding OpenWindowsGameControllersCommand}" Margin="4,0" Padding="8,4"
-                            ToolTip="Oeffnet die native Windows-Systemsteuerung fuer Gamecontroller (joy.cpl)." />
+                            FontWeight="{Binding HasUnsavedChanges, Converter={StaticResource BoolToFontWeightConverter}}">
+                        <StackPanel Orientation="Horizontal">
+                            <TextBlock Text="&#xE74E;" FontFamily="Segoe MDL2 Assets" Margin="0,0,6,0" VerticalAlignment="Center" />
+                            <TextBlock Text="Profile speichern" VerticalAlignment="Center" />
+                        </StackPanel>
+                    </Button>
+                    <Button Command="{Binding OpenWindowsGameControllersCommand}" Margin="4,0" Padding="8,4"
+                            ToolTip="Oeffnet die native Windows-Systemsteuerung fuer Gamecontroller (joy.cpl).">
+                        <StackPanel Orientation="Horizontal">
+                            <TextBlock Text="&#xE975;" FontFamily="Segoe MDL2 Assets" Margin="0,0,6,0" VerticalAlignment="Center" />
+                            <TextBlock Text="Windows Gamecontroller" VerticalAlignment="Center" />
+                        </StackPanel>
+                    </Button>
                 </StackPanel>
             </Grid>
         </Border>
@@ -51,8 +94,12 @@
                     <!-- Linke Spalte: Liste der virtuellen Controller -->
                     <Border DockPanel.Dock="Left" Width="260" BorderBrush="#DDD" BorderThickness="0,0,1,0">
                         <DockPanel>
-                            <Button DockPanel.Dock="Top" Content="+ Neuer virtueller Controller" Margin="8"
-                                    Padding="6" Command="{Binding AddControllerCommand}" />
+                            <Button DockPanel.Dock="Top" Margin="8" Padding="6" Command="{Binding AddControllerCommand}">
+                                <StackPanel Orientation="Horizontal">
+                                    <TextBlock Text="&#xE710;" FontFamily="Segoe MDL2 Assets" Margin="0,0,6,0" VerticalAlignment="Center" />
+                                    <TextBlock Text="Neuer virtueller Controller" VerticalAlignment="Center" />
+                                </StackPanel>
+                            </Button>
 
                             <ListBox ItemsSource="{Binding Controllers}"
                                      x:Name="ControllerListBox"
@@ -105,8 +152,18 @@
 
                                     <TextBlock Text="{Binding StatusText}" Margin="20,0,0,0" VerticalAlignment="Center" FontWeight="Bold" />
 
-                                    <Button Content="Start" Command="{Binding StartCommand}" Margin="16,0,4,0" Padding="10,4" />
-                                    <Button Content="Stop" Command="{Binding StopCommand}" Margin="4,0" Padding="10,4" />
+                                    <Button Command="{Binding StartCommand}" Margin="16,0,4,0" Padding="10,4">
+                                        <StackPanel Orientation="Horizontal">
+                                            <TextBlock Text="&#xE768;" FontFamily="Segoe MDL2 Assets" Margin="0,0,6,0" VerticalAlignment="Center" />
+                                            <TextBlock Text="Start" VerticalAlignment="Center" />
+                                        </StackPanel>
+                                    </Button>
+                                    <Button Command="{Binding StopCommand}" Margin="4,0" Padding="10,4">
+                                        <StackPanel Orientation="Horizontal">
+                                            <TextBlock Text="&#xE71A;" FontFamily="Segoe MDL2 Assets" Margin="0,0,6,0" VerticalAlignment="Center" />
+                                            <TextBlock Text="Stop" VerticalAlignment="Center" />
+                                        </StackPanel>
+                                    </Button>
 
                                     <!-- Sperrt die diesem Controller zugeordneten physischen Geraete per HidHide fuer alle
                                          anderen Anwendungen, solange dieser virtuelle Controller laeuft (siehe
@@ -119,7 +176,12 @@
                                               IsEnabled="{Binding DataContext.IsHidHideAvailable, RelativeSource={RelativeSource AncestorType=Window}}"
                                               ToolTip="Physische Geraete dieses Controllers waehrend der Laufzeit fuer andere Anwendungen sperren (benoetigt den HidHide-Treiber)." />
 
-                                    <Button Content="Entfernen" Command="{Binding RemoveCommand}" Margin="16,0,0,0" Padding="10,4" />
+                                    <Button Command="{Binding RemoveCommand}" Margin="16,0,0,0" Padding="10,4">
+                                        <StackPanel Orientation="Horizontal">
+                                            <TextBlock Text="&#xE74D;" FontFamily="Segoe MDL2 Assets" Margin="0,0,6,0" VerticalAlignment="Center" />
+                                            <TextBlock Text="Entfernen" VerticalAlignment="Center" />
+                                        </StackPanel>
+                                    </Button>
                                 </StackPanel>
 
                                 <!-- Automatischer Start/Stop dieses Controllers, gekoppelt an das Laufen eines vom
@@ -130,7 +192,12 @@
                                     <CheckBox Content="Controller automatisch starten" VerticalAlignment="Center"
                                               IsChecked="{Binding AutoStartEnabled}"
                                               ToolTip="Startet und stoppt diesen Controller automatisch, je nachdem ob das unten ausgewaehlte Programm laeuft." />
-                                    <Button Content="Programm auswählen" Command="{Binding ChooseAutoStartExecutableCommand}" Margin="16,0,4,0" Padding="10,4" />
+                                    <Button Command="{Binding ChooseAutoStartExecutableCommand}" Margin="16,0,4,0" Padding="10,4">
+                                        <StackPanel Orientation="Horizontal">
+                                            <TextBlock Text="&#xE8E5;" FontFamily="Segoe MDL2 Assets" Margin="0,0,6,0" VerticalAlignment="Center" />
+                                            <TextBlock Text="Programm auswählen" VerticalAlignment="Center" />
+                                        </StackPanel>
+                                    </Button>
                                     <TextBlock Text="{Binding AutoStartExecutableDisplayName}" VerticalAlignment="Center" FontStyle="Italic" Foreground="Gray" Margin="8,0,0,0" />
                                 </StackPanel>
                             </StackPanel>
@@ -151,9 +218,19 @@
                                      Tab-Leiste), da er controller-weit (nicht modusspezifisch) gilt. -->
                                 <StackPanel Orientation="Horizontal" Margin="16,0,0,0"
                                             Visibility="{Binding ModeSwitchMechanism, Converter={StaticResource EnumEqualsVisibilityConverter}, ConverterParameter=Toggle}">
-                                    <Button Content="Erfassen" Command="{Binding CaptureToggleTriggerCommand}" Padding="6,2" Margin="0,0,6,0" />
-                                    <Button Content="Zuweisen" Click="OnAssignToggleTriggerClicked" Padding="6,2" Margin="0,0,6,0"
-                                            ToolTip="Physische Eingabe aus einer Liste auswaehlen, statt sie zu druecken/bewegen." />
+                                    <Button Command="{Binding CaptureToggleTriggerCommand}" Padding="6,2" Margin="0,0,6,0">
+                                        <StackPanel Orientation="Horizontal">
+                                            <TextBlock Text="&#xE70F;" FontFamily="Segoe MDL2 Assets" Margin="0,0,4,0" VerticalAlignment="Center" />
+                                            <TextBlock Text="Erfassen" VerticalAlignment="Center" />
+                                        </StackPanel>
+                                    </Button>
+                                    <Button Click="OnAssignToggleTriggerClicked" Padding="6,2" Margin="0,0,6,0"
+                                            ToolTip="Physische Eingabe aus einer Liste auswaehlen, statt sie zu druecken/bewegen.">
+                                        <StackPanel Orientation="Horizontal">
+                                            <TextBlock Text="&#xE71B;" FontFamily="Segoe MDL2 Assets" Margin="0,0,4,0" VerticalAlignment="Center" />
+                                            <TextBlock Text="Zuweisen" VerticalAlignment="Center" />
+                                        </StackPanel>
+                                    </Button>
                                     <TextBlock Text="{Binding ToggleTriggerDisplayName}" VerticalAlignment="Center" />
                                     <TextBlock Text="{Binding CaptureCountdownSeconds, StringFormat=' (druecke Taste... noch {0}s)'}" Foreground="OrangeRed" VerticalAlignment="Center"
                                                Visibility="{Binding IsCapturingToggleTrigger, Converter={StaticResource BoolToVisibilityConverter}}" />
@@ -211,9 +288,19 @@
                                                     <!-- Nur bei Switch-Mechanismus relevant: eigener Ausloeser dieses Modus. -->
                                                     <StackPanel Orientation="Horizontal" Margin="8,0,0,0"
                                                                 Visibility="{Binding DataContext.ModeSwitchMechanism, ElementName=ControllerDetailGrid, Converter={StaticResource EnumEqualsVisibilityConverter}, ConverterParameter=Switch}">
-                                                        <Button Content="Erfassen" Command="{Binding CaptureSwitchTriggerCommand}" Padding="6,2" Margin="0,0,6,0" />
-                                                        <Button Content="Zuweisen" Click="OnAssignSwitchTriggerClicked" Padding="6,2" Margin="0,0,6,0"
-                                                                ToolTip="Physische Eingabe aus einer Liste auswaehlen, statt sie zu druecken/bewegen." />
+                                                        <Button Command="{Binding CaptureSwitchTriggerCommand}" Padding="6,2" Margin="0,0,6,0">
+                                                            <StackPanel Orientation="Horizontal">
+                                                                <TextBlock Text="&#xE70F;" FontFamily="Segoe MDL2 Assets" Margin="0,0,4,0" VerticalAlignment="Center" />
+                                                                <TextBlock Text="Erfassen" VerticalAlignment="Center" />
+                                                            </StackPanel>
+                                                        </Button>
+                                                        <Button Click="OnAssignSwitchTriggerClicked" Padding="6,2" Margin="0,0,6,0"
+                                                                ToolTip="Physische Eingabe aus einer Liste auswaehlen, statt sie zu druecken/bewegen.">
+                                                            <StackPanel Orientation="Horizontal">
+                                                                <TextBlock Text="&#xE71B;" FontFamily="Segoe MDL2 Assets" Margin="0,0,4,0" VerticalAlignment="Center" />
+                                                                <TextBlock Text="Zuweisen" VerticalAlignment="Center" />
+                                                            </StackPanel>
+                                                        </Button>
                                                         <TextBlock Text="{Binding SwitchTriggerDisplayName}" VerticalAlignment="Center" />
                                                         <TextBlock Text="{Binding CaptureCountdownSeconds, StringFormat=' (druecke Taste... noch {0}s)'}" Foreground="OrangeRed" VerticalAlignment="Center"
                                                                    Visibility="{Binding IsCapturingSwitchTrigger, Converter={StaticResource BoolToVisibilityConverter}}" />
@@ -222,15 +309,22 @@
                                                                    Visibility="{Binding SwitchTriggerValidationError, Converter={StaticResource BoolToVisibilityConverter}}" />
                                                     </StackPanel>
 
-                                                    <Button Content="x" Command="{Binding RemoveCommand}" Padding="4,0" Margin="8,0,0,0"
-                                                            ToolTip="Diesen Modus entfernen." />
+                                                    <Button Command="{Binding RemoveCommand}" Padding="4,0" Margin="8,0,0,0"
+                                                            ToolTip="Diesen Modus entfernen.">
+                                                        <TextBlock Text="&#xE711;" FontFamily="Segoe MDL2 Assets" />
+                                                    </Button>
                                                 </StackPanel>
                                             </Border>
                                         </DataTemplate>
                                     </ListBox.ItemTemplate>
                                 </ListBox>
 
-                                <Button Content="+ Neuer Modus" Command="{Binding AddModeCommand}" Padding="6,4" VerticalAlignment="Center" />
+                                <Button Command="{Binding AddModeCommand}" Padding="6,4" VerticalAlignment="Center">
+                                    <StackPanel Orientation="Horizontal">
+                                        <TextBlock Text="&#xE710;" FontFamily="Segoe MDL2 Assets" Margin="0,0,4,0" VerticalAlignment="Center" />
+                                        <TextBlock Text="Neuer Modus" VerticalAlignment="Center" />
+                                    </StackPanel>
+                                </Button>
                             </StackPanel>
                         </Border>
 
@@ -242,8 +336,13 @@
 
                             <!-- Linke Spalte: Mapping-Tabelle des ausgewaehlten virtuellen Controllers -->
                             <DockPanel Grid.Column="0" Margin="0,0,12,0">
-                                <Button DockPanel.Dock="Top" Content="+ Mapping-Zeile hinzufuegen" HorizontalAlignment="Left"
-                                        Margin="0,0,0,8" Padding="6,4" Command="{Binding AddMappingCommand}" />
+                                <Button DockPanel.Dock="Top" HorizontalAlignment="Left"
+                                        Margin="0,0,0,8" Padding="6,4" Command="{Binding AddMappingCommand}">
+                                    <StackPanel Orientation="Horizontal">
+                                        <TextBlock Text="&#xE710;" FontFamily="Segoe MDL2 Assets" Margin="0,0,4,0" VerticalAlignment="Center" />
+                                        <TextBlock Text="Mapping-Zeile hinzufuegen" VerticalAlignment="Center" />
+                                    </StackPanel>
+                                </Button>
 
                                 <!-- Mapping-Tabelle gruppiert nach Ziel-Typ (Button/Achse/Trigger/D-Pad): statt einer
                                      einzigen flachen DataGrid (frueher x:Name="MappingsDataGrid") wird hier je
@@ -283,9 +382,19 @@
                                                     <DataGridTemplateColumn.CellTemplate>
                                                         <DataTemplate DataType="{x:Type vm:MappingRowViewModel}">
                                                             <StackPanel Orientation="Horizontal">
-                                                                <Button Content="Erfassen" Command="{Binding CaptureCommand}" Padding="6,2" Margin="0,0,6,0" />
-                                                                <Button Content="Zuweisen" Click="OnAssignInputClicked" Padding="6,2" Margin="0,0,6,0"
-                                                                        ToolTip="Physische Eingabe aus einer Liste auswaehlen, statt sie zu druecken/bewegen." />
+                                                                <Button Command="{Binding CaptureCommand}" Padding="6,2" Margin="0,0,6,0">
+                                                                    <StackPanel Orientation="Horizontal">
+                                                                        <TextBlock Text="&#xE70F;" FontFamily="Segoe MDL2 Assets" Margin="0,0,4,0" VerticalAlignment="Center" />
+                                                                        <TextBlock Text="Erfassen" VerticalAlignment="Center" />
+                                                                    </StackPanel>
+                                                                </Button>
+                                                                <Button Click="OnAssignInputClicked" Padding="6,2" Margin="0,0,6,0"
+                                                                        ToolTip="Physische Eingabe aus einer Liste auswaehlen, statt sie zu druecken/bewegen.">
+                                                                    <StackPanel Orientation="Horizontal">
+                                                                        <TextBlock Text="&#xE71B;" FontFamily="Segoe MDL2 Assets" Margin="0,0,4,0" VerticalAlignment="Center" />
+                                                                        <TextBlock Text="Zuweisen" VerticalAlignment="Center" />
+                                                                    </StackPanel>
+                                                                </Button>
                                                                 <TextBlock Text="{Binding SourceDisplayName}" VerticalAlignment="Center" />
                                                                 <TextBlock Text=" (nicht verbunden)" Foreground="Red" FontWeight="Bold" VerticalAlignment="Center"
                                                                            Visibility="{Binding IsSourceConnected, Converter={StaticResource BoolToVisibilityConverter}, ConverterParameter=Invert}" />
@@ -340,7 +449,12 @@
                                                 <DataGridTemplateColumn Header="" Width="90">
                                                     <DataGridTemplateColumn.CellTemplate>
                                                         <DataTemplate DataType="{x:Type vm:MappingRowViewModel}">
-                                                            <Button Content="Entfernen" Command="{Binding RemoveCommand}" Padding="6,2" />
+                                                            <Button Command="{Binding RemoveCommand}" Padding="6,2">
+                                                                <StackPanel Orientation="Horizontal">
+                                                                    <TextBlock Text="&#xE74D;" FontFamily="Segoe MDL2 Assets" Margin="0,0,4,0" VerticalAlignment="Center" />
+                                                                    <TextBlock Text="Entfernen" VerticalAlignment="Center" />
+                                                                </StackPanel>
+                                                            </Button>
                                                         </DataTemplate>
                                                     </DataGridTemplateColumn.CellTemplate>
                                                 </DataGridTemplateColumn>
@@ -377,9 +491,19 @@
                                                                 <DataGridTemplateColumn.CellTemplate>
                                                                     <DataTemplate DataType="{x:Type vm:MappingRowViewModel}">
                                                                         <StackPanel Orientation="Horizontal">
-                                                                            <Button Content="Erfassen" Command="{Binding CaptureCommand}" Padding="6,2" Margin="0,0,6,0" />
-                                                                            <Button Content="Zuweisen" Click="OnAssignInputClicked" Padding="6,2" Margin="0,0,6,0"
-                                                                                    ToolTip="Physische Eingabe aus einer Liste auswaehlen, statt sie zu druecken/bewegen." />
+                                                                            <Button Command="{Binding CaptureCommand}" Padding="6,2" Margin="0,0,6,0">
+                                                                                <StackPanel Orientation="Horizontal">
+                                                                                    <TextBlock Text="&#xE70F;" FontFamily="Segoe MDL2 Assets" Margin="0,0,4,0" VerticalAlignment="Center" />
+                                                                                    <TextBlock Text="Erfassen" VerticalAlignment="Center" />
+                                                                                </StackPanel>
+                                                                            </Button>
+                                                                            <Button Click="OnAssignInputClicked" Padding="6,2" Margin="0,0,6,0"
+                                                                                    ToolTip="Physische Eingabe aus einer Liste auswaehlen, statt sie zu druecken/bewegen.">
+                                                                                <StackPanel Orientation="Horizontal">
+                                                                                    <TextBlock Text="&#xE71B;" FontFamily="Segoe MDL2 Assets" Margin="0,0,4,0" VerticalAlignment="Center" />
+                                                                                    <TextBlock Text="Zuweisen" VerticalAlignment="Center" />
+                                                                                </StackPanel>
+                                                                            </Button>
                                                                             <TextBlock Text="{Binding SourceDisplayName}" VerticalAlignment="Center" />
                                                                             <TextBlock Text=" (nicht verbunden)" Foreground="Red" FontWeight="Bold" VerticalAlignment="Center"
                                                                                        Visibility="{Binding IsSourceConnected, Converter={StaticResource BoolToVisibilityConverter}, ConverterParameter=Invert}" />
@@ -434,7 +558,12 @@
                                                             <DataGridTemplateColumn Header="" Width="90">
                                                                 <DataGridTemplateColumn.CellTemplate>
                                                                     <DataTemplate DataType="{x:Type vm:MappingRowViewModel}">
-                                                                        <Button Content="Entfernen" Command="{Binding RemoveCommand}" Padding="6,2" />
+                                                                        <Button Command="{Binding RemoveCommand}" Padding="6,2">
+                                                                            <StackPanel Orientation="Horizontal">
+                                                                                <TextBlock Text="&#xE74D;" FontFamily="Segoe MDL2 Assets" Margin="0,0,4,0" VerticalAlignment="Center" />
+                                                                                <TextBlock Text="Entfernen" VerticalAlignment="Center" />
+                                                                            </StackPanel>
+                                                                        </Button>
                                                                     </DataTemplate>
                                                                 </DataGridTemplateColumn.CellTemplate>
                                                             </DataGridTemplateColumn>
@@ -478,8 +607,13 @@
                                                                         <StackPanel>
                                                                             <TextBox Text="{Binding Name, UpdateSourceTrigger=PropertyChanged}"
                                                                                      VerticalAlignment="Center" />
-                                                                            <Button Content="Zuweisen" Command="{Binding AssignCommand}"
-                                                                                    HorizontalAlignment="Left" Padding="6,1" Margin="0,4,0,0" />
+                                                                            <Button Command="{Binding AssignCommand}"
+                                                                                    HorizontalAlignment="Left" Padding="6,1" Margin="0,4,0,0">
+                                                                                <StackPanel Orientation="Horizontal">
+                                                                                    <TextBlock Text="&#xE71B;" FontFamily="Segoe MDL2 Assets" Margin="0,0,4,0" VerticalAlignment="Center" />
+                                                                                    <TextBlock Text="Zuweisen" VerticalAlignment="Center" />
+                                                                                </StackPanel>
+                                                                            </Button>
                                                                         </StackPanel>
                                                                     </Border>
                                                                 </DataTemplate>
@@ -557,8 +691,13 @@
                                                 </Grid.ColumnDefinitions>
                                                 <TextBlock Grid.Column="0" Text="{Binding DisplayName}" VerticalAlignment="Center"
                                                            TextTrimming="CharacterEllipsis" />
-                                                <Button Grid.Column="1" Content="Einblenden" Padding="4,1" FontSize="11"
-                                                        Command="{Binding ToggleHiddenCommand}" />
+                                                <Button Grid.Column="1" Padding="4,1" FontSize="11"
+                                                        Command="{Binding ToggleHiddenCommand}">
+                                                    <StackPanel Orientation="Horizontal">
+                                                        <TextBlock Text="&#xE7B3;" FontFamily="Segoe MDL2 Assets" Margin="0,0,4,0" VerticalAlignment="Center" />
+                                                        <TextBlock Text="Einblenden" VerticalAlignment="Center" />
+                                                    </StackPanel>
+                                                </Button>
                                             </Grid>
                                         </DataTemplate>
                                     </ListBox.ItemTemplate>
@@ -579,9 +718,14 @@
                                                      ToolTip="Gruen = aktiviert und angeschlossen. Grau = deaktiviert und/oder nicht angeschlossen." />
                                             <TextBlock Grid.Column="1" Text="{Binding DisplayName}" VerticalAlignment="Center"
                                                        TextTrimming="CharacterEllipsis" />
-                                            <Button Grid.Column="2" Content="Ausblenden" Padding="4,1" FontSize="11" Margin="4,0,0,0"
+                                            <Button Grid.Column="2" Padding="4,1" FontSize="11" Margin="4,0,0,0"
                                                     Command="{Binding ToggleHiddenCommand}"
-                                                    ToolTip="Dieses Geraet dauerhaft aus dieser Liste entfernen (z.B. einen eigenen virtuellen Controller) - jederzeit unten wieder einblendbar." />
+                                                    ToolTip="Dieses Geraet dauerhaft aus dieser Liste entfernen (z.B. einen eigenen virtuellen Controller) - jederzeit unten wieder einblendbar.">
+                                                <StackPanel Orientation="Horizontal">
+                                                    <TextBlock Text="&#xE894;" FontFamily="Segoe MDL2 Assets" Margin="0,0,4,0" VerticalAlignment="Center" />
+                                                    <TextBlock Text="Ausblenden" VerticalAlignment="Center" />
+                                                </StackPanel>
+                                            </Button>
                                         </Grid>
                                     </DataTemplate>
                                 </ListBox.ItemTemplate>
@@ -618,26 +762,46 @@
                                Text="Bezieht bei der Update-Prüfung auch als Pre-release markierte Versionen ein (z.B. Tags mit dem Suffix '-alpha', '-beta' oder '-nightly'), statt ausschließlich vollwertige, stabile Versionen anzubieten." />
 
                     <StackPanel Orientation="Horizontal" Margin="0,12,0,0">
-                        <Button Content="Auf Updates prüfen" Command="{Binding Update.CheckForUpdatesCommand}"
-                                Padding="8,4" IsEnabled="{Binding Update.IsCheckingForUpdates, Converter={StaticResource InverseBoolConverter}}" />
+                        <Button Command="{Binding Update.CheckForUpdatesCommand}"
+                                Padding="8,4" IsEnabled="{Binding Update.IsCheckingForUpdates, Converter={StaticResource InverseBoolConverter}}">
+                            <StackPanel Orientation="Horizontal">
+                                <TextBlock Text="&#xE72C;" FontFamily="Segoe MDL2 Assets" Margin="0,0,6,0" VerticalAlignment="Center" />
+                                <TextBlock Text="Auf Updates prüfen" VerticalAlignment="Center" />
+                            </StackPanel>
+                        </Button>
                         <TextBlock Text="Prüfung läuft..." Foreground="Gray" FontStyle="Italic"
                                    VerticalAlignment="Center" Margin="12,0,0,0"
                                    Visibility="{Binding Update.IsCheckingForUpdates, Converter={StaticResource BoolToVisibilityConverter}}" />
                     </StackPanel>
                     <TextBlock Margin="0,8,0,0" Text="{Binding Update.StatusText}" TextWrapping="Wrap" MaxWidth="500" />
 
-                    <Button Content="Version wechseln..." Click="RollbackButton_Click" Padding="8,4"
-                            Margin="0,12,0,0" HorizontalAlignment="Left" />
+                    <Button Click="RollbackButton_Click" Padding="8,4"
+                            Margin="0,12,0,0" HorizontalAlignment="Left">
+                        <StackPanel Orientation="Horizontal">
+                            <TextBlock Text="&#xE81C;" FontFamily="Segoe MDL2 Assets" Margin="0,0,6,0" VerticalAlignment="Center" />
+                            <TextBlock Text="Version wechseln..." VerticalAlignment="Center" />
+                        </StackPanel>
+                    </Button>
                     <TextBlock Margin="0,4,0,0" Foreground="Gray" FontStyle="Italic" TextWrapping="Wrap" MaxWidth="500"
                                Text="Ermöglicht den gezielten Wechsel zu einer beliebigen verfügbaren Version, einschließlich älterer Versionen (Rollback)." />
 
-                    <Button Content="Update-Log öffnen" Command="{Binding Update.OpenUpdateLogCommand}" Padding="8,4"
-                            Margin="0,12,0,0" HorizontalAlignment="Left" />
+                    <Button Command="{Binding Update.OpenUpdateLogCommand}" Padding="8,4"
+                            Margin="0,12,0,0" HorizontalAlignment="Left">
+                        <StackPanel Orientation="Horizontal">
+                            <TextBlock Text="&#xE8A5;" FontFamily="Segoe MDL2 Assets" Margin="0,0,6,0" VerticalAlignment="Center" />
+                            <TextBlock Text="Update-Log öffnen" VerticalAlignment="Center" />
+                        </StackPanel>
+                    </Button>
                     <TextBlock Margin="0,4,0,0" Foreground="Gray" FontStyle="Italic" TextWrapping="Wrap" MaxWidth="500"
                                Text="Öffnet das Update-Protokoll (Download, Kopieren der neuen Dateien, Neustart) zur genauen Analyse, falls ein Update-Vorgang unerwartet verlaufen ist." />
 
-                    <Button Content="AppData-Ordner öffnen" Command="{Binding Update.OpenAppDataFolderCommand}" Padding="8,4"
-                            Margin="0,12,0,0" HorizontalAlignment="Left" />
+                    <Button Command="{Binding Update.OpenAppDataFolderCommand}" Padding="8,4"
+                            Margin="0,12,0,0" HorizontalAlignment="Left">
+                        <StackPanel Orientation="Horizontal">
+                            <TextBlock Text="&#xE8B7;" FontFamily="Segoe MDL2 Assets" Margin="0,0,6,0" VerticalAlignment="Center" />
+                            <TextBlock Text="AppData-Ordner öffnen" VerticalAlignment="Center" />
+                        </StackPanel>
+                    </Button>
                     <TextBlock Margin="0,4,0,0" Foreground="Gray" FontStyle="Italic" TextWrapping="Wrap" MaxWidth="500"
                                Text="Öffnet den Anwendungsdatenordner (%AppData%\VirtualController) im Explorer, mit allen gespeicherten Profilen, Geräte-Einstellungen und Protokolldateien." />
 

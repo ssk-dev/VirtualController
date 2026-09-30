@@ -167,14 +167,44 @@
         </Setter>
     </Style>
 
-    <!-- CheckBox: bisher gab es keinen eigenen Style, wodurch sowohl das Kaestchen als auch der
-         Beschriftungstext im nativen, dunklen System-Theme-Vorgabewert dargestellt wurden - auf dem
-         neuen dunklen App-Hintergrund praktisch unlesbar (dunkler Text auf dunklem Grund). Setzt daher
-         explizit Foreground/Background/BorderBrush passend zur restlichen Palette. -->
+    <!-- CheckBox: wie bei Button/ComboBox reicht ein einfacher Foreground/Background/BorderBrush-Setter
+         nicht aus, da die native WPF-CheckBox das Kaestchen selbst ueber eine vom System-Theme
+         vorgegebene Chrome zeichnet und diese Setter ignoriert (Kaestchen blieb dunkel/unlesbar). Eigenes
+         ControlTemplate mit einem 16x16 dunklen Kaestchen (Panel-Optik) und einem Haekchen-Glyph
+         (Segoe MDL2 Assets), das nur bei IsChecked==true sichtbar ist. -->
     <Style TargetType="CheckBox">
         <Setter Property="Foreground" Value="{StaticResource TextBrush}" />
-        <Setter Property="Background" Value="{StaticResource PanelBackgroundBrush}" />
-        <Setter Property="BorderBrush" Value="{StaticResource PanelBorderBrush}" />
+        <Setter Property="Cursor" Value="Hand" />
+        <Setter Property="Template">
+            <Setter.Value>
+                <ControlTemplate TargetType="CheckBox">
+                    <StackPanel Orientation="Horizontal">
+                        <Border x:Name="CheckBoxBorder" Width="16" Height="16" VerticalAlignment="Center"
+                                Background="{StaticResource PanelBackgroundBrush}"
+                                BorderBrush="{StaticResource PanelBorderBrush}"
+                                BorderThickness="1" CornerRadius="3">
+                            <TextBlock x:Name="CheckGlyph" Text="&#xE73E;" FontFamily="Segoe MDL2 Assets"
+                                       FontSize="11" Foreground="{StaticResource AccentBrush}"
+                                       HorizontalAlignment="Center" VerticalAlignment="Center"
+                                       Visibility="Collapsed" />
+                        </Border>
+                        <ContentPresenter Margin="6,0,0,0" VerticalAlignment="Center" HorizontalAlignment="Left" />
+                    </StackPanel>
+                    <ControlTemplate.Triggers>
+                        <Trigger Property="IsChecked" Value="True">
+                            <Setter TargetName="CheckGlyph" Property="Visibility" Value="Visible" />
+                            <Setter TargetName="CheckBoxBorder" Property="BorderBrush" Value="{StaticResource AccentBrush}" />
+                        </Trigger>
+                        <Trigger Property="IsMouseOver" Value="True">
+                            <Setter TargetName="CheckBoxBorder" Property="BorderBrush" Value="{StaticResource AccentBrush}" />
+                        </Trigger>
+                        <Trigger Property="IsEnabled" Value="False">
+                            <Setter Property="Opacity" Value="0.5" />
+                        </Trigger>
+                    </ControlTemplate.Triggers>
+                </ControlTemplate>
+            </Setter.Value>
+        </Setter>
     </Style>
 
 </ResourceDictionary>

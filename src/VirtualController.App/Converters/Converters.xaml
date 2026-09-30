@@ -24,5 +24,6 @@
     <conv:CountToVisibilityConverter x:Key="CountToVisibilityConverter" />
     <conv:BoolToLogButtonTextConverter x:Key="BoolToLogButtonTextConverter" />
     <conv:BoolToBenchmarkButtonTextConverter x:Key="BoolToBenchmarkButtonTextConverter" />
+    <conv:BoolToDriverSubtextConverter x:Key="BoolToDriverSubtextConverter" />
 
 </ResourceDictionary>
