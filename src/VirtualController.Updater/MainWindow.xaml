@@ -1,0 +1,40 @@
+<Window x:Class="VirtualController.Updater.MainWindow"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        Title="VirtualController Updater" Width="420" SizeToContent="Height"
+        WindowStartupLocation="CenterScreen"
+        ResizeMode="NoResize"
+        ShowInTaskbar="True"
+        Topmost="True">
+
+    <!-- Einziges Fenster dieses eigenstaendigen Updater-Prozesses (siehe UpdaterViewModel):
+         durchlaeuft automatisch drei sich gegenseitig ausschliessende Phasen (IsWorking / IsSucceeded /
+         IsFailed). Topmost="True" und WindowStartupLocation="CenterScreen" (statt CenterOwner, da dieser
+         Prozess kein WPF-Owner-Fenster hat - die Hauptanwendung ist zu diesem Zeitpunkt bereits beendet
+         oder beendet sich gerade), damit der Nutzer den Fortschritt zuverlaessig sieht, auch waehrend
+         die Hauptanwendung sich noch schliesst. -->
+    <StackPanel Margin="16">
+        <StackPanel Visibility="{Binding IsWorking, Converter={StaticResource BoolToVisibilityConverter}}">
+            <TextBlock Text="Update wird installiert" FontSize="16" FontWeight="Bold" TextWrapping="Wrap" />
+            <ProgressBar Margin="0,12,0,0" IsIndeterminate="True" Height="16" />
+            <TextBlock Margin="0,10,0,0" Foreground="Gray" FontStyle="Italic" TextWrapping="Wrap"
+                       Text="{Binding StatusText}" />
+        </StackPanel>
+
+        <StackPanel Visibility="{Binding IsSucceeded, Converter={StaticResource BoolToVisibilityConverter}}">
+            <TextBlock Text="Update erfolgreich installiert" FontSize="16" FontWeight="Bold" TextWrapping="Wrap" />
+            <TextBlock Margin="0,10,0,0" TextWrapping="Wrap" Text="{Binding SuccessText}" />
+            <Button Margin="0,16,0,0" Content="VirtualController starten" Command="{Binding StartApplicationCommand}"
+                    Padding="8,4" HorizontalAlignment="Right" IsDefault="True" FontWeight="Bold" />
+        </StackPanel>
+
+        <StackPanel Visibility="{Binding IsFailed, Converter={StaticResource BoolToVisibilityConverter}}">
+            <TextBlock Text="Update fehlgeschlagen" FontSize="16" FontWeight="Bold" TextWrapping="Wrap" Foreground="Firebrick" />
+            <TextBlock Margin="0,10,0,0" TextWrapping="Wrap" Text="{Binding ErrorMessage}" />
+            <StackPanel Orientation="Horizontal" HorizontalAlignment="Right" Margin="0,16,0,0">
+                <Button Content="Log-Datei öffnen" Command="{Binding OpenLogFileCommand}" Padding="8,4" Margin="0,0,8,0" />
+                <Button Content="Schließen" Command="{Binding CloseCommand}" Padding="8,4" IsDefault="True" />
+            </StackPanel>
+        </StackPanel>
+    </StackPanel>
+</Window>

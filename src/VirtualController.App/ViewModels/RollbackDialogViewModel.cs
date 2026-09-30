@@ -184,7 +184,7 @@ public sealed partial class RollbackDialogViewModel : ObservableObject
 
         try
         {
-            var preparation = await _installer.PrepareAsync(target.DownloadUrl, progress).ConfigureAwait(true);
+            var preparation = await _installer.PrepareAsync(target.DownloadUrl, target.Version.ToString(), progress).ConfigureAwait(true);
             _installer.LaunchUpdaterProcess(preparation, progress);
 
             // Ab hier ist der separate Updater-Prozess gestartet - siehe

@@ -92,7 +92,7 @@ public sealed partial class UpdateAvailableDialogViewModel : ObservableObject
 
         try
         {
-            var preparation = await _installer.PrepareAsync(_details.DownloadUrl, progress).ConfigureAwait(true);
+            var preparation = await _installer.PrepareAsync(_details.DownloadUrl, _details.AvailableVersion.ToString(), progress).ConfigureAwait(true);
             _installer.LaunchUpdaterProcess(preparation, progress);
 
             // Ab hier ist der separate Updater-Prozess gestartet und wartet auf die Beendigung dieses

@@ -14,8 +14,12 @@ namespace VirtualController.Core.Updates;
 /// Updater-Prozess die Anwendung nach dem Kopieren neu startet.</param>
 /// <param name="ProcessId">Prozess-ID dieser noch laufenden Anwendungsinstanz - der Updater-Prozess wartet
 /// auf deren Beendigung, bevor er die Zieldateien ueberschreibt (sie sind waehrend der Laufzeit gesperrt).</param>
+/// <param name="TargetVersion">Versionsnummer der zu installierenden Version (z.B. "1.5.0"), rein
+/// informativ fuer die Anzeige im separaten Updater-Prozess (z.B. "Version 1.5.0 erfolgreich
+/// installiert") - hat keinen Einfluss auf den eigentlichen Installationsvorgang selbst.</param>
 public sealed record UpdateInstallPreparation(
     string StagingDirectory,
     string InstallDirectory,
     string ExecutableFileName,
-    int ProcessId);
+    int ProcessId,
+    string TargetVersion);

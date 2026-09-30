@@ -7,9 +7,16 @@ namespace VirtualController.Core.Updates;
 /// <summary>
 /// Fuehrt die eigentliche Update-Installation durch: laedt das ZIP-Archiv der neuen Version herunter,
 /// entpackt es in ein temporaeres Staging-Verzeichnis und startet anschliessend einen separaten,
-/// kurzlebigen PowerShell-Updater-Prozess, der - NACHDEM diese Anwendung sich beendet hat (die
-/// laufende EXE/DLLs koennen waehrend der eigenen Laufzeit nicht überschrieben werden) - die neuen
-/// Dateien an die Installation kopiert und die Anwendung anschliessend neu startet.
+/// eigenstaendigen Updater-Prozess (siehe <see cref="LaunchUpdaterProcess"/>), der - NACHDEM diese
+/// Anwendung sich beendet hat (die laufende EXE/DLLs koennen waehrend der eigenen Laufzeit nicht
+/// überschrieben werden) - die neuen Dateien an die Installation kopiert, die Anwendung anschliessend
+/// neu startet und dabei ein eigenes, softwareunabhaengiges Fortschrittsfenster anzeigt (Projekt
+/// "VirtualController.Updater") - dadurch kann diese Anwendung sofort beenden, ohne dass der Nutzer auf
+/// ein unsichtbares Kopieren im Hintergrund warten muss, und erhaelt bei Erfolg eine explizite
+/// Bestaetigung ("Version x.x.x erfolgreich installiert") mit einem Button zum Neustart. Ist dieser
+/// eigenstaendige Updater nicht neben der aktuell laufenden EXE vorhanden (z.B. lokaler Entwicklungs-/
+/// Debug-Build ohne mitveroeffentlichten Updater), faellt <see cref="LaunchUpdaterProcess"/> automatisch
+/// auf ein generiertes, verstecktes PowerShell-Skript zurueck (historische Vorgaenger-Implementierung).
 ///
 /// Bewusst zweigeteilt (<see cref="PrepareAsync"/> vor dem Beenden der Anwendung,
 /// <see cref="LaunchUpdaterProcess"/> unmittelbar vor <c>Application.Shutdown()</c>): jeder Fehler
@@ -34,13 +41,17 @@ public sealed class UpdateInstaller
     /// Installation nicht veraendert.
     /// </summary>
     /// <param name="downloadUrl">Download-URL des Update-Archivs.</param>
+    /// <param name="targetVersion">Versionsnummer der zu installierenden Version (z.B. "1.5.0"), wird
+    /// unveraendert in die zurueckgegebene <see cref="UpdateInstallPreparation"/> uebernommen (siehe
+    /// <see cref="UpdateInstallPreparation.TargetVersion"/>) - hat keinen Einfluss auf den
+    /// Installationsvorgang selbst.</param>
     /// <param name="progress">Optionaler Fortschritts-Reporter fuer die Anzeige im Update-Popup (siehe
     /// <see cref="UpdateInstallProgress"/>) - meldet den Download-Fortschritt anhand der empfangenen
     /// Bytes (soweit die Serverantwort einen Content-Length-Header liefert) sowie den Beginn der
     /// nachfolgenden Schritte (Entpacken, Validierung).</param>
     /// <param name="cancellationToken">Abbruchtoken.</param>
     public async Task<UpdateInstallPreparation> PrepareAsync(
-        string downloadUrl, IProgress<UpdateInstallProgress>? progress = null, CancellationToken cancellationToken = default)
+        string downloadUrl, string targetVersion, IProgress<UpdateInstallProgress>? progress = null, CancellationToken cancellationToken = default)
     {
         string stagingDirectory = Path.Combine(Path.GetTempPath(), "VirtualControllerUpdate_" + Guid.NewGuid().ToString("N"));
         string archivePath = stagingDirectory + ".zip";
@@ -97,7 +108,8 @@ public sealed class UpdateInstaller
                 stagingDirectory,
                 installDirectory,
                 executableFileName,
-                Environment.ProcessId);
+                Environment.ProcessId,
+                targetVersion);
         }
         catch (UpdateInstallException ex)
         {
@@ -151,16 +163,141 @@ public sealed class UpdateInstaller
     private static double OverallPercent(int stepNumber, double stepFraction) =>
         ((stepNumber - 1) + Math.Clamp(stepFraction, 0d, 1d)) / TotalSteps * 100d;
 
+    /// <summary>Dateiname der ausfuehrbaren Datei des separaten, eigenstaendigen Updater-Projekts
+    /// ("VirtualController.Updater", siehe <see cref="LaunchUpdaterProcess"/>) - liegt bei einer
+    /// regulaeren Installation stets neben der Haupt-EXE.</summary>
+    private const string UpdaterExecutableFileName = "VirtualController.Updater.exe";
+
+    /// <summary>Die WPF-nativen Interop-DLLs, die - wie die Haupt-EXE selbst (siehe README.md
+    /// "Voraussetzungen" sowie .github/workflows/release.yml) - bei <c>PublishSingleFile</c> nicht in
+    /// das Single-File-Bundle eingebettet werden koennen und daher als separate Dateien neben JEDER
+    /// selbstaendigen WPF-EXE dieses Projekts liegen muessen, somit auch neben
+    /// <see cref="UpdaterExecutableFileName"/>.</summary>
+    private static readonly string[] NativeWpfInteropDllNames =
+    {
+        "D3DCompiler_47_cor3.dll",
+        "PenImc_cor3.dll",
+        "PresentationNative_cor3.dll",
+        "vcruntime140_cor3.dll",
+        "wpfgfx_cor3.dll",
+    };
+
     /// <summary>
-    /// Erzeugt und startet den separaten Updater-Prozess (ein kleines, generiertes PowerShell-Skript):
-    /// dieser wartet auf die Beendigung des aktuellen Prozesses (<see cref="UpdateInstallPreparation.ProcessId"/>),
-    /// kopiert dann alle Dateien aus dem Staging-Verzeichnis in das Installationsverzeichnis (ueberschreibt
-    /// dabei die alte Version), startet die neue EXE und raeumt anschliessend saemtliche temporaeren
-    /// Dateien wieder auf. Muss unmittelbar VOR dem eigenen Beenden der Anwendung aufgerufen werden
-    /// (z.B. direkt vor <c>Application.Current.Shutdown()</c>), da der laufende Prozess selbst seine
-    /// eigene EXE/DLLs nicht ueberschreiben kann.
+    /// Startet den separaten Updater-Prozess, der - NACHDEM diese Anwendung sich beendet hat - die neuen
+    /// Dateien an die Installation kopiert und die Anwendung anschliessend neu startet. Bevorzugt dabei
+    /// den eigenstaendigen "VirtualController.Updater" (eigenes, softwareunabhaengiges
+    /// Fortschrittsfenster, siehe Klassendokumentation): dessen EXE (+ die von ihr ebenfalls benoetigten
+    /// nativen WPF-Interop-DLLs) wird aus dem Installationsverzeichnis DIESER, aktuell laufenden
+    /// Anwendung (nicht aus dem neu heruntergeladenen Staging-Verzeichnis!) in ein frisches temporaeres
+    /// "Runner"-Verzeichnis kopiert und von dort gestartet - so kann der Updater-Prozess seine eigene
+    /// EXE/DLLs waehrend des spaeteren Kopiervorgangs nicht selbst sperren, und der Mechanismus
+    /// funktioniert unabhaengig davon, ob es sich bei <paramref name="preparation"/> um ein Up- oder ein
+    /// Downgrade handelt (massgeblich ist stets die aktuell laufende, nicht die Ziel-Version).
+    /// Ist <see cref="UpdaterExecutableFileName"/> nicht im Installationsverzeichnis der aktuell
+    /// laufenden Anwendung vorhanden (z.B. lokaler Entwicklungs-/Debug-Build ohne mitveroeffentlichten
+    /// Updater, oder eine Installation, die vor Einfuehrung dieses Mechanismus veroeffentlicht wurde),
+    /// wird ersatzweise auf das historische, generierte PowerShell-Skript zurueckgegriffen (siehe
+    /// <see cref="LaunchPowerShellUpdaterProcess"/>), damit die Update-Funktion in diesen Faellen nicht
+    /// ersatzlos ausfaellt.
     /// </summary>
     public void LaunchUpdaterProcess(UpdateInstallPreparation preparation, IProgress<UpdateInstallProgress>? progress = null)
+    {
+        string? currentInstallDirectory = Path.GetDirectoryName(Environment.ProcessPath);
+        string? updaterSourcePath = currentInstallDirectory is null
+            ? null
+            : Path.Combine(currentInstallDirectory, UpdaterExecutableFileName);
+
+        if (currentInstallDirectory is not null && updaterSourcePath is not null && File.Exists(updaterSourcePath))
+        {
+            LaunchStandaloneUpdaterProcess(preparation, currentInstallDirectory, updaterSourcePath, progress);
+            return;
+        }
+
+        UpdateLog.Write(
+            $"'{UpdaterExecutableFileName}' wurde nicht im aktuellen Installationsverzeichnis " +
+            $"('{currentInstallDirectory ?? "unbekannt"}') gefunden - falle auf das PowerShell-Updater-Skript zurueck " +
+            "(z.B. lokaler Entwicklungs-/Debug-Build oder eine Installation vor Einfuehrung des eigenstaendigen Updaters).");
+        LaunchPowerShellUpdaterProcess(preparation, progress);
+    }
+
+    /// <summary>Kopiert den eigenstaendigen Updater (siehe <see cref="LaunchUpdaterProcess"/>) in ein
+    /// frisches temporaeres Verzeichnis und startet ihn von dort mit den fuer den Update-Vorgang
+    /// benoetigten Angaben als positionelle Kommandozeilenargumente (Prozess-ID, Staging-Verzeichnis,
+    /// Installationsverzeichnis, Name der Haupt-EXE, Zielversion) - siehe Programmeinstiegspunkt des
+    /// Projekts "VirtualController.Updater" fuer das Gegenstueck des Parsings.</summary>
+    private static void LaunchStandaloneUpdaterProcess(
+        UpdateInstallPreparation preparation, string currentInstallDirectory, string updaterSourcePath, IProgress<UpdateInstallProgress>? progress)
+    {
+        string runnerDirectory = Path.Combine(Path.GetTempPath(), "VirtualControllerUpdaterRunner_" + Guid.NewGuid().ToString("N"));
+
+        try
+        {
+            Directory.CreateDirectory(runnerDirectory);
+
+            string runnerUpdaterPath = Path.Combine(runnerDirectory, UpdaterExecutableFileName);
+            File.Copy(updaterSourcePath, runnerUpdaterPath, overwrite: true);
+
+            foreach (var dllName in NativeWpfInteropDllNames)
+            {
+                string dllSourcePath = Path.Combine(currentInstallDirectory, dllName);
+                if (File.Exists(dllSourcePath))
+                {
+                    File.Copy(dllSourcePath, Path.Combine(runnerDirectory, dllName), overwrite: true);
+                }
+            }
+
+            UpdateLog.Write($"Eigenstaendiger Updater nach '{runnerDirectory}' kopiert.");
+
+            var startInfo = new System.Diagnostics.ProcessStartInfo
+            {
+                FileName = runnerUpdaterPath,
+                WorkingDirectory = runnerDirectory,
+                UseShellExecute = true,
+            };
+            startInfo.ArgumentList.Add(preparation.ProcessId.ToString());
+            startInfo.ArgumentList.Add(preparation.StagingDirectory);
+            startInfo.ArgumentList.Add(preparation.InstallDirectory);
+            startInfo.ArgumentList.Add(preparation.ExecutableFileName);
+            startInfo.ArgumentList.Add(preparation.TargetVersion);
+
+            progress?.Report(new UpdateInstallProgress(4, TotalSteps, "Update wird gestartet", OverallPercent(4, 0)));
+
+            UpdateLog.Write($"Starte eigenstaendigen Updater: {runnerUpdaterPath}");
+            var process = System.Diagnostics.Process.Start(startInfo);
+            UpdateLog.Write(process is null
+                ? "WARNUNG: Process.Start(VirtualController.Updater.exe) hat null zurueckgegeben (kein Handle auf den neuen Prozess erhalten)."
+                : $"VirtualController.Updater.exe gestartet, PID={process.Id}. Diese Anwendung wird nun beendet - weitere Log-Zeilen " +
+                  "(Kopieren/Neustart) werden vom eigenstaendigen Updater-Prozess selbst in dieselbe Datei geschrieben.");
+        }
+        catch (Exception ex)
+        {
+            UpdateLog.Write($"FEHLER beim Starten des eigenstaendigen Updaters: {ex}");
+            TryDeleteDirectory(runnerDirectory);
+            throw new UpdateInstallException("Der Update-Installationsprozess konnte nicht gestartet werden.", ex);
+        }
+    }
+
+    /// <summary>
+    /// LEGACY-FALLBACK: Erzeugt und startet den historischen, NUR ERSATZWEISE verwendeten
+    /// Updater-Prozess (ein kleines, generiertes PowerShell-Skript, siehe
+    /// <see cref="LaunchUpdaterProcess"/>) - kommt ausschliesslich zum Einsatz, wenn
+    /// <see cref="UpdaterExecutableFileName"/> nicht neben der aktuell laufenden EXE gefunden wird (lokale
+    /// Entwicklungs-/Debug-Builds ohne mitveroeffentlichten Updater, oder eine Installation, die noch vor
+    /// Einfuehrung des eigenstaendigen "VirtualController.Updater"-Projekts veroeffentlicht wurde und beim
+    /// naechsten Update somit selbst noch keine <see cref="UpdaterExecutableFileName"/> besitzt). Dieser
+    /// Fallback wird bewusst NICHT entfernt, solange nicht ausreichend viele Installationen garantiert auf
+    /// eine Version mit dem eigenstaendigen Updater aktualisiert haben - eine etwaige spaetere Entfernung
+    /// ist ein separates, eigenstaendiges Aufraeum-Feature.
+    ///
+    /// Dieser Prozess wartet auf die Beendigung des aktuellen Prozesses
+    /// (<see cref="UpdateInstallPreparation.ProcessId"/>), kopiert dann alle Dateien aus dem
+    /// Staging-Verzeichnis in das Installationsverzeichnis (ueberschreibt dabei die alte Version), startet
+    /// die neue EXE und raeumt anschliessend saemtliche temporaeren Dateien wieder auf. Muss unmittelbar
+    /// VOR dem eigenen Beenden der Anwendung aufgerufen werden (z.B. direkt vor
+    /// <c>Application.Current.Shutdown()</c>), da der laufende Prozess selbst seine eigene EXE/DLLs nicht
+    /// ueberschreiben kann.
+    /// </summary>
+    private static void LaunchPowerShellUpdaterProcess(UpdateInstallPreparation preparation, IProgress<UpdateInstallProgress>? progress)
     {
         string scriptPath = Path.Combine(Path.GetTempPath(), $"VirtualControllerUpdater_{Guid.NewGuid():N}.ps1");
         File.WriteAllText(scriptPath, BuildUpdaterScript(preparation, scriptPath), Encoding.UTF8);
