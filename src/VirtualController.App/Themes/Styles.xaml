@@ -261,4 +261,75 @@
         </Style.Triggers>
     </Style>
 
+    <!-- TabControl/TabItem: der TabControl selbst setzt in MainWindow.xaml bereits lokal
+         Background="Transparent", die einzelnen TabItems (Reiter-Kopfzeile) sowie deren umgebender
+         Content-Rahmen zeichneten bisher aber weiterhin die native, helle System-Theme-Chrome, was im
+         Screenshot deutlich als hellerer Bereich auffiel. Wie bei Button/ComboBox/CheckBox reicht hier
+         kein einfacher Property-Setter, da TabItem seine Kopfzeilen-Form selbst zeichnet - daher eigenes
+         ControlTemplate mit abgerundeten oberen Ecken im Panel-Look; der aktive Tab wird per
+         IsSelected-Trigger mit Akzent-Rahmen und hellerem Text hervorgehoben. -->
+    <Style TargetType="TabControl">
+        <Setter Property="Background" Value="Transparent" />
+        <Setter Property="BorderBrush" Value="{StaticResource PanelBorderBrush}" />
+        <Setter Property="BorderThickness" Value="0" />
+        <Setter Property="Template">
+            <Setter.Value>
+                <!-- Einfache Property-Setter allein reichen bei TabControl nicht aus: die native Chrome
+                     zeichnet den Inhaltsbereich (Content-Bereich unterhalb der Reiter-Kopfzeile) ueber
+                     einen eigenen, Theme-gebundenen Border, der Background/BorderBrush-Setter ignoriert -
+                     genau wie bei Button/ComboBox/CheckBox ist daher ein vollstaendiges eigenes
+                     ControlTemplate notwendig, damit auch der Inhaltsbereich tatsaechlich transparent
+                     (und damit dunkel, da der Window-Hintergrund durchscheint) bleibt. -->
+                <ControlTemplate TargetType="TabControl">
+                    <Grid KeyboardNavigation.TabNavigation="Local">
+                        <Grid.RowDefinitions>
+                            <RowDefinition Height="Auto" />
+                            <RowDefinition Height="*" />
+                        </Grid.RowDefinitions>
+                        <TabPanel x:Name="HeaderPanel" Grid.Row="0" Panel.ZIndex="1" Margin="0,0,4,-1"
+                                  IsItemsHost="True" Background="Transparent"
+                                  KeyboardNavigation.TabIndex="1" />
+                        <Border x:Name="ContentPanel" Grid.Row="1" Background="Transparent"
+                                BorderBrush="{StaticResource PanelBorderBrush}" BorderThickness="0,1,0,0"
+                                KeyboardNavigation.TabNavigation="Local"
+                                KeyboardNavigation.DirectionalNavigation="Contained"
+                                KeyboardNavigation.TabIndex="2">
+                            <ContentPresenter x:Name="PART_SelectedContentHost" Margin="{TemplateBinding Padding}"
+                                              ContentSource="SelectedContent" />
+                        </Border>
+                    </Grid>
+                </ControlTemplate>
+            </Setter.Value>
+        </Setter>
+    </Style>
+
+    <Style TargetType="TabItem">
+        <Setter Property="Margin" Value="0,0,4,0" />
+        <Setter Property="Foreground" Value="{StaticResource MutedTextBrush}" />
+        <Setter Property="Template">
+            <Setter.Value>
+                <ControlTemplate TargetType="TabItem">
+                    <Border x:Name="TabItemBorder"
+                            Background="{StaticResource PanelBackgroundBrush}"
+                            BorderBrush="{StaticResource PanelBorderBrush}"
+                            BorderThickness="1,1,1,0" CornerRadius="6,6,0,0" Padding="14,8">
+                        <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center"
+                                          ContentSource="Header" />
+                    </Border>
+                    <ControlTemplate.Triggers>
+                        <Trigger Property="IsSelected" Value="True">
+                            <Setter TargetName="TabItemBorder" Property="Background" Value="{StaticResource ButtonPressedBrush}" />
+                            <Setter TargetName="TabItemBorder" Property="BorderBrush" Value="{StaticResource AccentBrush}" />
+                            <Setter Property="Foreground" Value="{StaticResource TextBrush}" />
+                            <Setter Property="FontWeight" Value="Bold" />
+                        </Trigger>
+                        <Trigger Property="IsMouseOver" Value="True">
+                            <Setter TargetName="TabItemBorder" Property="BorderBrush" Value="{StaticResource AccentBrush}" />
+                        </Trigger>
+                    </ControlTemplate.Triggers>
+                </ControlTemplate>
+            </Setter.Value>
+        </Setter>
+    </Style>
+
 </ResourceDictionary>
