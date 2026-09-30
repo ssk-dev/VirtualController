@@ -93,6 +93,24 @@ public sealed partial class VirtualControllerViewModel : ObservableObject
     [ObservableProperty]
     private bool _hidHideEnabled;
 
+    /// <summary>Ob dieser Controller automatisch gestartet/gestoppt werden soll, je nachdem ob das unter
+    /// <see cref="AutoStartExecutablePath"/> hinterlegte Programm laeuft (siehe <see cref="Core.Mapping.VirtualControllerProfile.AutoStartEnabled"/>).
+    /// Wird per periodischem Polling in <see cref="MainViewModel"/> ausgewertet.</summary>
+    [ObservableProperty]
+    private bool _autoStartEnabled;
+
+    /// <summary>Vollstaendiger Pfad der .exe, deren Laufen ueberwacht wird (siehe <see cref="AutoStartEnabled"/>
+    /// und <see cref="Core.Mapping.VirtualControllerProfile.AutoStartExecutablePath"/>). Wird per
+    /// <see cref="ChooseAutoStartExecutableCommand"/> ueber einen Dateiauswahl-Dialog gesetzt.</summary>
+    [ObservableProperty]
+    private string? _autoStartExecutablePath;
+
+    /// <summary>Anzeigename der ausgewaehlten .exe (nur Dateiname ohne Pfad) fuer die Beschriftung neben dem
+    /// "Programm auswaehlen"-Button, oder ein Platzhaltertext, solange noch kein Programm ausgewaehlt wurde.</summary>
+    public string AutoStartExecutableDisplayName => string.IsNullOrWhiteSpace(AutoStartExecutablePath)
+        ? "(kein Programm ausgewaehlt)"
+        : System.IO.Path.GetFileName(AutoStartExecutablePath);
+
     /// <summary>Nur relevant bei <see cref="Core.Mapping.ModeSwitchMechanism.Toggle"/>: Anzeigename der
     /// physischen Eingabe, die bei jeder steigenden Flanke zum naechsten aktivierten Modus weiterschaltet.</summary>
     [ObservableProperty]
@@ -149,6 +167,8 @@ public sealed partial class VirtualControllerViewModel : ObservableObject
         _modeSwitchMechanism = profile.ModeSwitchMechanism;
         _notifyOnModeChange = profile.NotifyOnModeChange;
         _hidHideEnabled = profile.HidHideEnabled;
+        _autoStartEnabled = profile.AutoStartEnabled;
+        _autoStartExecutablePath = profile.AutoStartExecutablePath;
 
         var knownDevices = getAvailableDevices();
 
@@ -659,6 +679,40 @@ public sealed partial class VirtualControllerViewModel : ObservableObject
     {
         Profile.HidHideEnabled = value;
         ProfileChanged?.Invoke(this);
+    }
+
+    partial void OnAutoStartEnabledChanged(bool value)
+    {
+        Profile.AutoStartEnabled = value;
+        ProfileChanged?.Invoke(this);
+    }
+
+    partial void OnAutoStartExecutablePathChanged(string? value)
+    {
+        Profile.AutoStartExecutablePath = value;
+        OnPropertyChanged(nameof(AutoStartExecutableDisplayName));
+        ProfileChanged?.Invoke(this);
+    }
+
+    /// <summary>Oeffnet einen Dateiauswahl-Dialog (gefiltert auf .exe), damit der Nutzer das Programm
+    /// festlegen kann, dessen Laufen ueber <see cref="AutoStartEnabled"/> automatisches Starten/Stoppen
+    /// dieses Controllers ausloest (siehe <see cref="AutoStartExecutablePath"/>). Speichert bewusst den
+    /// vollstaendigen Pfad (nicht nur den Dateinamen), um Verwechslungen mit gleichnamigen Programmen an
+    /// anderer Stelle zu vermeiden.</summary>
+    [RelayCommand]
+    private void ChooseAutoStartExecutable()
+    {
+        var dialog = new Microsoft.Win32.OpenFileDialog
+        {
+            Title = "Programm fuer automatischen Start auswaehlen",
+            Filter = "Programme (*.exe)|*.exe",
+            CheckFileExists = true
+        };
+
+        if (dialog.ShowDialog() == true)
+        {
+            AutoStartExecutablePath = dialog.FileName;
+        }
     }
 
     [RelayCommand(CanExecute = nameof(CanCaptureToggleTrigger))]

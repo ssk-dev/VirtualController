@@ -1,4 +1,5 @@
 using System.Collections.ObjectModel;
+using System.Diagnostics;
 using System.Windows.Threading;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
@@ -31,6 +32,12 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
     /// Hintergrundlast durch zu haeufiges Neu-Enumerieren aller Eingabegeraete.</summary>
     private static readonly TimeSpan HotplugPollInterval = TimeSpan.FromSeconds(2);
 
+    /// <summary>Intervall des periodischen Scans nach Zielprozessen fuer "Controller automatisch starten"
+    /// (siehe <see cref="StartAutoStartPolling"/>) - bewusst derselbe Kompromiss wie beim Hotplug-Scan
+    /// (<see cref="HotplugPollInterval"/>) zwischen zuegiger Erkennung und unnoetiger Hintergrundlast durch
+    /// zu haeufiges Enumerieren aller laufenden Prozesse.</summary>
+    private static readonly TimeSpan AutoStartPollInterval = TimeSpan.FromSeconds(2);
+
     /// <summary>Index des "Mapping"-Tabs im Haupt-TabControl (siehe MainWindow.xaml, erstes TabItem) -
     /// verwendet von <see cref="RefreshScreenActiveStates"/>, um Live-Polling physischer Geraete fuer die
     /// Mapping-Tabellen-Hervorhebung nur dann zu aktivieren, wenn dieser Tab tatsaechlich sichtbar ist.</summary>
@@ -43,6 +50,15 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
     public const int DeviceConfigTabIndex = 1;
 
     private DispatcherTimer? _hotplugTimer;
+
+    /// <summary>Pollt periodisch, ob fuer irgendeinen Controller mit aktiviertem
+    /// <see cref="VirtualControllerViewModel.AutoStartEnabled"/> das hinterlegte Zielprogramm laeuft bzw.
+    /// nicht mehr laeuft, und startet/stoppt den betroffenen Controller entsprechend automatisch (siehe
+    /// <see cref="OnAutoStartTimerTick"/>). Im Gegensatz zum Hotplug-Timer laeuft dieser Timer immer
+    /// (kein globaler Ein-/Ausschalter), da jeder Controller die Funktion einzeln ueber seine eigene
+    /// Checkbox aktiviert/deaktiviert - ohne aktivierte Controller ist der periodische Scan sehr
+    /// kostenguenstig (reines Enumerieren, kein Geraete-/Treiberzugriff).</summary>
+    private DispatcherTimer? _autoStartTimer;
 
     /// <summary>Ob neu angeschlossene/getrennte physische Geraete automatisch per Hintergrund-Polling
     /// erkannt werden, ohne dass die App neu gestartet oder "Geraete aktualisieren" manuell geklickt
@@ -141,6 +157,8 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
         {
             StartHotplugPolling();
         }
+
+        StartAutoStartPolling();
 
         // Explizit statt sich allein auf die Change-Notification von SelectedController zu verlassen:
         // falls kein Profil geladen wurde (Controllers bleibt leer, SelectedController bleibt null), wuerde
@@ -241,6 +259,85 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
     }
 
     private void OnHotplugTimerTick(object? sender, EventArgs e) => RefreshDevices();
+
+    /// <summary>Startet den periodischen Scan nach Zielprozessen fuer "Controller automatisch starten"
+    /// (siehe <see cref="AutoStartPollInterval"/>). Laeuft unconditional ab dem Start der Anwendung, da die
+    /// Funktion pro Controller einzeln (nicht global) aktiviert wird.</summary>
+    private void StartAutoStartPolling()
+    {
+        if (_autoStartTimer is not null)
+        {
+            return;
+        }
+
+        _autoStartTimer = new DispatcherTimer { Interval = AutoStartPollInterval };
+        _autoStartTimer.Tick += OnAutoStartTimerTick;
+        _autoStartTimer.Start();
+    }
+
+    private void StopAutoStartPolling()
+    {
+        if (_autoStartTimer is null)
+        {
+            return;
+        }
+
+        _autoStartTimer.Tick -= OnAutoStartTimerTick;
+        _autoStartTimer.Stop();
+        _autoStartTimer = null;
+    }
+
+    /// <summary>Prueft fuer jeden Controller mit aktiviertem <see cref="VirtualControllerViewModel.AutoStartEnabled"/>,
+    /// ob das unter <see cref="VirtualControllerViewModel.AutoStartExecutablePath"/> hinterlegte Programm
+    /// aktuell laeuft (Abgleich ueber den vollstaendigen Pfad, siehe <see cref="Core.Mapping.VirtualControllerProfile.AutoStartExecutablePath"/>),
+    /// und startet bzw. stoppt den betroffenen Controller entsprechend automatisch - laeuft das Programm und
+    /// der Controller ist noch nicht aktiv, wird er gestartet (<see cref="OnStartRequested"/>); laeuft es nicht
+    /// (mehr) und der Controller ist noch aktiv, wird er gestoppt (<see cref="OnStopRequested"/>). Ein manueller
+    /// Stop/Start durch den Nutzer waehrend das Zielprogramm laeuft wird beim naechsten Tick wieder ueberschrieben -
+    /// das ist bewusst so (die Checkbox ist eine dauerhafte Kopplung, kein einmaliger Ausloeser).</summary>
+    private void OnAutoStartTimerTick(object? sender, EventArgs e)
+    {
+        var candidates = Controllers.Where(c => c.AutoStartEnabled && !string.IsNullOrWhiteSpace(c.AutoStartExecutablePath)).ToList();
+        if (candidates.Count == 0)
+        {
+            return;
+        }
+
+        var runningExecutablePaths = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+        foreach (var process in Process.GetProcesses())
+        {
+            using (process)
+            {
+                try
+                {
+                    if (process.MainModule?.FileName is { } fileName)
+                    {
+                        runningExecutablePaths.Add(fileName);
+                    }
+                }
+                catch
+                {
+                    // Manche Prozesse (System-/erhoehte Prozesse, bereits beendete Prozesse) verweigern den
+                    // Zugriff auf MainModule - ein einzelner nicht abfragbarer Prozess darf den gesamten Scan
+                    // nicht abbrechen, daher hier bewusst ignoriert.
+                }
+            }
+        }
+
+        foreach (var controller in candidates)
+        {
+            bool isTargetRunning = runningExecutablePaths.Contains(controller.AutoStartExecutablePath!);
+
+            if (isTargetRunning && !controller.IsRunning)
+            {
+                OnStartRequested(controller);
+            }
+            else if (!isTargetRunning && controller.IsRunning)
+            {
+                OnStopRequested(controller);
+            }
+        }
+    }
 
     [RelayCommand]
     private void RefreshDevices()
@@ -547,6 +644,7 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
     public void Dispose()
     {
         StopHotplugPolling();
+        StopAutoStartPolling();
 
         foreach (var vm in Controllers)
         {

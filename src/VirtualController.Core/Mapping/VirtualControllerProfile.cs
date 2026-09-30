@@ -158,6 +158,20 @@ public sealed class VirtualControllerProfile
     /// <see cref="Devices.HidHideController.IsAvailable"/>).</summary>
     public bool HidHideEnabled { get; set; }
 
+    /// <summary>Ob dieser virtuelle Controller automatisch gestartet werden soll, sobald das unter
+    /// <see cref="AutoStartExecutablePath"/> hinterlegte Programm laeuft, und automatisch wieder gestoppt
+    /// werden soll, sobald dieses Programm beendet wurde (siehe <see cref="Views.MainWindow"/>, Checkbox
+    /// "Controller automatisch starten" neben Start/Stop). Wird per periodischem Polling ausgewertet (siehe
+    /// <c>MainViewModel</c>). Opt-in (Standard: deaktiviert); ohne Wirkung, solange <see cref="AutoStartExecutablePath"/>
+    /// nicht gesetzt ist.</summary>
+    public bool AutoStartEnabled { get; set; }
+
+    /// <summary>Vollstaendiger Dateipfad der .exe, deren Laufen ueberwacht wird, um diesen Controller
+    /// automatisch zu starten/stoppen (siehe <see cref="AutoStartEnabled"/>). Bewusst der volle Pfad statt
+    /// nur der Dateiname, um Verwechslungen mit gleichnamigen Programmen an anderer Stelle zu vermeiden -
+    /// wird vom Nutzer per Dateiauswahl-Dialog gesetzt. Null/leer, solange kein Programm ausgewaehlt wurde.</summary>
+    public string? AutoStartExecutablePath { get; set; }
+
     /// <summary>Der aktuell aktive Modus, oder null, falls noch keiner angelegt/aktiviert wurde bzw.
     /// die hinterlegte <see cref="ActiveModeId"/> auf keinen (mehr) vorhandenen Modus verweist.</summary>
     public ControllerMode? ActiveMode => ActiveModeId is { } id ? Modes.FirstOrDefault(m => m.Id == id) : null;

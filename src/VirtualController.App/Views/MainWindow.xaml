@@ -117,6 +117,18 @@
 
                                     <Button Content="Entfernen" Command="{Binding RemoveCommand}" Margin="16,0,0,0" Padding="10,4" />
                                 </StackPanel>
+
+                                <!-- Automatischer Start/Stop dieses Controllers, gekoppelt an das Laufen eines vom
+                                     Nutzer ausgewaehlten Programms (Vollpfad-Abgleich per Hintergrund-Polling, siehe
+                                     MainViewModel.OnAutoStartTimerTick) - laeuft das Programm, wird der Controller
+                                     automatisch gestartet; wird es beendet, automatisch wieder gestoppt. -->
+                                <StackPanel Orientation="Horizontal" Margin="0,6,0,0">
+                                    <CheckBox Content="Controller automatisch starten" VerticalAlignment="Center"
+                                              IsChecked="{Binding AutoStartEnabled}"
+                                              ToolTip="Startet und stoppt diesen Controller automatisch, je nachdem ob das unten ausgewaehlte Programm laeuft." />
+                                    <Button Content="Programm auswählen" Command="{Binding ChooseAutoStartExecutableCommand}" Margin="16,0,4,0" Padding="10,4" />
+                                    <TextBlock Text="{Binding AutoStartExecutableDisplayName}" VerticalAlignment="Center" FontStyle="Italic" Foreground="Gray" Margin="8,0,0,0" />
+                                </StackPanel>
                             </StackPanel>
                         </Border>
 
