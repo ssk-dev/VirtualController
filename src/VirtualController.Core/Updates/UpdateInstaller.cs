@@ -1,5 +1,6 @@
 using System.IO.Compression;
 using System.Text;
+using VirtualController.Core.Logging;
 
 namespace VirtualController.Core.Updates;
 
@@ -44,6 +45,10 @@ public sealed class UpdateInstaller
         string stagingDirectory = Path.Combine(Path.GetTempPath(), "VirtualControllerUpdate_" + Guid.NewGuid().ToString("N"));
         string archivePath = stagingDirectory + ".zip";
 
+        UpdateLog.WriteSessionStart("Update-Vorbereitung gestartet (PrepareAsync)");
+        UpdateLog.Write($"Download-URL: {downloadUrl}");
+        UpdateLog.Write($"Staging-Verzeichnis: {stagingDirectory}");
+
         try
         {
             Directory.CreateDirectory(stagingDirectory);
@@ -52,6 +57,7 @@ public sealed class UpdateInstaller
 
             using (var response = await HttpClientLazy.Value.GetAsync(downloadUrl, HttpCompletionOption.ResponseHeadersRead, cancellationToken).ConfigureAwait(false))
             {
+                UpdateLog.Write($"HTTP-Antwort erhalten: Status={(int)response.StatusCode} {response.StatusCode}, Content-Length={response.Content.Headers.ContentLength?.ToString() ?? "unbekannt"}");
                 response.EnsureSuccessStatusCode();
 
                 long? totalBytes = response.Content.Headers.ContentLength;
@@ -61,8 +67,12 @@ public sealed class UpdateInstaller
                 await CopyWithProgressAsync(httpStream, fileStream, totalBytes, progress, cancellationToken).ConfigureAwait(false);
             }
 
+            long archiveSize = new FileInfo(archivePath).Length;
+            UpdateLog.Write($"Download abgeschlossen: {archivePath} ({archiveSize} Bytes)");
+
             progress?.Report(new UpdateInstallProgress(2, TotalSteps, "Archiv wird entpackt", OverallPercent(2, 0)));
             ZipFile.ExtractToDirectory(archivePath, stagingDirectory, overwriteFiles: true);
+            UpdateLog.Write($"Archiv entpackt nach: {stagingDirectory}");
 
             progress?.Report(new UpdateInstallProgress(3, TotalSteps, "Vorbereitung wird abgeschlossen", OverallPercent(3, 0)));
 
@@ -78,19 +88,26 @@ public sealed class UpdateInstaller
             string installDirectory = Path.GetDirectoryName(Environment.ProcessPath!)
                 ?? throw new UpdateInstallException("Das Installationsverzeichnis der aktuell laufenden Anwendung konnte nicht ermittelt werden.");
 
+            long stagedExeSize = new FileInfo(Path.Combine(stagingDirectory, executableFileName)).Length;
+            UpdateLog.Write(
+                $"Vorbereitung abgeschlossen: exeName={executableFileName}, stagedExeSize={stagedExeSize} Bytes, " +
+                $"installDirectory={installDirectory}, aktuelle ProcessId={Environment.ProcessId}");
+
             return new UpdateInstallPreparation(
                 stagingDirectory,
                 installDirectory,
                 executableFileName,
                 Environment.ProcessId);
         }
-        catch (UpdateInstallException)
+        catch (UpdateInstallException ex)
         {
+            UpdateLog.Write($"FEHLER in PrepareAsync (UpdateInstallException): {ex.Message}");
             CleanupBestEffort(stagingDirectory, archivePath);
             throw;
         }
         catch (Exception ex)
         {
+            UpdateLog.Write($"FEHLER in PrepareAsync ({ex.GetType().Name}): {ex}");
             CleanupBestEffort(stagingDirectory, archivePath);
             throw new UpdateInstallException(
                 "Das Update konnte nicht heruntergeladen oder entpackt werden. Bitte Internetverbindung prüfen und erneut versuchen.", ex);
@@ -147,6 +164,7 @@ public sealed class UpdateInstaller
     {
         string scriptPath = Path.Combine(Path.GetTempPath(), $"VirtualControllerUpdater_{Guid.NewGuid():N}.ps1");
         File.WriteAllText(scriptPath, BuildUpdaterScript(preparation, scriptPath), Encoding.UTF8);
+        UpdateLog.Write($"Updater-Skript geschrieben: {scriptPath}");
 
         var startInfo = new System.Diagnostics.ProcessStartInfo
         {
@@ -163,10 +181,15 @@ public sealed class UpdateInstaller
 
         try
         {
-            System.Diagnostics.Process.Start(startInfo);
+            UpdateLog.Write("Starte powershell.exe fuer Updater-Skript...");
+            var process = System.Diagnostics.Process.Start(startInfo);
+            UpdateLog.Write(process is null
+                ? "WARNUNG: Process.Start(powershell.exe) hat null zurueckgegeben (kein Handle auf den neuen Prozess erhalten)."
+                : $"powershell.exe gestartet, PID={process.Id}. Diese Anwendung wird nun beendet - weitere Log-Zeilen (Kopieren/Neustart) werden vom Updater-Skript selbst in dieselbe Datei geschrieben.");
         }
         catch (Exception ex)
         {
+            UpdateLog.Write($"FEHLER beim Starten von powershell.exe: {ex}");
             throw new UpdateInstallException("Der Update-Installationsprozess konnte nicht gestartet werden.", ex);
         }
     }
@@ -182,32 +205,84 @@ public sealed class UpdateInstaller
         return $$"""
             $ErrorActionPreference = 'Stop'
 
-            # Wartet, bis die aktuell laufende Anwendung (die dieses Skript unmittelbar vor ihrem eigenen
-            # Beenden gestartet hat) tatsaechlich beendet ist - erst danach sind EXE/DLLs im
-            # Installationsverzeichnis entsperrt und koennen ueberschrieben werden.
-            $processId = {{preparation.ProcessId}}
-            try {
-                $proc = Get-Process -Id $processId -ErrorAction SilentlyContinue
-                if ($proc) {
-                    Wait-Process -Id $processId -Timeout 30 -ErrorAction SilentlyContinue
+            # Alle Schritte dieses Skripts werden in dieselbe Datei protokolliert wie der C#-Teil der
+            # Anwendung (siehe VirtualController.Core.Logging.UpdateLog) - genau dieser Zeitraum (Kopieren
+            # der neuen Dateien, Neustart) lief bislang vollstaendig unsichtbar ab, da die Anwendung sich
+            # bereits VOR dem Start dieses Skripts beendet (siehe UpdateInstaller.LaunchUpdaterProcess).
+            $updateLogPath = {{Quote(UpdateLog.FilePath)}}
+            function Write-UpdaterLog {
+                param([string]$Message)
+                try {
+                    $line = "{0} [Updater-Skript] {1}" -f (Get-Date -Format 'yyyy-MM-dd HH:mm:ss.fff'), $Message
+                    Add-Content -Path $updateLogPath -Value $line -Encoding UTF8
+                } catch {
+                    # Logging darf den eigentlichen Update-Vorgang niemals verhindern.
                 }
-            } catch {}
-            # Kurze zusaetzliche Verzoegerung, damit das Betriebssystem Datei-Handles der beendeten
-            # Anwendung (insb. der WPF-nativen Interop-DLLs) zuverlaessig vollstaendig freigibt.
-            Start-Sleep -Milliseconds 750
+            }
 
+            $processId = {{preparation.ProcessId}}
             $stagingDir = {{Quote(preparation.StagingDirectory)}}
             $installDir = {{Quote(preparation.InstallDirectory)}}
             $exeName = {{Quote(preparation.ExecutableFileName)}}
 
+            Write-UpdaterLog "Updater-Skript gestartet. Warte auf Beendigung von Prozess-ID $processId ..."
+
+            # Wartet, bis die aktuell laufende Anwendung (die dieses Skript unmittelbar vor ihrem eigenen
+            # Beenden gestartet hat) tatsaechlich beendet ist - erst danach sind EXE/DLLs im
+            # Installationsverzeichnis entsperrt und koennen ueberschrieben werden.
+            try {
+                $proc = Get-Process -Id $processId -ErrorAction SilentlyContinue
+                if ($proc) {
+                    Wait-Process -Id $processId -Timeout 30 -ErrorAction SilentlyContinue
+                    $stillRunning = Get-Process -Id $processId -ErrorAction SilentlyContinue
+                    if ($stillRunning) {
+                        Write-UpdaterLog "WARNUNG: Prozess-ID $processId laeuft nach 30s Timeout IMMER NOCH - Kopiervorgang startet trotzdem, Dateien koennen ggf. gesperrt sein."
+                    } else {
+                        Write-UpdaterLog "Prozess-ID $processId ist beendet."
+                    }
+                } else {
+                    Write-UpdaterLog "Prozess-ID $processId war bereits beim Start dieses Skripts nicht mehr vorhanden."
+                }
+            } catch {
+                Write-UpdaterLog "Fehler beim Warten auf Prozess-ID $processId (wird ignoriert): $($_.Exception.Message)"
+            }
+            # Kurze zusaetzliche Verzoegerung, damit das Betriebssystem Datei-Handles der beendeten
+            # Anwendung (insb. der WPF-nativen Interop-DLLs) zuverlaessig vollstaendig freigibt.
+            Start-Sleep -Milliseconds 750
+
+            $stagedExePath = Join-Path $stagingDir $exeName
+            $installedExePath = Join-Path $installDir $exeName
+            $stagedSize = if (Test-Path $stagedExePath) { (Get-Item $stagedExePath).Length } else { -1 }
+            $installedSizeBefore = if (Test-Path $installedExePath) { (Get-Item $installedExePath).Length } else { -1 }
+            Write-UpdaterLog "Vor dem Kopieren: stagingDir='$stagingDir' (exe=$stagedSize Bytes), installDir='$installDir' (aktuelle exe=$installedSizeBefore Bytes)"
+
+            $copySucceeded = $false
             try {
                 Copy-Item -Path (Join-Path $stagingDir '*') -Destination $installDir -Recurse -Force
+                $copySucceeded = $true
+                Write-UpdaterLog "Copy-Item erfolgreich abgeschlossen."
+            } catch {
+                Write-UpdaterLog "FEHLER bei Copy-Item: $($_.Exception.Message)"
             } finally {
                 Remove-Item -Path $stagingDir -Recurse -Force -ErrorAction SilentlyContinue
+                Write-UpdaterLog "Staging-Verzeichnis '$stagingDir' aufgeraeumt."
             }
 
-            Start-Process -FilePath (Join-Path $installDir $exeName) -WorkingDirectory $installDir
+            $installedSizeAfter = if (Test-Path $installedExePath) { (Get-Item $installedExePath).Length } else { -1 }
+            Write-UpdaterLog "Nach dem Kopieren: installierte exe='$installedExePath' Groesse=$installedSizeAfter Bytes (vorher: $installedSizeBefore Bytes, staging: $stagedSize Bytes)"
 
+            if ($copySucceeded) {
+                try {
+                    $newProc = Start-Process -FilePath $installedExePath -WorkingDirectory $installDir -PassThru
+                    Write-UpdaterLog "Start-Process erfolgreich: neue PID=$($newProc.Id)."
+                } catch {
+                    Write-UpdaterLog "FEHLER bei Start-Process (Anwendung wurde NICHT neu gestartet): $($_.Exception.Message)"
+                }
+            } else {
+                Write-UpdaterLog "Start-Process wird uebersprungen, da Copy-Item fehlgeschlagen ist - Anwendung wurde NICHT neu gestartet."
+            }
+
+            Write-UpdaterLog "Updater-Skript beendet, raeumt sich selbst auf."
             # Raeumt sich selbst auf - das Skript wird nur einmalig fuer genau diese eine Installation benoetigt.
             Start-Sleep -Milliseconds 500
             Remove-Item -Path {{Quote(ownScriptPath)}} -Force -ErrorAction SilentlyContinue

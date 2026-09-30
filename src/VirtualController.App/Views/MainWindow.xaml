@@ -605,6 +605,11 @@
                     <TextBlock Margin="0,4,0,0" Foreground="Gray" FontStyle="Italic" TextWrapping="Wrap" MaxWidth="500"
                                Text="Ermöglicht den gezielten Wechsel zu einer beliebigen verfügbaren Version, einschließlich älterer Versionen (Rollback)." />
 
+                    <Button Content="Update-Log öffnen" Command="{Binding Update.OpenUpdateLogCommand}" Padding="8,4"
+                            Margin="0,12,0,0" HorizontalAlignment="Left" />
+                    <TextBlock Margin="0,4,0,0" Foreground="Gray" FontStyle="Italic" TextWrapping="Wrap" MaxWidth="500"
+                               Text="Öffnet das Update-Protokoll (Download, Kopieren der neuen Dateien, Neustart) zur genauen Analyse, falls ein Update-Vorgang unerwartet verlaufen ist." />
+
                     <TextBlock Margin="0,16,0,0" Text="Hier entstehen zukuenftig weitere globale Anwendungseinstellungen." Foreground="Gray" FontStyle="Italic" />
                 </StackPanel>
             </TabItem>

@@ -1,5 +1,8 @@
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
+using System.Diagnostics;
+using System.IO;
+using VirtualController.Core.Logging;
 using VirtualController.Core.Updates;
 
 namespace VirtualController.App.ViewModels;
@@ -151,6 +154,35 @@ public sealed partial class UpdateViewModel : ObservableObject
     /// Klick auf "Update ueberspringen").</summary>
     public UpdateAvailableDialogViewModel CreateAvailableDialogViewModel(UpdateCheckResult details) =>
         new(details, _coordinator);
+
+    /// <summary>Vollstaendiger Pfad der Update-Log-Datei (siehe <see cref="Logging.UpdateLog"/>), fuer die
+    /// Anzeige im "Einstellungen"-Tab, damit der Nutzer die Datei nach einem fehlgeschlagenen
+    /// Update-Versuch auch ohne Klick auf <see cref="OpenUpdateLogCommand"/> im Explorer wiederfindet.</summary>
+    public string UpdateLogFilePath => UpdateLog.FilePath;
+
+    /// <summary>Oeffnet die Update-Log-Datei (siehe <see cref="Logging.UpdateLog"/>) im Standard-Texteditor
+    /// des Systems, damit der Nutzer nach einem unerwarteten Update-Verlauf (z.B. Anwendung startet nicht
+    /// neu) exakt nachvollziehen kann, welcher Schritt (Download, Kopieren, Neustart - siehe
+    /// <see cref="Core.Updates.UpdateInstaller"/> und das dort generierte PowerShell-Updater-Skript)
+    /// fehlgeschlagen ist, ohne die Datei manuell unter %AppData%\VirtualController suchen zu muessen.</summary>
+    [RelayCommand]
+    private void OpenUpdateLog()
+    {
+        try
+        {
+            if (!File.Exists(UpdateLog.FilePath))
+            {
+                StatusText = "Es liegt noch keine Update-Log-Datei vor - bisher wurde noch keine Update-Pruefung/-Installation durchgefuehrt.";
+                return;
+            }
+
+            Process.Start(new ProcessStartInfo { FileName = UpdateLog.FilePath, UseShellExecute = true });
+        }
+        catch (Exception ex)
+        {
+            StatusText = $"Update-Log-Datei konnte nicht geoeffnet werden: {ex.Message}";
+        }
+    }
 
     /// <summary>Erzeugt das ViewModel des "Version wechseln"-Dialogs (Rollback-Funktion), mit Zugriff auf
     /// denselben <see cref="UpdateCoordinator"/> (fuer <see cref="UpdateCoordinator.GetAllVersionsAsync"/>,
