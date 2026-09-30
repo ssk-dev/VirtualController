@@ -74,10 +74,8 @@ eigenstaendige, systemweit sichtbare Geraete (kein DLL-Hijacking pro Spiel).
 ## Installation (empfohlen: fertiger Download)
 
 1. Aktuellstes Release herunterladen: [Releases-Seite](../../releases) - dort das ZIP-Archiv
-   `VirtualController-win-x64.zip` laden (enthaelt die fertige `VirtualController.exe`, den
-   eigenstaendigen Updater-Helferprozess `VirtualController.Updater.exe` (wird nur waehrend eines
-   In-App-Updates automatisch gestartet, siehe Abschnitt "Release erstellen") sowie alle dafuer
-   benoetigten nativen WPF-DLLs - **alle Dateien gehoeren zusammen in einen Ordner**, die
+   `VirtualController-win-x64.zip` laden (enthaelt die fertige `VirtualController.exe` sowie alle
+   dafuer benoetigten nativen WPF-DLLs - **alle Dateien gehoeren zusammen in einen Ordner**, die
    Haupt-EXE allein reicht nicht zum Starten aus).
 2. ZIP an einen beliebigen Ort entpacken.
 3. [Voraussetzungen](#voraussetzungen-einmalig-auf-dem-zielrechner) (mindestens ViGEmBus)
@@ -104,10 +102,8 @@ direkt starten.
 
 Ein Push eines Git-Tags im Format `v<Major>.<Minor>.<Patch>` (z.B. `v1.0.0`) loest automatisch
 den GitHub-Actions-Workflow `.github/workflows/release.yml` aus: dieser baut die self-contained
-`win-x64`-EXE der Hauptanwendung sowie zusaetzlich die self-contained `win-x64`-EXE des
-eigenstaendigen Updater-Helferprozesses (`VirtualController.Updater`, siehe
-[Architektur-Kurzueberblick](#architektur-kurzueberblick)), packt beide zusammen mit den
-benoetigten nativen WPF-DLLs in ein ZIP und veroeffentlicht beides als neues GitHub Release.
+`win-x64`-EXE der Hauptanwendung, packt sie zusammen mit den benoetigten nativen WPF-DLLs in ein
+ZIP und veroeffentlicht dieses als neues GitHub Release.
 
 ```
 git tag v1.0.0
@@ -130,12 +126,10 @@ Alternativ laesst sich der Workflow auch manuell ueber den "Actions"-Tab auf Git
     `Controllers\controller-{name}.json` (je virtuellem Controller), `Devices\device-{marke}-{name}.json`
     (je physischem Geraet) und `settings.json` (allgemeine Einstellungen); migriert eine evtl. noch
     vorhandene alte, kombinierte `profiles.json` beim ersten Start automatisch in dieses Format
-- **VirtualController.App** - WPF-Oberflaeche (MVVM via CommunityToolkit.Mvvm), Tray-Icon.
-- **VirtualController.Updater** - kleiner, eigenstaendiger WPF-Helferprozess (keine Abhaengigkeit
-  auf VirtualController.Core): wird von `VirtualController.App` waehrend eines In-App-Updates
-  gestartet, wartet dort auf die Beendigung der Hauptanwendung, kopiert die neuen Dateien und
-  zeigt dabei ein eigenes, softwareunabhaengiges Fortschrittsfenster - so kann die Hauptanwendung
-  sofort beenden, ohne dass der Nutzer auf ein unsichtbares Kopieren im Hintergrund warten muss.
+- **VirtualController.App** - WPF-Oberflaeche (MVVM via CommunityToolkit.Mvvm), Tray-Icon. Fuehrt
+  In-App-Updates ueber einen versteckten, generierten PowerShell-Prozess durch (siehe
+  `VirtualController.Core.Updates.UpdateInstaller`): dieser wartet nach dem Beenden der Anwendung auf
+  deren Prozessende, kopiert die neuen Dateien und startet die Anwendung anschliessend neu.
 
 ## Bekannte Einschraenkung: Layouts
 

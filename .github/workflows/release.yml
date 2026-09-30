@@ -43,15 +43,6 @@ jobs:
       - name: Release-Build veroeffentlichen (self-contained win-x64 EXE)
         run: dotnet publish src/VirtualController.App/VirtualController.App.csproj -c Release -r win-x64 --self-contained true
 
-      # Veroeffentlicht zusaetzlich den eigenstaendigen Updater-Helferprozess (Projekt
-      # "VirtualController.Updater"): wird von VirtualController.exe waehrend eines Update-Vorgangs
-      # gestartet, um nach dem Beenden der Hauptanwendung die neuen Dateien zu kopieren und dabei ein
-      # eigenes, softwareunabhaengiges Fortschrittsfenster anzuzeigen (siehe
-      # VirtualController.Core.Updates.UpdateInstaller.LaunchUpdaterProcess). Ebenfalls self-contained
-      # win-x64, damit auf dem Zielrechner keine .NET-Runtime installiert sein muss.
-      - name: Updater-Prozess veroeffentlichen (self-contained win-x64 EXE)
-        run: dotnet publish src/VirtualController.Updater/VirtualController.Updater.csproj -c Release -r win-x64 --self-contained true
-
       # Die WPF-nativen Interop-DLLs (D3DCompiler_47_cor3.dll, PenImc_cor3.dll, PresentationNative_cor3.dll,
       # vcruntime140_cor3.dll, wpfgfx_cor3.dll) koennen bei PublishSingleFile nicht ins Bundle eingebettet
       # werden und muessen als separate Dateien neben der EXE liegen (siehe README.md) - werden daher
@@ -61,11 +52,9 @@ jobs:
         shell: pwsh
         run: |
           $publishDir = "src/VirtualController.App/bin/Release/net8.0-windows/win-x64/publish"
-          $updaterPublishDir = "src/VirtualController.Updater/bin/Release/net8.0-windows/win-x64/publish"
           $stagingDir = "release-staging"
           New-Item -ItemType Directory -Path $stagingDir -Force | Out-Null
           Copy-Item "$publishDir/VirtualController.exe" -Destination $stagingDir
-          Copy-Item "$updaterPublishDir/VirtualController.Updater.exe" -Destination $stagingDir
           Copy-Item "D3DCompiler_47_cor3.dll" -Destination $stagingDir
           Copy-Item "PenImc_cor3.dll" -Destination $stagingDir
           Copy-Item "PresentationNative_cor3.dll" -Destination $stagingDir
