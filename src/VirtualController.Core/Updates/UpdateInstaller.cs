@@ -257,16 +257,31 @@ public sealed class UpdateInstaller
             Write-UpdaterLog "Vor dem Kopieren: stagingDir='$stagingDir' (exe=$stagedSize Bytes), installDir='$installDir' (aktuelle exe=$installedSizeBefore Bytes)"
 
             $copySucceeded = $false
-            try {
-                Copy-Item -Path (Join-Path $stagingDir '*') -Destination $installDir -Recurse -Force
-                $copySucceeded = $true
-                Write-UpdaterLog "Copy-Item erfolgreich abgeschlossen."
-            } catch {
-                Write-UpdaterLog "FEHLER bei Copy-Item: $($_.Exception.Message)"
-            } finally {
-                Remove-Item -Path $stagingDir -Recurse -Force -ErrorAction SilentlyContinue
-                Write-UpdaterLog "Staging-Verzeichnis '$stagingDir' aufgeraeumt."
+            $maxCopyAttempts = 5
+            $copyRetryDelayMs = 1000
+            for ($attempt = 1; $attempt -le $maxCopyAttempts; $attempt++) {
+                try {
+                    Copy-Item -Path (Join-Path $stagingDir '*') -Destination $installDir -Recurse -Force
+                    $copySucceeded = $true
+                    Write-UpdaterLog "Copy-Item erfolgreich abgeschlossen (Versuch $attempt von $maxCopyAttempts)."
+                    break
+                } catch {
+                    # Haeufigste Ursache: die soeben beendete Anwendung (bzw. ein Virenscanner, der die
+                    # frisch beendete exe kurz nachtraeglich scannt) hat die Datei-Handles noch nicht
+                    # vollstaendig freigegeben ("... wird von einem anderen Prozess verwendet") - reine
+                    # Race Condition, die sich durch eine kurze Wartezeit und einen erneuten Versuch in
+                    # aller Regel selbst behebt (siehe gemeldeter Bug: Update wird uebersprungen, alte
+                    # Version bleibt installiert).
+                    if ($attempt -lt $maxCopyAttempts) {
+                        Write-UpdaterLog "Copy-Item fehlgeschlagen (Versuch $attempt von $maxCopyAttempts), naechster Versuch in ${copyRetryDelayMs}ms: $($_.Exception.Message)"
+                        Start-Sleep -Milliseconds $copyRetryDelayMs
+                    } else {
+                        Write-UpdaterLog "FEHLER bei Copy-Item nach $maxCopyAttempts Versuchen, gebe endgueltig auf: $($_.Exception.Message)"
+                    }
+                }
             }
+            Remove-Item -Path $stagingDir -Recurse -Force -ErrorAction SilentlyContinue
+            Write-UpdaterLog "Staging-Verzeichnis '$stagingDir' aufgeraeumt."
 
             $installedSizeAfter = if (Test-Path $installedExePath) { (Get-Item $installedExePath).Length } else { -1 }
             Write-UpdaterLog "Nach dem Kopieren: installierte exe='$installedExePath' Groesse=$installedSizeAfter Bytes (vorher: $installedSizeBefore Bytes, staging: $stagedSize Bytes)"
