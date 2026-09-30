@@ -161,7 +161,13 @@ jobs:
                       continue
                   }
                   if ($trimmed -eq '') {
-                      $currentSection = $null
+                      # Bewusst NICHT den aktuellen Abschnitt zuruecksetzen: bei Commits mit mehreren
+                      # "-m"-Flags (z.B. "git commit -m 'feature: - ...' -m '- ...' -m '- ...'") fuegt Git
+                      # zwischen jedem "-m"-Absatz automatisch eine Leerzeile ein - ein reines
+                      # Formatierungsartefakt, kein bewusster Abschnittswechsel. Ein tatsaechlicher
+                      # Abschnittswechsel wird bereits explizit ueber die feature:/fix:-Kopfzeilen-Erkennung
+                      # oben erfasst; wuerde die Leerzeile hier den Abschnitt zuruecksetzen, gingen alle
+                      # nachfolgenden "-"-Aufzaehlungspunkte (aus weiteren "-m"-Absaetzen) verloren.
                       continue
                   }
 
