@@ -61,7 +61,7 @@ public sealed class UpdateChecker
         }
 
         bool isUpdateAvailable = latest.Version > installed;
-        return new UpdateCheckResult(installed, latest.Version, isUpdateAvailable, latest.DownloadUrl);
+        return new UpdateCheckResult(installed, latest.Version, isUpdateAvailable, latest.DownloadUrl, latest.ReleaseNotes);
     }
 
     /// <summary>

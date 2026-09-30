@@ -11,8 +11,12 @@ namespace VirtualController.Core.Updates;
 /// <paramref name="InstalledVersion"/> ist - ein Downgrade (verfuegbare Version kleiner oder gleich der
 /// installierten) wird hier bewusst NICHT als Update angeboten.</param>
 /// <param name="DownloadUrl">Download-/Installationsquelle des Updates.</param>
+/// <param name="ReleaseNotes">Changelog/Release-Notes-Text der <paramref name="AvailableVersion"/> (siehe
+/// <see cref="UpdateInfo.ReleaseNotes"/>), sofern die Update-Quelle einen solchen liefert - sonst
+/// <c>null</c> oder leer. Wird im Update-Popup in einer aufklappbaren Box angezeigt.</param>
 public sealed record UpdateCheckResult(
     SemanticVersion InstalledVersion,
     SemanticVersion AvailableVersion,
     bool IsUpdateAvailable,
-    string DownloadUrl);
+    string DownloadUrl,
+    string? ReleaseNotes = null);

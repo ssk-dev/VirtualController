@@ -55,7 +55,7 @@ public sealed class GitHubReleaseUpdateSource : IUpdateSource
         }
 
         string? downloadUrl = FindAssetDownloadUrl(newestRelease.Value);
-        return downloadUrl is null ? null : new UpdateInfo(newestVersion, downloadUrl);
+        return downloadUrl is null ? null : new UpdateInfo(newestVersion, downloadUrl, FindReleaseNotes(newestRelease.Value));
     }
 
     public async Task<IReadOnlyList<UpdateInfo>> GetAllAsync(bool includePreReleases, CancellationToken cancellationToken = default)
@@ -68,7 +68,7 @@ public sealed class GitHubReleaseUpdateSource : IUpdateSource
             string? downloadUrl = FindAssetDownloadUrl(release);
             if (downloadUrl is not null)
             {
-                result.Add(new UpdateInfo(version, downloadUrl));
+                result.Add(new UpdateInfo(version, downloadUrl, FindReleaseNotes(release)));
             }
         }
 
@@ -153,6 +153,23 @@ public sealed class GitHubReleaseUpdateSource : IUpdateSource
         }
 
         return null;
+    }
+
+    /// <summary>Liest das "body"-Feld eines GitHub-Releases aus - enthaelt den vom Release-Workflow
+    /// (siehe release.yml, Schritt "GitHub Release erstellen und Dateien anhaengen",
+    /// "softprops/action-gh-release" mit "body_path: release-notes.md") hinterlegten, Markdown-
+    /// formatierten Changelog-/Release-Notes-Text der Version (gruppiert in "## Features"/"## Fixes").
+    /// Gibt <c>null</c> zurueck, falls das Feld fehlt oder leer ist (z.B. bei manuell ohne Notizen
+    /// erstellten Releases).</summary>
+    private static string? FindReleaseNotes(JsonElement releaseElement)
+    {
+        if (!releaseElement.TryGetProperty("body", out var bodyElement) || bodyElement.ValueKind != JsonValueKind.String)
+        {
+            return null;
+        }
+
+        string? body = bodyElement.GetString();
+        return string.IsNullOrWhiteSpace(body) ? null : body;
     }
 
     private static HttpClient CreateHttpClient()

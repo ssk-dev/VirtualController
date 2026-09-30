@@ -49,6 +49,14 @@ public sealed partial class UpdateAvailableDialogViewModel : ObservableObject
 
     public string AvailableVersionText => _details.AvailableVersion.ToString();
 
+    /// <summary>Changelog/Release-Notes-Text der verfuegbaren Version (siehe
+    /// <see cref="UpdateCheckResult.ReleaseNotes"/>), zur Anzeige in der aufklappbaren Box des Popups.</summary>
+    public string? ReleaseNotesText => _details.ReleaseNotes;
+
+    /// <summary>Ob <see cref="ReleaseNotesText"/> tatsaechlich Inhalt hat - steuert, ob die aufklappbare
+    /// Changelog-Box im Popup ueberhaupt angezeigt wird (manche Releases haben z.B. keine Notizen).</summary>
+    public bool HasReleaseNotes => !string.IsNullOrWhiteSpace(ReleaseNotesText);
+
     /// <summary>Wird ausgeloest, sobald der Nutzer das Popup schliessen soll - entweder nach "Update
     /// ueberspringen" oder nachdem die Installation erfolgreich gestartet wurde (unmittelbar vor dem
     /// bevorstehenden Beenden der Anwendung durch <see cref="Views.MainWindow"/>).</summary>
