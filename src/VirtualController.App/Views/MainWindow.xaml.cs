@@ -47,6 +47,14 @@ public partial class MainWindow : Window
         // waehrend dieser Zeit ohnehin unsichtbare visuelle Rueckmeldung muss nicht berechnet werden.
         StateChanged += (_, _) => _viewModel.IsWindowMinimized = WindowState == WindowState.Minimized;
 
+        // Aktualisiert zusaetzlich das Maximieren/Wiederherstellen-Glyph der eigenen Titelleiste (siehe
+        // MainWindow.xaml, TitleBar-Border), da dessen Icon je nach WindowState zwischen "maximieren"
+        // und "wiederherstellen" wechseln muss - ein reiner XAML-Trigger auf Window.WindowState kann
+        // hierfuer nicht direkt am Button ansetzen, da WindowState keine mit einfachen DataTriggern
+        // bindbare Eigenschaft dieses Buttons/TextBlocks ist.
+        StateChanged += (_, _) => UpdateMaximizeRestoreGlyph();
+        UpdateMaximizeRestoreGlyph();
+
         // Fix fuer den Bug "Ziel-Typ/Ziel-Wert wird nicht uebernommen": faengt jede Auswahl-Aenderung
         // einer beliebigen ComboBox innerhalb der (nun nach Ziel-Typ gruppierten, also auf mehrere
         // DataGrids verteilten) Mapping-Tabelle ab, um dort per UpdateSource() (siehe
@@ -56,6 +64,30 @@ public partial class MainWindow : Window
         // ItemsControl/DataTemplate-Verschachtelung unveraendert bis hierher durchbubbelt.
         MappingsScrollViewer.AddHandler(Selector.SelectionChangedEvent, new System.Windows.Controls.SelectionChangedEventHandler(OnAnyComboBoxSelectionChanged), true);
     }
+
+    /// <summary>Minimiert das Fenster ueber den Minimieren-Button der eigenen Titelleiste (siehe
+    /// MainWindow.xaml, TitleBar-Border) - Ersatz fuer die entfallene native Windows-Titelleiste.</summary>
+    private void OnMinimizeButtonClicked(object sender, RoutedEventArgs e) => WindowState = WindowState.Minimized;
+
+    /// <summary>Wechselt zwischen maximiertem und normalem Fensterzustand ueber den Maximieren/
+    /// Wiederherstellen-Button der eigenen Titelleiste - Ersatz fuer die entfallene native Windows-
+    /// Titelleiste. Das Icon selbst wird ueber <see cref="UpdateMaximizeRestoreGlyph"/> aktuell gehalten.</summary>
+    private void OnMaximizeRestoreButtonClicked(object sender, RoutedEventArgs e)
+        => WindowState = WindowState == WindowState.Maximized ? WindowState.Normal : WindowState.Maximized;
+
+    /// <summary>Schliesst das Fenster ueber den Schliessen-Button der eigenen Titelleiste - Ersatz fuer
+    /// die entfallene native Windows-Titelleiste. Loest wie gewohnt <see cref="MainWindow_OnClosing"/> aus.</summary>
+    private void OnCloseButtonClicked(object sender, RoutedEventArgs e) => Close();
+
+    /// <summary>Aktualisiert das Icon des Maximieren/Wiederherstellen-Buttons der eigenen Titelleiste
+    /// anhand des aktuellen <see cref="Window.WindowState"/> - zeigt das "Maximieren"-Glyph (Segoe MDL2
+    /// Assets E922), solange das Fenster normal/minimiert ist, und das "Wiederherstellen"-Glyph (E923),
+    /// solange es maximiert ist. Ein reiner XAML-Trigger auf WindowState kann hierfuer nicht direkt am
+    /// Button ansetzen, da WindowState keine mit einfachen DataTriggern bindbare Eigenschaft dieses
+    /// Buttons/TextBlocks ist - daher hier ueber das StateChanged-Ereignis manuell nachgezogen (siehe
+    /// Konstruktor).</summary>
+    private void UpdateMaximizeRestoreGlyph()
+        => MaximizeRestoreGlyph.Text = WindowState == WindowState.Maximized ? "\uE923" : "\uE922";
 
     private void OnMappingsScrollViewerPreviewMouseWheel(object sender, System.Windows.Input.MouseWheelEventArgs e)
     {

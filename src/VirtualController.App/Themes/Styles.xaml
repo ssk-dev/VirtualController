@@ -47,6 +47,68 @@
         </Setter>
     </Style>
 
+    <!-- Titelleisten-Buttons (Minimieren/Maximieren/Schließen) der eigenen, dunklen Titelleiste (siehe
+         MainWindow.xaml): bewusst als eigene, gekeyte Styles (kein x:Key -> implizit auf ALLE Buttons)
+         statt den Standard-Button-Style zu ueberschreiben, da diese Buttons flach/randlos und quadratisch
+         sein sollen, waehrend normale Buttons in der Anwendung weiterhin die Karten-Optik mit Rahmen
+         behalten. TitleBarCloseButtonStyle nutzt zusaetzlich einen roten Hover-Hintergrund, analog zur
+         etablierten Windows-Konvention fuer den Schliessen-Button. -->
+    <Style x:Key="TitleBarButtonStyle" TargetType="Button">
+        <Setter Property="Background" Value="Transparent" />
+        <Setter Property="Foreground" Value="{StaticResource TextBrush}" />
+        <Setter Property="BorderThickness" Value="0" />
+        <Setter Property="Width" Value="44" />
+        <Setter Property="Height" Value="32" />
+        <Setter Property="FontFamily" Value="Segoe MDL2 Assets" />
+        <Setter Property="FontSize" Value="11" />
+        <Setter Property="Cursor" Value="Arrow" />
+        <Setter Property="Template">
+            <Setter.Value>
+                <ControlTemplate TargetType="Button">
+                    <Border x:Name="ButtonBorder" Background="{TemplateBinding Background}">
+                        <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center" />
+                    </Border>
+                    <ControlTemplate.Triggers>
+                        <Trigger Property="IsMouseOver" Value="True">
+                            <Setter TargetName="ButtonBorder" Property="Background" Value="{StaticResource ButtonHoverBrush}" />
+                        </Trigger>
+                        <Trigger Property="IsPressed" Value="True">
+                            <Setter TargetName="ButtonBorder" Property="Background" Value="{StaticResource ButtonPressedBrush}" />
+                        </Trigger>
+                    </ControlTemplate.Triggers>
+                </ControlTemplate>
+            </Setter.Value>
+        </Setter>
+    </Style>
+
+    <Style x:Key="TitleBarCloseButtonStyle" TargetType="Button">
+        <Setter Property="Background" Value="Transparent" />
+        <Setter Property="Foreground" Value="{StaticResource TextBrush}" />
+        <Setter Property="BorderThickness" Value="0" />
+        <Setter Property="Width" Value="44" />
+        <Setter Property="Height" Value="32" />
+        <Setter Property="FontFamily" Value="Segoe MDL2 Assets" />
+        <Setter Property="FontSize" Value="11" />
+        <Setter Property="Cursor" Value="Arrow" />
+        <Setter Property="Template">
+            <Setter.Value>
+                <ControlTemplate TargetType="Button">
+                    <Border x:Name="ButtonBorder" Background="{TemplateBinding Background}">
+                        <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center" />
+                    </Border>
+                    <ControlTemplate.Triggers>
+                        <Trigger Property="IsMouseOver" Value="True">
+                            <Setter TargetName="ButtonBorder" Property="Background" Value="#E81123" />
+                        </Trigger>
+                        <Trigger Property="IsPressed" Value="True">
+                            <Setter TargetName="ButtonBorder" Property="Background" Value="#8B0A16" />
+                        </Trigger>
+                    </ControlTemplate.Triggers>
+                </ControlTemplate>
+            </Setter.Value>
+        </Setter>
+    </Style>
+
     <!-- TextBox: dunkles Eingabefeld passend zur Panel-Optik statt weissem Standard-Hintergrund. -->
     <Style TargetType="TextBox">
         <Setter Property="Background" Value="{StaticResource PanelBackgroundBrush}" />
@@ -289,7 +351,7 @@
                         <TabPanel x:Name="HeaderPanel" Grid.Row="0" Panel.ZIndex="1" Margin="0,0,4,-1"
                                   IsItemsHost="True" Background="Transparent"
                                   KeyboardNavigation.TabIndex="1" />
-                        <Border x:Name="ContentPanel" Grid.Row="1" Background="Transparent"
+                        <Border x:Name="ContentPanel" Grid.Row="1" Background="{StaticResource AppBackgroundBrush}"
                                 BorderBrush="{StaticResource PanelBorderBrush}" BorderThickness="0,1,0,0"
                                 KeyboardNavigation.TabNavigation="Local"
                                 KeyboardNavigation.DirectionalNavigation="Contained"

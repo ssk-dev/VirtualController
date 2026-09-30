@@ -2,11 +2,60 @@
         xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         xmlns:vm="clr-namespace:VirtualController.App.ViewModels"
+        xmlns:shell="clr-namespace:System.Windows.Shell;assembly=PresentationFramework"
         Title="{Binding WindowTitle}" Height="720" Width="1100"
         Icon="pack://application:,,,/Icons/VirtualController.ico"
+        WindowStyle="None" ResizeMode="CanResize"
         Closing="MainWindow_OnClosing">
 
-    <DockPanel>
+    <!-- Ersetzt die native, hell gerenderte und nicht themebare Windows-Titelleiste durch eine eigene,
+         dunkle Titelleiste (siehe DockPanel.Dock="Top" TitleBar-Border unten). WindowChrome (Standard-
+         WPF-Feature, keine zusaetzliche NuGet-Abhaengigkeit) uebernimmt dabei weiterhin das native
+         Verhalten fuer Resize an den Fensterkanten. CaptionHeight="32" markiert den obersten 32px-Streifen
+         (identisch zur Hoehe der eigenen TitleBar-Border unten) automatisch als Drag-/Doppelklick-
+         Maximieren-Bereich, analog zur nativen Titelleiste - einzelne interaktive Elemente darin (die drei
+         Fenstersteuerungs-Buttons) muessen daher explizit per WindowChrome.IsHitTestVisibleInChrome="True"
+         als klickbar markiert werden, sonst wuerden ihre Klicks vom Drag-Verhalten geschluckt. -->
+    <WindowChrome.WindowChrome>
+        <shell:WindowChrome CaptionHeight="32" ResizeBorderThickness="5" CornerRadius="0" GlassFrameThickness="0" />
+    </WindowChrome.WindowChrome>
+
+    <DockPanel Background="{StaticResource AppBackgroundBrush}">
+        <!-- Eigene, dunkle Titelleiste als Ersatz fuer die native Windows-Titelleiste (siehe
+             WindowStyle="None" oben): App-Icon + Titel links, Fenstersteuerung (Minimieren/Maximieren-
+             Wiederherstellen/Schliessen) rechts. Der gesamte Bereich fungiert dank WindowChrome
+             (CaptionHeight="32") automatisch als Drag-/Doppelklick-Maximieren-Zone; die drei Buttons
+             setzen daher explizit WindowChrome.IsHitTestVisibleInChrome="True", damit ihre Klicks nicht
+             vom Drag-Verhalten geschluckt werden. Das Maximieren/Wiederherstellen-Glyph wird ueber
+             MainWindow.xaml.cs (MaximizeRestoreGlyph) an den aktuellen WindowState angepasst, da ein
+             reiner XAML-Trigger auf Window.WindowState hierfuer nicht direkt am Button ansetzen kann. -->
+        <Border x:Name="TitleBar" DockPanel.Dock="Top" Height="32" Background="{StaticResource AppBackgroundBrush}"
+                BorderBrush="{StaticResource PanelBorderBrush}" BorderThickness="0,0,0,1">
+            <Grid>
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="*" />
+                    <ColumnDefinition Width="Auto" />
+                </Grid.ColumnDefinitions>
+
+                <StackPanel Orientation="Horizontal" VerticalAlignment="Center" Margin="10,0,0,0">
+                    <Image Source="pack://application:,,,/Icons/VirtualController.ico" Width="16" Height="16" Margin="0,0,8,0" />
+                    <TextBlock Text="{Binding WindowTitle}" FontSize="12" VerticalAlignment="Center" Foreground="{StaticResource MutedTextBrush}" />
+                </StackPanel>
+
+                <StackPanel Grid.Column="1" Orientation="Horizontal" WindowChrome.IsHitTestVisibleInChrome="True">
+                    <Button Style="{StaticResource TitleBarButtonStyle}" Click="OnMinimizeButtonClicked" ToolTip="Minimieren">
+                        <TextBlock Text="&#xE921;" />
+                    </Button>
+                    <Button Style="{StaticResource TitleBarButtonStyle}" Click="OnMaximizeRestoreButtonClicked" ToolTip="Maximieren/Wiederherstellen">
+                        <TextBlock x:Name="MaximizeRestoreGlyph" Text="&#xE922;" />
+                    </Button>
+                    <Button Style="{StaticResource TitleBarCloseButtonStyle}" Click="OnCloseButtonClicked" ToolTip="Schliessen">
+                        <TextBlock Text="&#xE8BB;" />
+                    </Button>
+                </StackPanel>
+            </Grid>
+        </Border>
+
         <!-- Kopfzeile: Treiber-Status + globale Aktionen -->
         <Border DockPanel.Dock="Top" Padding="10" Background="Transparent" BorderBrush="{StaticResource PanelBorderBrush}" BorderThickness="0,0,0,1">
             <Grid>
@@ -168,7 +217,7 @@
                             <RowDefinition Height="*" />
                         </Grid.RowDefinitions>
 
-                        <Border Grid.Row="0" Padding="12" Background="Transparent" BorderBrush="{StaticResource PanelBorderBrush}" BorderThickness="0,0,0,1">
+                        <Border Grid.Row="0" Padding="12" Background="{StaticResource AppBackgroundBrush}" BorderBrush="{StaticResource PanelBorderBrush}" BorderThickness="0,0,0,1">
                             <StackPanel>
                                 <StackPanel Orientation="Horizontal" Margin="0,0,0,6">
                                     <TextBlock Text="Name:" VerticalAlignment="Center" Width="90" />
@@ -246,7 +295,7 @@
                              ein eigener Switch-Trigger, der diesen Modus direkt aktiviert (siehe Tab-Leiste unten).
                              Beide Mechanismen sind immer vollstaendig konfiguriert vorhanden - dieser Schalter legt nur
                              fest, welcher davon zur Laufzeit tatsaechlich ausgewertet wird (siehe ControllerSession). -->
-                        <Border Grid.Row="1" Padding="12,8" Background="Transparent" BorderBrush="{StaticResource PanelBorderBrush}" BorderThickness="0,0,0,1">
+                        <Border Grid.Row="1" Padding="12,8" Background="{StaticResource AppBackgroundBrush}" BorderBrush="{StaticResource PanelBorderBrush}" BorderThickness="0,0,0,1">
                             <StackPanel Orientation="Horizontal">
                                 <TextBlock Text="Modi Switch / Toggle:" VerticalAlignment="Center" FontWeight="Bold" Width="130" />
                                 <ComboBox ItemsSource="{x:Static vm:VirtualControllerViewModel.ModeSwitchMechanismOptions}"
@@ -627,7 +676,7 @@
                             </DockPanel>
 
                             <!-- Rechte Spalte: vertikales Panel mit allen fuer diesen Controller verfuegbaren physischen Geraeten -->
-                            <Border Grid.Column="1" BorderBrush="{StaticResource PanelBorderBrush}" BorderThickness="1,0,0,0" Padding="12,0,0,0">
+                            <Border Grid.Column="1" Background="{StaticResource AppBackgroundBrush}" BorderBrush="{StaticResource PanelBorderBrush}" BorderThickness="1,0,0,0" Padding="12,0,0,0">
                                 <DockPanel>
                                     <TextBlock DockPanel.Dock="Top" Text="Verfügbare Geräte:" FontWeight="Bold" Margin="0,0,0,4" />
                                     <ScrollViewer VerticalScrollBarVisibility="Auto">

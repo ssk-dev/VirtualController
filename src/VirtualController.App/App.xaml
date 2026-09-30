@@ -20,7 +20,7 @@
              Standard-Hintergrund (z.B. TabControl) zusaetzlich explizit auf Transparent gesetzt werden
              (siehe MainWindow.xaml). -->
         <Style TargetType="Window">
-            <Setter Property="Background" Value="#010d19" />
+            <Setter Property="Background" Value="{StaticResource AppBackgroundBrush}" />
             <Setter Property="Foreground" Value="#F6FBFD" />
         </Style>
         </ResourceDictionary>

@@ -16,6 +16,14 @@
         <GradientStop Color="#11DBFE" Offset="1" />
     </LinearGradientBrush>
 
+    <!-- Dunkelster Ton der Palette, identisch zum bisher nur als literaler Hex-Wert in App.xaml
+         (Style TargetType="Window") verwendeten App-Hintergrund. Als benannter Brush ausgelagert, damit
+         einzelne Bereiche (z.B. MainWindow.xaml, root DockPanel) ihren Hintergrund zusaetzlich explizit
+         darauf setzen koennen, statt sich ausschliesslich auf Background="Transparent" plus die von
+         aussen durchscheinende Window.Background zu verlassen - Letzteres fuehrte dazu, dass genau diese
+         Bereiche (z.B. die "Verfuegbare Geraete"-Liste) faelschlicherweise weiss statt dunkel erschienen. -->
+    <SolidColorBrush x:Key="AppBackgroundBrush" Color="#010D19" />
+
     <SolidColorBrush x:Key="PanelBackgroundBrush" Color="#0B1626" />
     <SolidColorBrush x:Key="PanelBorderBrush" Color="#2A517D" />
     <SolidColorBrush x:Key="MutedTextBrush" Color="#7997CB" />
