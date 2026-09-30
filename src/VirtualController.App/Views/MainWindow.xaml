@@ -32,6 +32,8 @@
                     <Button Content="Profile speichern" Command="{Binding SaveProfilesCommand}" Margin="4,0" Padding="8,4"
                             Foreground="{Binding HasUnsavedChanges, Converter={StaticResource BoolToUnsavedForegroundConverter}}"
                             FontWeight="{Binding HasUnsavedChanges, Converter={StaticResource BoolToFontWeightConverter}}" />
+                    <Button Content="Windows Gamecontroller" Command="{Binding OpenWindowsGameControllersCommand}" Margin="4,0" Padding="8,4"
+                            ToolTip="Oeffnet die native Windows-Systemsteuerung fuer Gamecontroller (joy.cpl)." />
                 </StackPanel>
             </Grid>
         </Border>

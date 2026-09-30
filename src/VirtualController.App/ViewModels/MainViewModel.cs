@@ -464,6 +464,28 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
         }
     }
 
+    /// <summary>Oeffnet die native Windows-Systemsteuerung fuer Gamecontroller ("joy.cpl"), damit der
+    /// Nutzer zum Vergleich/zur Fehlersuche schnell die von Windows selbst erkannten Achsen/Buttons eines
+    /// Geraets pruefen kann, ohne diese App zu verlassen und den Dialog manuell suchen zu muessen.</summary>
+    [RelayCommand]
+    private void OpenWindowsGameControllers()
+    {
+        try
+        {
+            var startInfo = new ProcessStartInfo
+            {
+                FileName = "joy.cpl",
+                UseShellExecute = true
+            };
+            Process.Start(startInfo);
+            LastErrorMessage = null;
+        }
+        catch (Exception ex)
+        {
+            LastErrorMessage = $"Windows-Gamecontroller-Einstellungen konnten nicht geoeffnet werden: {ex.Message}";
+        }
+    }
+
     [RelayCommand]
     private void LoadProfiles()
     {
