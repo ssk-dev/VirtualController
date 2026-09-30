@@ -415,6 +415,64 @@
         </Setter>
     </Style>
 
+    <!-- ListView/ListViewItem/GridViewColumnHeader: WPFs implizite Style-Aufloesung greift nur bei
+         exaktem DefaultStyleKey-Typ (ListView registriert typeof(ListView), nicht typeof(ListBox);
+         ListViewItem registriert typeof(ListViewItem), nicht typeof(ListBoxItem)) - die obigen
+         ListBox/ListBoxItem-Styles greifen deshalb NICHT fuer ListView (siehe AssignInputDialog.xaml),
+         das bislang komplett mit nativer, heller Chrome gerendert wurde. -->
+    <Style TargetType="ListView">
+        <Setter Property="Background" Value="{StaticResource PanelBackgroundBrush}" />
+        <Setter Property="Foreground" Value="{StaticResource TextBrush}" />
+        <Setter Property="BorderBrush" Value="{StaticResource PanelBorderBrush}" />
+        <Setter Property="BorderThickness" Value="1" />
+    </Style>
+
+    <!-- ListViewItem braucht - anders als ListBoxItem - zwingend einen GridViewRowPresenter statt eines
+         einfachen ContentPresenter, da GridView die Spalten jeder Zeile darueber rendert; ein reiner
+         ContentPresenter wuerde die GridView-Spalten (siehe AssignInputDialog.xaml) komplett leer lassen. -->
+    <Style TargetType="ListViewItem">
+        <Setter Property="Padding" Value="4,4" />
+        <Setter Property="Template">
+            <Setter.Value>
+                <ControlTemplate TargetType="ListViewItem">
+                    <Border x:Name="ItemBorder" Background="Transparent" Padding="{TemplateBinding Padding}"
+                            BorderBrush="{StaticResource PanelBorderBrush}" BorderThickness="0,0,0,1">
+                        <GridViewRowPresenter Columns="{TemplateBinding GridView.ColumnCollection}"
+                                               Content="{TemplateBinding Content}" />
+                    </Border>
+                    <ControlTemplate.Triggers>
+                        <Trigger Property="IsMouseOver" Value="True">
+                            <Setter TargetName="ItemBorder" Property="Background" Value="{StaticResource ButtonHoverBrush}" />
+                        </Trigger>
+                        <Trigger Property="IsSelected" Value="True">
+                            <Setter TargetName="ItemBorder" Property="Background" Value="{StaticResource ButtonPressedBrush}" />
+                        </Trigger>
+                    </ControlTemplate.Triggers>
+                </ControlTemplate>
+            </Setter.Value>
+        </Setter>
+    </Style>
+
+    <!-- GridViewColumnHeader erbt (wie Button) von ButtonBase und ignoriert einfache Property-Setter
+         aufgrund seiner nativen, dreidimensional wirkenden Chrome - eigenes ControlTemplate analog zum
+         bestehenden DataGridColumnHeader-Style. -->
+    <Style TargetType="GridViewColumnHeader">
+        <Setter Property="Background" Value="{StaticResource PanelBackgroundBrush}" />
+        <Setter Property="Foreground" Value="{StaticResource MutedTextBrush}" />
+        <Setter Property="FontWeight" Value="Bold" />
+        <Setter Property="Padding" Value="6,4" />
+        <Setter Property="Template">
+            <Setter.Value>
+                <ControlTemplate TargetType="GridViewColumnHeader">
+                    <Border Background="{TemplateBinding Background}" BorderBrush="{StaticResource PanelBorderBrush}"
+                            BorderThickness="0,0,1,1" Padding="{TemplateBinding Padding}">
+                        <ContentPresenter HorizontalAlignment="Left" VerticalAlignment="Center" />
+                    </Border>
+                </ControlTemplate>
+            </Setter.Value>
+        </Setter>
+    </Style>
+
     <!-- ProgressBar: native Chrome zeichnet eine helle Windows-Standard-Leiste (grauer Track, blauer
          Fortschritts-Fuellstand), die auf dem dunklen Hintergrund als klarer Fremdkoerper auffiel. Wie
          bei Button/CheckBox/ComboBox reicht kein einfacher Property-Setter, da ProgressBar seine
