@@ -415,4 +415,42 @@
         </Setter>
     </Style>
 
+    <!-- ProgressBar: native Chrome zeichnet eine helle Windows-Standard-Leiste (grauer Track, blauer
+         Fortschritts-Fuellstand), die auf dem dunklen Hintergrund als klarer Fremdkoerper auffiel. Wie
+         bei Button/CheckBox/ComboBox reicht kein einfacher Property-Setter, da ProgressBar seine
+         Fuellstands-Anzeige ueber eine eigene, Theme-gebundene Chrome zeichnet. Eigenes ControlTemplate
+         mit dunklem Track (PanelBackgroundBrush) und Cyan-Akzent-Farbverlauf als Fuellstand
+         (AccentGradientBrush) - "PART_Indicator" muss exakt so benannt sein, damit WPF dessen Breite
+         intern automatisch anhand von Value/Minimum/Maximum berechnet. -->
+    <Style TargetType="ProgressBar">
+        <Setter Property="Background" Value="{StaticResource PanelBackgroundBrush}" />
+        <Setter Property="BorderBrush" Value="{StaticResource PanelBorderBrush}" />
+        <Setter Property="BorderThickness" Value="1" />
+        <Setter Property="Template">
+            <Setter.Value>
+                <ControlTemplate TargetType="ProgressBar">
+                    <Border Background="{TemplateBinding Background}" BorderBrush="{TemplateBinding BorderBrush}"
+                            BorderThickness="{TemplateBinding BorderThickness}" CornerRadius="4" ClipToBounds="True">
+                        <!-- PART_Track ist erforderlich, damit ProgressBar intern die verfuegbare Breite
+                             ermitteln und daraus die Breite von PART_Indicator berechnen kann - ohne
+                             PART_Track bliebe der Fuellstand permanent auf 0 Breite stehen. -->
+                        <Border x:Name="PART_Track" Background="Transparent">
+                            <Rectangle x:Name="PART_Indicator" HorizontalAlignment="Left"
+                                       Fill="{StaticResource AccentGradientBrush}" RadiusX="3" RadiusY="3" />
+                        </Border>
+                    </Border>
+                    <ControlTemplate.Triggers>
+                        <!-- IsIndeterminate wird nur fuer den "Bitte warten"-Bildschirm des Updaters ohne
+                             echten Fortschrittswert verwendet - statt eines statisch-halbleeren Balkens
+                             (der wie ein haengengebliebener Fortschritt wirken wuerde) wird der Indikator
+                             hier auf volle Breite gestreckt. -->
+                        <Trigger Property="IsIndeterminate" Value="True">
+                            <Setter TargetName="PART_Indicator" Property="HorizontalAlignment" Value="Stretch" />
+                        </Trigger>
+                    </ControlTemplate.Triggers>
+                </ControlTemplate>
+            </Setter.Value>
+        </Setter>
+    </Style>
+
 </ResourceDictionary>

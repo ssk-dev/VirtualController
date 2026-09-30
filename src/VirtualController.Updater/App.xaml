@@ -60,5 +60,39 @@
                 </Setter.Value>
             </Setter>
         </Style>
+
+        <!-- ProgressBar-Style analog zu VirtualController.App/Themes/Styles.xaml: native Chrome zeichnet
+             eine helle Windows-Standard-Leiste, die auf dem dunklen Hintergrund als Fremdkoerper auffiel.
+             Eigenes ControlTemplate mit dunklem Track (PanelBackgroundBrush) und Akzentfarbe als
+             Fuellstand - "PART_Track"/"PART_Indicator" muessen exakt so benannt sein, damit WPF die Breite
+             des Fuellstands intern automatisch anhand von Value/Minimum/Maximum berechnet. Da dieses
+             Projekt keine ProjectReference auf VirtualController.App besitzt, steht hier kein
+             AccentGradientBrush zur Verfuegung - der einfache AccentBrush wird stattdessen verwendet. -->
+        <Style TargetType="ProgressBar">
+            <Setter Property="Background" Value="{StaticResource PanelBackgroundBrush}" />
+            <Setter Property="BorderBrush" Value="{StaticResource PanelBorderBrush}" />
+            <Setter Property="BorderThickness" Value="1" />
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="ProgressBar">
+                        <Border Background="{TemplateBinding Background}" BorderBrush="{TemplateBinding BorderBrush}"
+                                BorderThickness="{TemplateBinding BorderThickness}" CornerRadius="4" ClipToBounds="True">
+                            <Border x:Name="PART_Track" Background="Transparent">
+                                <Rectangle x:Name="PART_Indicator" HorizontalAlignment="Left"
+                                           Fill="{StaticResource AccentBrush}" RadiusX="3" RadiusY="3" />
+                            </Border>
+                        </Border>
+                        <ControlTemplate.Triggers>
+                            <!-- IsIndeterminate wird fuer den "Bitte warten"-Bildschirm ohne echten
+                                 Fortschrittswert verwendet - statt eines statisch-halbleeren Balkens wird
+                                 der Indikator hier auf volle Breite gestreckt. -->
+                            <Trigger Property="IsIndeterminate" Value="True">
+                                <Setter TargetName="PART_Indicator" Property="HorizontalAlignment" Value="Stretch" />
+                            </Trigger>
+                        </ControlTemplate.Triggers>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
     </Application.Resources>
 </Application>
