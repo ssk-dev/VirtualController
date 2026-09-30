@@ -19,10 +19,10 @@
                     Content="{Binding Device.IsBenchmarking, Converter={StaticResource BoolToBenchmarkButtonTextConverter}}"
                     Command="{Binding Device.ToggleBenchmarkCommand}" />
             <TextBlock Text="{Binding DurationSeconds, StringFormat='Laufzeit: {0:0.0} s'}"
-                       VerticalAlignment="Center" Margin="12,0,0,0" Foreground="#666" />
+                       VerticalAlignment="Center" Margin="12,0,0,0" Foreground="{StaticResource MutedTextBrush}" />
         </StackPanel>
 
-        <TextBlock DockPanel.Dock="Top" Margin="0,0,0,10" TextWrapping="Wrap" Foreground="#666"
+        <TextBlock DockPanel.Dock="Top" Margin="0,0,0,10" TextWrapping="Wrap" Foreground="{StaticResource MutedTextBrush}"
                    Visibility="{Binding HasSnapshot, Converter={StaticResource BoolToVisibilityConverter}, ConverterParameter=Invert}"
                    Text="Noch keine Messwerte - starte den Benchmark ueber den Button oben, um hier fortlaufend aktualisierte Kennzahlen zu sehen." />
 
@@ -52,7 +52,7 @@
                     <TextBlock Grid.Row="1" Grid.Column="1" Text="{Binding MaxPollingRateHz, StringFormat='Max: {0:0.0} Hz'}" Margin="0,2" />
                     <TextBlock Grid.Row="2" Grid.Column="0" Text="{Binding ActualPollingRateHz, StringFormat='Mittel: {0:0.0} Hz'}" Margin="0,2" />
                     <TextBlock Grid.Row="2" Grid.Column="1" Text="{Binding MedianPollingRateHz, StringFormat='Median: {0:0.0} Hz'}" Margin="0,2" />
-                    <TextBlock Grid.Row="3" Grid.Column="0" Text="{Binding IntervalStdDevMs, StringFormat='Intervall (StdAbw.): {0:0.00} ms'}" Margin="0,2" Foreground="#666" />
+                    <TextBlock Grid.Row="3" Grid.Column="0" Text="{Binding IntervalStdDevMs, StringFormat='Intervall (StdAbw.): {0:0.00} ms'}" Margin="0,2" Foreground="{StaticResource MutedTextBrush}" />
                 </Grid>
 
                 <!-- Latenz-Jitter (Abweichung vom nominalen USB-Polling-Intervall) - siehe
@@ -60,7 +60,7 @@
                 <TextBlock Text="Latenz-Jitter (Naeherung relativ zum nominalen USB-Intervall)" FontWeight="Bold" Margin="0,0,0,4" />
                 <TextBlock Margin="0,0,0,12"
                            Visibility="{Binding LatencySupported, Converter={StaticResource BoolToVisibilityConverter}, ConverterParameter=Invert}"
-                           Text="Nicht ermittelbar (kein nominales USB-Polling-Intervall bekannt)." Foreground="#999" />
+                           Text="Nicht ermittelbar (kein nominales USB-Polling-Intervall bekannt)." Foreground="{StaticResource MutedTextBrush}" />
                 <Grid Margin="0,0,0,12"
                       Visibility="{Binding LatencySupported, Converter={StaticResource BoolToVisibilityConverter}}">
                     <Grid.ColumnDefinitions>
@@ -93,14 +93,14 @@
                 <ItemsControl ItemsSource="{Binding SignalAxes}">
                     <ItemsControl.ItemTemplate>
                         <DataTemplate DataType="{x:Type metrics:SignalAxisResult}">
-                            <Border BorderBrush="#DDD" BorderThickness="1" Padding="6" Margin="0,0,0,6">
+                            <Border BorderBrush="{StaticResource PanelBorderBrush}" BorderThickness="1" Padding="6" Margin="0,0,0,6">
                                 <StackPanel>
                                     <TextBlock Text="{Binding Axis}" FontWeight="SemiBold" />
                                     <TextBlock Text="{Binding EffectiveBits, StringFormat='Effektive Aufloesung: {0:0.0} Bit'}" />
-                                    <TextBlock Text="{Binding DeclaredElementBits, StringFormat='Deklarierte Aufloesung: {0} Bit'}" Foreground="#666" />
+                                    <TextBlock Text="{Binding DeclaredElementBits, StringFormat='Deklarierte Aufloesung: {0} Bit'}" Foreground="{StaticResource MutedTextBrush}" />
                                     <TextBlock Text="{Binding NoiseStdDevRaw, StringFormat='Rauschen (Ruhephasen): {0:0.00} (Rohwert)'}"
                                                Visibility="{Binding NoiseSupported, Converter={StaticResource BoolToVisibilityConverter}}" />
-                                    <TextBlock Text="Rauschen: nicht ermittelbar (keine Ruhephase beobachtet)" Foreground="#999"
+                                    <TextBlock Text="Rauschen: nicht ermittelbar (keine Ruhephase beobachtet)" Foreground="{StaticResource MutedTextBrush}"
                                                Visibility="{Binding NoiseSupported, Converter={StaticResource BoolToVisibilityConverter}, ConverterParameter=Invert}" />
                                     <TextBlock Text="{Binding DeadzonePercentOfRange, StringFormat='Geschaetzte Totzone: {0:P1} des Wertebereichs'}"
                                                Visibility="{Binding DeadzoneSupported, Converter={StaticResource BoolToVisibilityConverter}}" />
@@ -116,19 +116,19 @@
                      Report-Quelle durchgehend 0 Messwerte liefert (Composite-Geraet, falsches Interface
                      geoeffnet) - siehe BenchmarkWindowViewModel.HasMultipleHidCandidates. -->
                 <TextBlock Text="HID-Diagnose" FontWeight="Bold" Margin="0,0,0,4" />
-                <Border Margin="0,0,0,6" Padding="6" Background="#FFF3CD" BorderBrush="#FFECB5" BorderThickness="1"
+                <Border Margin="0,0,0,6" Padding="6" Background="{StaticResource WarningBackgroundBrush}" BorderBrush="{StaticResource WarningBorderBrush}" BorderThickness="1"
                         Visibility="{Binding HasMultipleHidCandidates, Converter={StaticResource BoolToVisibilityConverter}}">
-                    <TextBlock TextWrapping="Wrap" Foreground="#856404"
+                    <TextBlock TextWrapping="Wrap" Foreground="{StaticResource WarningTextBrush}"
                                Text="Mehrere HID-Interfaces mit derselben Vendor-/Product-ID gefunden. Falls trotz Aktivitaet am Geraet keine Messwerte eintreffen, wurde vermutlich das falsche Interface geoeffnet (siehe markierten Eintrag unten)." />
                 </Border>
                 <ItemsControl ItemsSource="{Binding HidCandidates}" Margin="0,0,0,12">
                     <ItemsControl.ItemTemplate>
                         <DataTemplate DataType="{x:Type benchmark:BenchmarkHidCandidateInfo}">
-                            <Border BorderBrush="#DDD" BorderThickness="1" Padding="6" Margin="0,0,0,6">
+                            <Border BorderBrush="{StaticResource PanelBorderBrush}" BorderThickness="1" Padding="6" Margin="0,0,0,6">
                                 <StackPanel>
                                     <TextBlock Text="{Binding DevicePath}" TextWrapping="Wrap" FontFamily="Consolas" FontSize="11" />
-                                    <TextBlock Text="{Binding MaxInputReportLength, StringFormat='Max. Input-Report-Laenge: {0} Byte'}" Foreground="#666" />
-                                    <TextBlock Text="Verwendet fuer diese Sitzung" FontWeight="SemiBold" Foreground="#2E7D32"
+                                    <TextBlock Text="{Binding MaxInputReportLength, StringFormat='Max. Input-Report-Laenge: {0} Byte'}" Foreground="{StaticResource MutedTextBrush}" />
+                                    <TextBlock Text="Verwendet fuer diese Sitzung" FontWeight="SemiBold" Foreground="{StaticResource SuccessBrush}"
                                                Visibility="{Binding IsResolved, Converter={StaticResource BoolToVisibilityConverter}}" />
                                 </StackPanel>
                             </Border>

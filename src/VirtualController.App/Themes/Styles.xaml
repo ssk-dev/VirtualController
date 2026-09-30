@@ -332,4 +332,48 @@
         </Setter>
     </Style>
 
+    <!-- Expander: wie bei TabControl/TabItem reicht auch hier kein einfacher Property-Setter, da die
+         native Chrome den Umschalt-Header (Pfeil-Glyph + Text) als eigenen, Theme-gebundenen ToggleButton
+         zeichnet, der auf dem dunklen Hintergrund als hellerer Fremdkoerper auffiel. Eigenes ControlTemplate
+         mit Cyan-Pfeil-Glyph (Segoe MDL2 Assets, wechselt je nach IsExpanded zwischen Chevron-runter/-hoch)
+         statt des nativen schwarzen Pfeils. -->
+    <Style TargetType="Expander">
+        <Setter Property="Foreground" Value="{StaticResource TextBrush}" />
+        <Setter Property="Template">
+            <Setter.Value>
+                <ControlTemplate TargetType="Expander">
+                    <DockPanel Background="Transparent">
+                        <ToggleButton DockPanel.Dock="Top" IsChecked="{Binding IsExpanded, RelativeSource={RelativeSource TemplatedParent}, Mode=TwoWay}"
+                                      HorizontalContentAlignment="Stretch" Background="Transparent" BorderThickness="0"
+                                      Focusable="False" Cursor="Hand">
+                            <ToggleButton.Template>
+                                <ControlTemplate TargetType="ToggleButton">
+                                    <Border Background="{TemplateBinding Background}">
+                                        <StackPanel Orientation="Horizontal">
+                                            <TextBlock x:Name="ExpanderGlyph" Text="&#xE70D;" FontFamily="Segoe MDL2 Assets"
+                                                       Foreground="{StaticResource AccentBrush}" Margin="0,0,6,0" VerticalAlignment="Center" />
+                                            <ContentPresenter ContentSource="Content" VerticalAlignment="Center" />
+                                        </StackPanel>
+                                    </Border>
+                                    <ControlTemplate.Triggers>
+                                        <Trigger Property="IsChecked" Value="True">
+                                            <Setter TargetName="ExpanderGlyph" Property="Text" Value="&#xE70E;" />
+                                        </Trigger>
+                                    </ControlTemplate.Triggers>
+                                </ControlTemplate>
+                            </ToggleButton.Template>
+                            <ContentPresenter ContentSource="Header" TextElement.Foreground="{StaticResource TextBrush}" />
+                        </ToggleButton>
+                        <ContentPresenter x:Name="ExpanderContent" DockPanel.Dock="Bottom" Visibility="Collapsed" />
+                    </DockPanel>
+                    <ControlTemplate.Triggers>
+                        <Trigger Property="IsExpanded" Value="True">
+                            <Setter TargetName="ExpanderContent" Property="Visibility" Value="Visible" />
+                        </Trigger>
+                    </ControlTemplate.Triggers>
+                </ControlTemplate>
+            </Setter.Value>
+        </Setter>
+    </Style>
+
 </ResourceDictionary>

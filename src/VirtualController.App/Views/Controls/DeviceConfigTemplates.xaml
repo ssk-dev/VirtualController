@@ -5,12 +5,15 @@
 
     <ResourceDictionary.MergedDictionaries>
         <!-- Wird benoetigt, damit die unten verwendeten {StaticResource BoolToHighlightBrushConverter}/
-             {StaticResource BoolToVisibilityConverter}-Verweise innerhalb der DataTemplates zur Laufzeit
-             aufgeloest werden koennen: StaticResource-Referenzen in Templates werden im Scope DIESER
-             Datei (+ ihrer eigenen MergedDictionaries) aufgeloest, nicht im Scope von App.xaml, auch wenn
-             App.xaml diese Datei per MergedDictionaries einbindet. Ohne diesen Verweis stuerzte die App
-             beim ersten Rendern des "Gerätekonfiguration"-Tabs mit einer XamlParseException ab. -->
+             {StaticResource BoolToVisibilityConverter}-Verweise sowie die Farb-Brushes (z.B.
+             {StaticResource MutedTextBrush}, {StaticResource PanelBorderBrush}, {StaticResource AccentBrush})
+             innerhalb der DataTemplates zur Laufzeit aufgeloest werden koennen: StaticResource-Verweise in
+             Templates werden im Scope DIESER Datei (+ ihrer eigenen MergedDictionaries) aufgeloest, nicht im
+             Scope von App.xaml, auch wenn App.xaml diese Datei per MergedDictionaries einbindet. Ohne diese
+             beiden Verweise stuerzte die App beim ersten Rendern des "Gerätekonfiguration"-Tabs mit einer
+             XamlParseException ab. -->
         <ResourceDictionary Source="/Converters/Converters.xaml" />
+        <ResourceDictionary Source="/Themes/Theme.xaml" />
     </ResourceDictionary.MergedDictionaries>
 
     <!-- Implizite DataTemplates (kein x:Key) fuer den "Gerätekonfiguration"-Tab (siehe MainWindow.xaml):
@@ -74,7 +77,7 @@
                         <TextBox Text="{Binding CurveStrength, UpdateSourceTrigger=PropertyChanged}" Width="50" />
                     </StackPanel>
 
-                    <TextBlock Text="{Binding CalibrationStatus}" Foreground="Gray" FontStyle="Italic"
+                    <TextBlock Text="{Binding CalibrationStatus}" Foreground="{StaticResource MutedTextBrush}" FontStyle="Italic"
                                Margin="0,2" TextWrapping="Wrap" />
                 </StackPanel>
             </StackPanel>
@@ -85,7 +88,7 @@
          implizitem DeviceConfigInputRowViewModel-Template dargestellt. -->
     <DataTemplate DataType="{x:Type vm:DeviceConfigInputGroupViewModel}">
         <StackPanel Margin="0,0,0,6">
-            <TextBlock Text="{Binding GroupName}" FontWeight="SemiBold" Foreground="#666" Margin="0,0,0,3" />
+            <TextBlock Text="{Binding GroupName}" FontWeight="SemiBold" Foreground="{StaticResource MutedTextBrush}" Margin="0,0,0,3" />
             <ItemsControl ItemsSource="{Binding Inputs}" Margin="12,0,0,0" />
         </StackPanel>
     </DataTemplate>
@@ -96,7 +99,7 @@
          Werkzeuge. Der Rahmen macht auf einen Blick erkennbar, welche Zeilen zur selben Achse gehoeren -
          zuvor standen Positiv-/Negativ-Eintraege optisch nicht unterscheidbar von unabhaengigen Buttons. -->
     <DataTemplate DataType="{x:Type vm:DeviceConfigAxisPairViewModel}">
-        <Border BorderBrush="#D8D8D8" BorderThickness="1" CornerRadius="4"
+        <Border BorderBrush="{StaticResource PanelBorderBrush}" BorderThickness="1" CornerRadius="4"
                 Background="Transparent" Padding="6,4" Margin="0,0,0,8" HorizontalAlignment="Left">
             <StackPanel>
                 <!-- Eigenstaendiger Master-Schalter fuer die komplette Achse (beide Richtungen
@@ -131,7 +134,7 @@
          Negativ-Zeilen zugleich (de-)aktiviert - der Nutzer muss dafuer nicht mehr jede der vier
          Einzelrichtungen separat abhaken. -->
     <DataTemplate DataType="{x:Type vm:DeviceConfigStickGroupViewModel}">
-        <Border BorderBrush="#B0B0B0" BorderThickness="2" CornerRadius="6"
+        <Border BorderBrush="{StaticResource AccentBrush}" BorderThickness="2" CornerRadius="6"
                 Background="Transparent" Padding="8" Margin="0,0,0,10" HorizontalAlignment="Left">
             <StackPanel>
                 <StackPanel Orientation="Horizontal" Margin="0,0,0,6">
@@ -164,12 +167,12 @@
                     <StackPanel Grid.Column="0" x:Name="StickAxesColumn">
                         <StackPanel Orientation="Horizontal">
                             <TextBlock Text="X" FontWeight="Bold" FontSize="20" Width="24"
-                                       HorizontalAlignment="Center" VerticalAlignment="Center" Foreground="#888" />
+                                       HorizontalAlignment="Center" VerticalAlignment="Center" Foreground="{StaticResource MutedTextBrush}" />
                             <ContentPresenter Content="{Binding XAxis}" />
                         </StackPanel>
                         <StackPanel Orientation="Horizontal">
                             <TextBlock Text="Y" FontWeight="Bold" FontSize="20" Width="24"
-                                       HorizontalAlignment="Center" VerticalAlignment="Center" Foreground="#888" />
+                                       HorizontalAlignment="Center" VerticalAlignment="Center" Foreground="{StaticResource MutedTextBrush}" />
                             <ContentPresenter Content="{Binding YAxis}" />
                         </StackPanel>
 
@@ -182,7 +185,7 @@
                                 <Button Content="Deadzone kalibrieren" Command="{Binding CalibrateDeadzoneCommand}" Padding="6,1" Margin="0,0,4,0" />
                                 <Button Content="Zuruecksetzen" Command="{Binding ResetCalibrationCommand}" Padding="6,1" />
                             </StackPanel>
-                            <TextBlock Text="{Binding CalibrationStatus}" Foreground="Gray" FontStyle="Italic"
+                            <TextBlock Text="{Binding CalibrationStatus}" Foreground="{StaticResource MutedTextBrush}" FontStyle="Italic"
                                        Margin="0,2" TextWrapping="Wrap" />
                         </StackPanel>
                     </StackPanel>
@@ -201,7 +204,7 @@
          Template (Rahmen) dargestellt. -->
     <DataTemplate DataType="{x:Type vm:DeviceConfigAxisGroupViewModel}">
         <StackPanel Margin="0,0,0,6">
-            <TextBlock Text="{Binding GroupName}" FontWeight="SemiBold" Foreground="#666" Margin="0,0,0,3" />
+            <TextBlock Text="{Binding GroupName}" FontWeight="SemiBold" Foreground="{StaticResource MutedTextBrush}" Margin="0,0,0,3" />
             <ItemsControl ItemsSource="{Binding Items}" Margin="12,0,0,0" />
         </StackPanel>
     </DataTemplate>

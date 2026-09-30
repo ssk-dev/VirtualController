@@ -8,7 +8,7 @@
 
     <DockPanel>
         <!-- Kopfzeile: Treiber-Status + globale Aktionen -->
-        <Border DockPanel.Dock="Top" Padding="10" Background="Transparent" BorderBrush="#DDD" BorderThickness="0,0,0,1">
+        <Border DockPanel.Dock="Top" Padding="10" Background="Transparent" BorderBrush="{StaticResource PanelBorderBrush}" BorderThickness="0,0,0,1">
             <Grid>
                 <Grid.ColumnDefinitions>
                     <ColumnDefinition Width="*" />
@@ -168,7 +168,7 @@
                             <RowDefinition Height="*" />
                         </Grid.RowDefinitions>
 
-                        <Border Grid.Row="0" Padding="12" Background="Transparent" BorderBrush="#DDD" BorderThickness="0,0,0,1">
+                        <Border Grid.Row="0" Padding="12" Background="Transparent" BorderBrush="{StaticResource PanelBorderBrush}" BorderThickness="0,0,0,1">
                             <StackPanel>
                                 <StackPanel Orientation="Horizontal" Margin="0,0,0,6">
                                     <TextBlock Text="Name:" VerticalAlignment="Center" Width="90" />
@@ -246,7 +246,7 @@
                              ein eigener Switch-Trigger, der diesen Modus direkt aktiviert (siehe Tab-Leiste unten).
                              Beide Mechanismen sind immer vollstaendig konfiguriert vorhanden - dieser Schalter legt nur
                              fest, welcher davon zur Laufzeit tatsaechlich ausgewertet wird (siehe ControllerSession). -->
-                        <Border Grid.Row="1" Padding="12,8" Background="Transparent" BorderBrush="#DDD" BorderThickness="0,0,0,1">
+                        <Border Grid.Row="1" Padding="12,8" Background="Transparent" BorderBrush="{StaticResource PanelBorderBrush}" BorderThickness="0,0,0,1">
                             <StackPanel Orientation="Horizontal">
                                 <TextBlock Text="Modi Switch / Toggle:" VerticalAlignment="Center" FontWeight="Bold" Width="130" />
                                 <ComboBox ItemsSource="{x:Static vm:VirtualControllerViewModel.ModeSwitchMechanismOptions}"
@@ -286,7 +286,7 @@
                              IsActive == true, siehe ModeViewModel), Enabled-Checkbox und Entfernen-Button. Ein Klick
                              auf einen Tab (ausser auf Checkbox/Entfernen) waehlt ihn aus und aktiviert ihn damit
                              sofort als aktiven Modus des Controllers (siehe VirtualControllerViewModel.SelectedMode). -->
-                        <Border Grid.Row="2" Padding="8,6" BorderBrush="#DDD" BorderThickness="0,0,0,1">
+                        <Border Grid.Row="2" Padding="8,6" BorderBrush="{StaticResource PanelBorderBrush}" BorderThickness="0,0,0,1">
                             <StackPanel Orientation="Horizontal">
                                 <ListBox ItemsSource="{Binding Modes}" SelectedItem="{Binding SelectedMode}"
                                          BorderThickness="0" Background="Transparent"
@@ -627,7 +627,7 @@
                             </DockPanel>
 
                             <!-- Rechte Spalte: vertikales Panel mit allen fuer diesen Controller verfuegbaren physischen Geraeten -->
-                            <Border Grid.Column="1" BorderBrush="#DDD" BorderThickness="1,0,0,0" Padding="12,0,0,0">
+                            <Border Grid.Column="1" BorderBrush="{StaticResource PanelBorderBrush}" BorderThickness="1,0,0,0" Padding="12,0,0,0">
                                 <DockPanel>
                                     <TextBlock DockPanel.Dock="Top" Text="Verfügbare Geräte:" FontWeight="Bold" Margin="0,0,0,4" />
                                     <ScrollViewer VerticalScrollBarVisibility="Auto">
@@ -641,7 +641,7 @@
                                             <ItemsControl.ItemTemplate>
                                                 <DataTemplate DataType="{x:Type vm:DeviceSelectionViewModel}">
                                                     <Expander IsExpanded="{Binding IsExpanded, Mode=TwoWay}" Margin="0,0,0,4"
-                                                              BorderBrush="#DDD" BorderThickness="0,0,0,1" Padding="0,0,0,4">
+                                                              BorderBrush="{StaticResource PanelBorderBrush}" BorderThickness="0,0,0,1" Padding="0,0,0,4">
                                                         <Expander.Header>
                                                             <CheckBox Content="{Binding DisplayName}" IsChecked="{Binding IsSelected}"
                                                                       VerticalContentAlignment="Center" />
@@ -726,7 +726,7 @@
                          eigenen, per ViGEmBus emulierten virtuellen Controller dieser Anwendung von
                          XInput/DirectInput nicht automatisch von echter Hardware unterschieden werden
                          koennen und der Nutzer sie daher selbst dauerhaft ausblenden muss. -->
-                    <Border DockPanel.Dock="Left" Width="260" BorderBrush="#DDD" BorderThickness="0,0,1,0">
+                    <Border DockPanel.Dock="Left" Width="260" BorderBrush="{StaticResource PanelBorderBrush}" BorderThickness="0,0,1,0">
                         <DockPanel>
                             <Expander DockPanel.Dock="Bottom" Header="Ausgeblendete Geräte" Margin="4"
                                       Visibility="{Binding HiddenDevices.Count, Converter={StaticResource CountToVisibilityConverter}}">

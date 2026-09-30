@@ -21,6 +21,14 @@
     <SolidColorBrush x:Key="MutedTextBrush" Color="#7997CB" />
     <SolidColorBrush x:Key="SuccessBrush" Color="#6CE8A4" />
 
+    <!-- Warnfarben (Hintergrund/Rahmen/Text) fuer nicht-kritische Hinweisboxen (z.B. HID-Diagnose in
+         BenchmarkWindow.xaml) - analog zu SuccessBrush, aber in Amber-Tonen. Bewusst dunkel/desaturiert
+         gehalten (statt der urspruenglich hellen #FFF3CD/#FFECB5/#856404-Kombination), damit die Box auch
+         auf dem dunklen App-Hintergrund als klar abgegrenzte, aber nicht grell wirkende Karte erscheint. -->
+    <SolidColorBrush x:Key="WarningBackgroundBrush" Color="#3D2E00" />
+    <SolidColorBrush x:Key="WarningBorderBrush" Color="#C9962C" />
+    <SolidColorBrush x:Key="WarningTextBrush" Color="#FFD666" />
+
     <!-- Entspricht der globalen Window-Foreground (#F6FBFD, siehe App.xaml). Muss hier zusaetzlich als
          benannter Brush existieren, da Standard-WPF-Controls wie Button/CheckBox/ComboBox einen eigenen,
          vom System-Theme vorgegebenen Foreground-Default besitzen, der die reine Vererbung vom Window
