@@ -3,12 +3,15 @@ obj/
 *.user
 .vs/
 assets/*
-# VirtualController.ico wird zwingend zur Build-Zeit benoetigt (siehe VirtualController.App.csproj:
-# ApplicationIcon + eingebettete Resource) - muss daher trotz der obigen "assets/*"-Ausschlussregel
-# versioniert sein, sonst schlaegt "dotnet restore"/"dotnet publish" auf jedem frischen Checkout
-# (z.B. dem GitHub-Actions-Runner) fehl, da die referenzierte Datei fehlt. Bewusst "assets/*" statt
-# "assets/" oben: Git kann eine Datei nicht per "!"-Negation wieder einschliessen, wenn deren
-# UEBERGEORDNETES VERZEICHNIS komplett ausgeschlossen ist ("assets/" wuerde den gesamten Ordner
-# ausschliessen, sodass Git ihn fuer die Negation gar nicht erst betritt) - "assets/*" schliesst
-# hingegen nur den INHALT des Ordners aus, wodurch die Negation einer einzelnen Datei darin greift.
+# VirtualController.ico und logo.png werden zwingend zur Build-Zeit benoetigt (siehe
+# VirtualController.App.csproj: ApplicationIcon + eingebettete Resource; logo.png zusaetzlich als
+# Header-Logo in MainWindow.xaml referenziert) - muessen daher trotz der obigen "assets/*"-
+# Ausschlussregel versioniert sein, sonst schlaegt "dotnet restore"/"dotnet publish" auf jedem
+# frischen Checkout (z.B. dem GitHub-Actions-Runner) fehl, da die referenzierten Dateien fehlen.
+# Bewusst "assets/*" statt "assets/" oben: Git kann eine Datei nicht per "!"-Negation wieder
+# einschliessen, wenn deren UEBERGEORDNETES VERZEICHNIS komplett ausgeschlossen ist ("assets/" wuerde
+# den gesamten Ordner ausschliessen, sodass Git ihn fuer die Negation gar nicht erst betritt) -
+# "assets/*" schliesst hingegen nur den INHALT des Ordners aus, wodurch die Negation einzelner
+# Dateien darin greift.
 !assets/VirtualController.ico
+!assets/logo.png
