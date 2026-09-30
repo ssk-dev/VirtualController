@@ -9,7 +9,7 @@ namespace VirtualController.Core.Mapping;
 /// <summary>
 /// Custom-Serialisierung fuer <see cref="ControllerMode.Mappings"/>: blendet beim Schreiben Felder aus,
 /// die fuer die jeweilige Quellart (<see cref="MappingEntry.SourceKind"/>) fachlich keine Bedeutung haben.
-/// Ein digitaler Button oder eine D-Pad-Richtung kennt weder eine Invertierung noch eine Deadzone oder
+/// Ein digitaler Button oder eine D-Pad-Richtung kennt weder eine Invertierung noch
 /// die Aufteilung einer Achse in zwei Haelften (<see cref="MappingEntry.DirectionalOnly"/>) - diese Felder
 /// sind ausschliesslich fuer Achsen (<see cref="PhysicalInputKind.AxisPositive"/>/
 /// <see cref="PhysicalInputKind.AxisNegative"/>) relevant. So bleiben gespeicherte Mapping-Eintraege fuer
@@ -75,7 +75,6 @@ public sealed class MappingEntryListConverter : JsonConverter<List<MappingEntry>
         {
             node[nameof(MappingEntry.Invert)] = entry.Invert;
             node[nameof(MappingEntry.DirectionalOnly)] = entry.DirectionalOnly;
-            node[nameof(MappingEntry.Deadzone)] = entry.Deadzone;
         }
 
         node[nameof(MappingEntry.Description)] = entry.Description;
@@ -83,7 +82,7 @@ public sealed class MappingEntryListConverter : JsonConverter<List<MappingEntry>
         return node;
     }
 
-    /// <summary>Nur Achsen kennen Invertierung, Richtungsisolation und Deadzone - Buttons und D-Pad-Richtungen
+    /// <summary>Nur Achsen kennen Invertierung und Richtungsisolation - Buttons und D-Pad-Richtungen
     /// sind rein digital und besitzen keinen analogen Wertebereich.</summary>
     private static bool IsAxisSource(PhysicalInputKind kind)
         => kind is PhysicalInputKind.AxisPositive or PhysicalInputKind.AxisNegative;

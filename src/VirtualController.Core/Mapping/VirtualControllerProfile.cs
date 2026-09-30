@@ -77,12 +77,6 @@ public sealed class MappingEntry
     /// </summary>
     public bool DirectionalOnly { get; set; }
 
-    /// <summary>Bei Achsen: Werte innerhalb dieses Radius um 0 werden als 0 behandelt (0.0 .. 1.0).
-    /// Vorgabewert entspricht <see cref="Devices.DeviceSettingsExtensions.DefaultAxisDeadzoneWithoutCalibration"/>
-    /// (Rueckfall ohne Kalibrierung); beim Erfassen/Zuweisen einer physischen Achse wird dieser Wert in der
-    /// App-Schicht nach Moeglichkeit durch die geraeteweite Kalibrierung ueberschrieben.</summary>
-    public float Deadzone { get; set; } = 0.025f;
-
     /// <summary>Anzeigename fuer die UI-Tabelle, z.B. "Controller 1 - Button A" -> "South".</summary>
     public string? Description { get; set; }
 }

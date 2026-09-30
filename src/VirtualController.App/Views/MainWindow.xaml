@@ -333,15 +333,6 @@
                                                     </DataGridTemplateColumn.CellTemplate>
                                                 </DataGridTemplateColumn>
 
-                                                <DataGridTemplateColumn Header="Deadzone" Width="90">
-                                                    <DataGridTemplateColumn.CellTemplate>
-                                                        <DataTemplate DataType="{x:Type vm:MappingRowViewModel}">
-                                                            <TextBox Text="{Binding DeadzoneText, UpdateSourceTrigger=PropertyChanged}"
-                                                                     Visibility="{Binding IsAxisTarget, Converter={StaticResource BoolToVisibilityConverter}}" />
-                                                        </DataTemplate>
-                                                    </DataGridTemplateColumn.CellTemplate>
-                                                </DataGridTemplateColumn>
-
                                                 <DataGridTemplateColumn Header="" Width="90">
                                                     <DataGridTemplateColumn.CellTemplate>
                                                         <DataTemplate DataType="{x:Type vm:MappingRowViewModel}">
@@ -432,15 +423,6 @@
                                                                         <CheckBox IsChecked="{Binding DirectionalOnly}" HorizontalAlignment="Center"
                                                                                   ToolTip="Nur die erfasste Achsenhaelfte (z.B. Y+) auf diese Ziel-Achse anwenden, statt der vollen Achse - ermoeglicht das Aufteilen zweier physischer Achsenhaelften auf unterschiedliche virtuelle Achsen."
                                                                                   Visibility="{Binding IsAxisTarget, Converter={StaticResource BoolToVisibilityConverter}}" />
-                                                                    </DataTemplate>
-                                                                </DataGridTemplateColumn.CellTemplate>
-                                                            </DataGridTemplateColumn>
-
-                                                            <DataGridTemplateColumn Header="Deadzone" Width="90">
-                                                                <DataGridTemplateColumn.CellTemplate>
-                                                                    <DataTemplate DataType="{x:Type vm:MappingRowViewModel}">
-                                                                        <TextBox Text="{Binding DeadzoneText, UpdateSourceTrigger=PropertyChanged}"
-                                                                                 Visibility="{Binding IsAxisTarget, Converter={StaticResource BoolToVisibilityConverter}}" />
                                                                     </DataTemplate>
                                                                 </DataGridTemplateColumn.CellTemplate>
                                                             </DataGridTemplateColumn>

@@ -246,7 +246,6 @@ public static class ProfileStore
                 TargetTrigger = legacy.TargetTrigger,
                 TargetDPadDirection = legacy.TargetDPadDirection,
                 Invert = legacy.Invert,
-                Deadzone = legacy.Deadzone,
                 Description = legacy.Description
             };
         }

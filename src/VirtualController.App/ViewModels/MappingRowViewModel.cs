@@ -1,4 +1,3 @@
-using System.Globalization;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
 using VirtualController.App.Diagnostics;
@@ -71,7 +70,7 @@ public sealed partial class MappingRowViewModel : ObservableObject
     public event Action<MappingRowViewModel>? RemoveRequested;
 
     /// <summary>Wird ausgeloest, wenn sich das zugrunde liegende <see cref="MappingEntry"/> dieser Zeile
-    /// aendert (Erfassen einer neuen physischen Quelle, Ziel-Typ/Ziel-Wert, Invertieren, Deadzone) - damit
+    /// aendert (Erfassen einer neuen physischen Quelle, Ziel-Typ/Ziel-Wert, Invertieren) - damit
     /// der uebergeordnete <see cref="VirtualControllerViewModel"/> laufende Sessions aktualisieren und
     /// ungespeicherte Aenderungen erkennen kann.</summary>
     public event Action<MappingRowViewModel>? Changed;
@@ -183,7 +182,7 @@ public sealed partial class MappingRowViewModel : ObservableObject
         }
     }
 
-    /// <summary>Invertieren/Deadzone sind nur fuer analoge Achsen sinnvoll und werden nur dann in der View eingeblendet.</summary>
+    /// <summary>Invertieren ist nur fuer analoge Achsen sinnvoll und wird nur dann in der View eingeblendet.</summary>
     public bool IsAxisTarget => SelectedTargetKind == MappingTargetKind.Axis;
 
     [ObservableProperty]
@@ -195,22 +194,6 @@ public sealed partial class MappingRowViewModel : ObservableObject
     /// unterschiedliche virtuelle Achsen mit jeweils eigenem Invertieren-Vorzeichen.</summary>
     [ObservableProperty]
     private bool _directionalOnly;
-
-    [ObservableProperty]
-    private float _deadzone;
-
-    /// <summary>Text-Zwischenspeicher fuer das Deadzone-Eingabefeld: wird von der View statt der reinen
-    /// <see cref="Deadzone"/>-Zahl gebunden, damit auch unvollstaendige Zwischenzustaende beim Tippen
-    /// (z.B. "0." oder "0,0") im Textfeld stehen bleiben koennen, ohne sofort auf den zuletzt gueltigen
-    /// Wert zurueckgesetzt zu werden. Ein direktes Binding von TextBox.Text an den float-Wert mit
-    /// UpdateSourceTrigger=PropertyChanged versucht bei jedem einzelnen Tastendruck sofort zu konvertieren;
-    /// scheitert dies (z.B. weil noch keine Nachkommastelle nach dem Trennzeichen folgt), verwirft WPF die
-    /// Eingabe augenblicklich - dadurch liess sich nie ein Dezimaltrennzeichen eintippen. Erst wenn der
-    /// Text vollstaendig zu einem float parsebar ist, wird <see cref="Deadzone"/> (und damit Entry.Deadzone)
-    /// tatsaechlich aktualisiert; unvollstaendiger/ungueltiger Text bleibt bis dahin unangetastet im Feld.
-    /// Akzeptiert sowohl Punkt als auch Komma als Dezimaltrennzeichen (invariante bzw. aktuelle Kultur).</summary>
-    [ObservableProperty]
-    private string _deadzoneText;
 
     public MappingRowViewModel(
         MappingEntry entry,
@@ -238,8 +221,6 @@ public sealed partial class MappingRowViewModel : ObservableObject
         };
         _invert = entry.Invert;
         _directionalOnly = entry.DirectionalOnly;
-        _deadzone = entry.Deadzone;
-        _deadzoneText = _deadzone.ToString("0.####", CultureInfo.InvariantCulture);
 
         DebugLog.Write($"[Row {RowId}] Konstruktor: Source={entry.SourceDeviceId}|{entry.SourceKind}|{entry.SourceIndex} TargetKind={entry.TargetKind} TargetValue={_selectedTargetValue}");
     }
@@ -249,15 +230,6 @@ public sealed partial class MappingRowViewModel : ObservableObject
         Entry.SourceDeviceId = captured.DeviceId;
         Entry.SourceKind = captured.Kind;
         Entry.SourceIndex = captured.Index;
-
-        // Frisch erfasste/zugewiesene Achse: die geraeteweite Kalibrierung (falls vorhanden) als
-        // Deadzone-Vorgabe fuer diesen Mapping-Eintrag uebernehmen, statt des reinen Compile-Time-
-        // Standardwerts aus MappingEntry.Deadzone - vermeidet, dass derselbe Wert (Stickdrift etc.)
-        // doppelt gepflegt werden muss. Der Nutzer kann den Wert danach weiterhin frei ueberschreiben.
-        if (captured.Kind is PhysicalInputKind.AxisPositive or PhysicalInputKind.AxisNegative)
-        {
-            Deadzone = _getDeviceSettings().ResolveDefaultAxisDeadzone(captured.DeviceId, captured.Index);
-        }
 
         SourceDisplayName = BuildSourceDisplayName(Entry, knownDevices, _getDeviceSettings(), out bool isConnected);
         IsSourceConnected = isConnected;
@@ -369,8 +341,8 @@ public sealed partial class MappingRowViewModel : ObservableObject
 
     /// <summary>Wird vom modalen "Zuweisen"-Dialog (<see cref="Views.AssignInputDialog"/>) aufgerufen,
     /// wenn der Nutzer dort eine physische Eingabe bestaetigt hat: uebernimmt sie exakt wie eine per
-    /// "Erfassen" physisch ausgeloeste Eingabe (inkl. Uebernahme der geraeteweiten Achsen-Kalibrierung
-    /// als Deadzone-Vorgabe), ohne dass der Nutzer die Eingabe tatsaechlich druecken/bewegen muss.</summary>
+    /// "Erfassen" physisch ausgeloeste Eingabe, ohne dass der Nutzer die Eingabe tatsaechlich
+    /// druecken/bewegen muss.</summary>
     public void AssignInput(AssignableInputOption selected)
     {
         DebugLog.Write($"[Row {RowId}] AssignInput: uebernehme '{selected.Label}' (Geraet '{selected.Device.DisplayName}') als neue physische Quelle (Zuweisen statt Erfassen).");
@@ -388,7 +360,7 @@ public sealed partial class MappingRowViewModel : ObservableObject
         // Die eigentliche Zuruecksetzung des Ziel-Werts (und die davon abhaengigen Aenderungen an
         // CurrentTargetOptions/IsAxisTarget) wird bewusst NICHT synchron hier ausgefuehrt: Diese
         // Aenderungen wirken sich auf das Layout der DataGrid-Zeile aus (Ziel-Wert-ComboBox tauscht
-        // ihre ItemsSource, Invertieren/Deadzone werden ein-/ausgeblendet -> Zeilenhoehe aendert sich).
+        // ihre ItemsSource, Invertieren wird ein-/ausgeblendet -> Zeilenhoehe aendert sich).
         // Wuerde das DataGrid dadurch die Zeile noch WAEHREND die vom Nutzer angeklickte
         // "Ziel-Typ"-ComboBox ihren eigenen SelectionChanged/Binding-Update-Vorgang verarbeitet neu
         // aufbauen, wird genau diese ComboBox mitten im Vorgang zerstoert und neu erzeugt - das
@@ -434,40 +406,6 @@ public sealed partial class MappingRowViewModel : ObservableObject
     {
         Entry.DirectionalOnly = value;
         Changed?.Invoke(this);
-    }
-
-    partial void OnDeadzoneChanged(float value)
-    {
-        Entry.Deadzone = value;
-
-        // DeadzoneText mit dem (ggf. programmatisch, z.B. per Kalibrierungs-Uebernahme in
-        // ApplyCapturedInput, geaenderten) float-Wert synchron halten, aber Rueckkopplung ueber
-        // OnDeadzoneTextChanged vermeiden (siehe _suppressDeadzoneTextSync).
-        _suppressDeadzoneTextSync = true;
-        DeadzoneText = value.ToString("0.####", CultureInfo.InvariantCulture);
-        _suppressDeadzoneTextSync = false;
-
-        Changed?.Invoke(this);
-    }
-
-    private bool _suppressDeadzoneTextSync;
-
-    partial void OnDeadzoneTextChanged(string value)
-    {
-        if (_suppressDeadzoneTextSync)
-        {
-            return;
-        }
-
-        // Waehrend der Nutzer tippt, sind Zwischenzustaende wie "0." oder ein einzelnes "," normal und
-        // duerfen NICHT sofort verworfen werden (siehe Doku an DeadzoneText) - deshalb wird hier nur bei
-        // erfolgreichem Parsen tatsaechlich durchgeschrieben; unvollstaendiger/ungueltiger Text bleibt
-        // im Feld stehen, bis er entweder vollstaendig wird oder das Feld den Fokus verliert.
-        string normalized = value.Trim().Replace(',', '.');
-        if (float.TryParse(normalized, NumberStyles.Float, CultureInfo.InvariantCulture, out float parsed))
-        {
-            Deadzone = parsed;
-        }
     }
 
     /// <summary>

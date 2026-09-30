@@ -208,8 +208,10 @@ public static class MappingEngine
         bool wantPositive = entry.SourceKind == PhysicalInputKind.AxisPositive;
 
         // Fuer Digital-Ziele (Button/DPad/Trigger) wird die Achse als Schwellwert-Schalter behandelt.
+        // Die geraeteweite Deadzone (siehe AxisSignalProcessor.Process) hat Werte innerhalb ihres Radius
+        // bereits auf exakt 0 gesetzt, ein einfacher > 0-Vergleich reicht daher aus.
         float magnitude = wantPositive ? MathF.Max(raw, 0f) : MathF.Max(-raw, 0f);
-        bool digitalPressed = magnitude > entry.Deadzone;
+        bool digitalPressed = magnitude > 0f;
 
         switch (entry.TargetKind)
         {
@@ -218,10 +220,10 @@ public static class MappingEngine
                 // (bereits oben als "magnitude" auf 0..1 isoliert) verwenden, statt wie im Standardfall
                 // den vollen bidirektionalen Rohwert durchzureichen. So koennen zwei unabhaengige
                 // physische Achsenhaelften (z.B. Y+ und X+) mit jeweils eigenem Invert-Vorzeichen auf
-                // dieselbe oder unterschiedliche virtuelle Achsen aufgeteilt werden.
-                float normalized = entry.DirectionalOnly
-                    ? ApplyDeadzone(magnitude, entry.Deadzone)
-                    : ApplyDeadzone(raw, entry.Deadzone);
+                // dieselbe oder unterschiedliche virtuelle Achsen aufgeteilt werden. Die geraeteweite
+                // Deadzone (inkl. Neuskalierung ab der Deadzone-Grenze) ist bereits ueber
+                // AxisSignalProcessor.Process in "raw"/"magnitude" enthalten.
+                float normalized = entry.DirectionalOnly ? magnitude : raw;
                 if (entry.Invert) normalized = -normalized;
                 SetAxis(target, entry.TargetAxis.Value, normalized);
                 break;
@@ -229,11 +231,10 @@ public static class MappingEngine
             case MappingTargetKind.Trigger when entry.TargetTrigger.HasValue:
                 // Der jeweils trigger-artige Slot ist bereits vom zustaendigen Reader auf 0..1 normalisiert
                 // (XInput-Trigger bzw. DirectInput-Schieberegler, siehe API-abhaengige Ermittlung von
-                // isTriggerLikeSlot oben) -> direkte Deadzone-Anwendung. Alle anderen Achsen (z.B. ein
-                // Stick als Trigger-Ersatz gemappt) nutzen stattdessen den Magnitude-Anteil.
-                float triggerValue = isTriggerLikeSlot
-                    ? ApplyDeadzone(raw, entry.Deadzone)
-                    : magnitude;
+                // isTriggerLikeSlot oben) und hat die geraeteweite Deadzone bereits ueber
+                // AxisSignalProcessor.Process durchlaufen. Alle anderen Achsen (z.B. ein Stick als
+                // Trigger-Ersatz gemappt) nutzen stattdessen den Magnitude-Anteil.
+                float triggerValue = isTriggerLikeSlot ? raw : magnitude;
                 SetTrigger(target, entry.TargetTrigger.Value, Math.Clamp(triggerValue, 0f, 1f));
                 break;
 
@@ -292,20 +293,6 @@ public static class MappingEngine
         down |= direction.HasDown();
         left |= direction.HasLeft();
         right |= direction.HasRight();
-    }
-
-    private static float ApplyDeadzone(float value, float deadzone)
-    {
-        float abs = MathF.Abs(value);
-        if (abs <= deadzone)
-        {
-            return 0f;
-        }
-
-        // Linear von der Deadzone-Grenze bis 1.0 neu skalieren, damit kein "Sprung" am Deadzone-Rand entsteht.
-        float sign = MathF.Sign(value);
-        float scaled = (abs - deadzone) / (1f - deadzone);
-        return sign * Math.Clamp(scaled, 0f, 1f);
     }
 
     private static void SetAxis(VirtualPadState target, VirtualAxis axis, float value)

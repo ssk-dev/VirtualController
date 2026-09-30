@@ -49,7 +49,7 @@ public sealed class InputSettings
     public float? CalibratedCenter { get; set; }
 
     /// <summary>Nur fuer Achsen/Slider: Ausschlag innerhalb dieses Radius um die Mitte wird als 0 behandelt
-    /// (0.0 .. 1.0, geraeteweit, zusaetzlich zur ggf. mapping-spezifischen <see cref="Mapping.MappingEntry.Deadzone"/>).
+    /// (0.0 .. 1.0, geraeteweit - das Mapping wendet stets diesen aktuellen, geraeteweiten Wert an).
     /// Kann manuell gesetzt oder per Deadzone-Kalibrierung (Stickdrift-Erkennung) automatisch ermittelt werden.</summary>
     public float Deadzone { get; set; }
 
@@ -167,15 +167,14 @@ public static class DeviceSettingsExtensions
         return settings.Inputs.TryGetValue(key, out var inputSettings) ? inputSettings : null;
     }
 
-    /// <summary>Rueckfallwert fuer <see cref="Mapping.MappingEntry.Deadzone"/>, wenn fuer die neu gemappte
-    /// physische Achse noch keine geraeteweite Kalibrierung (<see cref="InputSettings.Deadzone"/>) vorliegt.</summary>
+    /// <summary>Rueckfallwert, wenn fuer eine physische Achse noch keine geraeteweite Kalibrierung
+    /// (<see cref="InputSettings.Deadzone"/>) vorliegt - wird z.B. von <see cref="Mapping.MappingEngine.IsPhysicalInputActive"/>
+    /// zur Aktivitaetserkennung genutzt (etwa fuer Umschalt-/Ein-Aus-Trigger).</summary>
     public const float DefaultAxisDeadzoneWithoutCalibration = 0.025f;
 
-    /// <summary>Ermittelt den sinnvollen Vorgabewert fuer <see cref="Mapping.MappingEntry.Deadzone"/>, wenn
-    /// der Nutzer eine physische Achse neu erfasst/zuweist ("Erfassen"/"Zuweisen"): Existiert bereits eine
+    /// <summary>Ermittelt den aktuell gueltigen Deadzone-Wert einer physischen Achse: Existiert bereits eine
     /// geraeteweite Kalibrierung (<see cref="InputSettings.Deadzone"/>) fuer diese Achse, wird deren Wert
-    /// uebernommen - Kalibrierung und Mapping sollen dann konsistent sein, ohne dass der Nutzer denselben
-    /// Wert zweimal pflegen muss. Andernfalls wird <see cref="DefaultAxisDeadzoneWithoutCalibration"/> verwendet.
+    /// zurueckgegeben. Andernfalls wird <see cref="DefaultAxisDeadzoneWithoutCalibration"/> verwendet.
     /// Nutzt wie <see cref="Mapping.MappingEngine.ApplyAxisSource"/> stets den kanonischen AxisPositive-Schluessel
     /// derselben Achsen-Nummer, unabhaengig davon, ob die erfasste Richtung positiv oder negativ ist.</summary>
     public static float ResolveDefaultAxisDeadzone(
