@@ -92,7 +92,7 @@
             <TabItem Header="Mapping">
                 <DockPanel>
                     <!-- Linke Spalte: Liste der virtuellen Controller -->
-                    <Border DockPanel.Dock="Left" Width="260" BorderBrush="#DDD" BorderThickness="0,0,1,0">
+                    <Border DockPanel.Dock="Left" Width="260" BorderBrush="{StaticResource PanelBorderBrush}" BorderThickness="0,0,1,0">
                         <DockPanel>
                             <Button DockPanel.Dock="Top" Margin="8" Padding="6" Command="{Binding AddControllerCommand}">
                                 <StackPanel Orientation="Horizontal">
@@ -104,15 +104,53 @@
                             <ListBox ItemsSource="{Binding Controllers}"
                                      x:Name="ControllerListBox"
                                      SelectedItem="{Binding SelectedController}"
-                                     Margin="4">
+                                     Margin="4" BorderThickness="0" Background="Transparent">
+                                <ListBox.ItemContainerStyle>
+                                    <Style TargetType="ListBoxItem">
+                                        <Setter Property="Padding" Value="0" />
+                                        <Setter Property="Margin" Value="0,0,0,6" />
+                                        <Setter Property="HorizontalContentAlignment" Value="Stretch" />
+                                        <Setter Property="Template">
+                                            <Setter.Value>
+                                                <ControlTemplate TargetType="ListBoxItem">
+                                                    <Border x:Name="CardBorder"
+                                                            Background="{StaticResource PanelBackgroundBrush}"
+                                                            BorderBrush="{StaticResource PanelBorderBrush}"
+                                                            BorderThickness="1" CornerRadius="6" Padding="10,8">
+                                                        <Grid>
+                                                            <Grid.ColumnDefinitions>
+                                                                <ColumnDefinition Width="*" />
+                                                                <ColumnDefinition Width="Auto" />
+                                                            </Grid.ColumnDefinitions>
+                                                            <ContentPresenter Grid.Column="0" />
+                                                            <TextBlock x:Name="SelectedArrow" Grid.Column="1" Text="&#xE76C;"
+                                                                       FontFamily="Segoe MDL2 Assets" Foreground="{StaticResource AccentBrush}"
+                                                                       VerticalAlignment="Center" Margin="8,0,0,0" Visibility="Collapsed" />
+                                                        </Grid>
+                                                    </Border>
+                                                    <ControlTemplate.Triggers>
+                                                        <Trigger Property="IsSelected" Value="True">
+                                                            <Setter TargetName="CardBorder" Property="BorderBrush" Value="{StaticResource AccentBrush}" />
+                                                            <Setter TargetName="CardBorder" Property="Background" Value="{StaticResource ButtonPressedBrush}" />
+                                                            <Setter TargetName="SelectedArrow" Property="Visibility" Value="Visible" />
+                                                        </Trigger>
+                                                        <Trigger Property="IsMouseOver" Value="True">
+                                                            <Setter TargetName="CardBorder" Property="BorderBrush" Value="{StaticResource AccentBrush}" />
+                                                        </Trigger>
+                                                    </ControlTemplate.Triggers>
+                                                </ControlTemplate>
+                                            </Setter.Value>
+                                        </Setter>
+                                    </Style>
+                                </ListBox.ItemContainerStyle>
                                 <ListBox.ItemTemplate>
                                     <DataTemplate DataType="{x:Type vm:VirtualControllerViewModel}">
-                                        <StackPanel Orientation="Horizontal" Margin="2">
-                                            <Ellipse Width="10" Height="10" Margin="0,0,6,0" VerticalAlignment="Center"
+                                        <StackPanel Orientation="Horizontal">
+                                            <Ellipse Width="10" Height="10" Margin="0,0,8,0" VerticalAlignment="Center"
                                                      Fill="{Binding IsRunning, Converter={StaticResource BoolToStatusBrushConverter}}" />
                                             <StackPanel>
                                                 <TextBlock Text="{Binding Name}" FontWeight="Bold" />
-                                                <TextBlock Text="{Binding Layout}" FontSize="11" Foreground="Gray" />
+                                                <TextBlock Text="{Binding Layout}" FontSize="11" Foreground="{StaticResource MutedTextBrush}" />
                                             </StackPanel>
                                         </StackPanel>
                                     </DataTemplate>
