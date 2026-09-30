@@ -7,21 +7,21 @@
             <ResourceDictionary.MergedDictionaries>
                 <ResourceDictionary Source="Converters/Converters.xaml" />
                 <ResourceDictionary Source="Views/Controls/DeviceConfigTemplates.xaml" />
+                <ResourceDictionary Source="Themes/Theme.xaml" />
+                <ResourceDictionary Source="Themes/Styles.xaml" />
             </ResourceDictionary.MergedDictionaries>
 
-        <!-- Globales, kurzes visuelles Feedback fuer jeden Button-Klick: die Hintergrundfarbe faerbt sich
-             waehrend der gedrueckten Maustaste kurz ein und kehrt beim Loslassen automatisch zur normalen
-             Farbe zurueck (bewusst per Trigger auf IsPressed statt EventTrigger/Storyboard, da IsPressed
-             ohnehin nur waehrend des Klicks aktiv ist - "kurz" ergibt sich damit ganz natuerlich ohne
-             zusaetzliche Timing-Logik). Nutzt bewusst Background statt Foreground, damit dies nicht mit
-             der roten Foreground-/FontWeight-Hervorhebung des Speichern-Buttons bei ungespeicherten
-             Aenderungen kollidiert (siehe BoolToUnsavedForegroundConverter/BoolToFontWeightConverter). -->
-        <Style TargetType="Button">
-            <Style.Triggers>
-                <Trigger Property="IsPressed" Value="True">
-                    <Setter Property="Background" Value="#FFD8A8" />
-                </Trigger>
-            </Style.Triggers>
+        <!-- Globaler Standard-Look fuer alle Fenster der Anwendung: dunkler App-Hintergrund und helle
+             Standard-Schriftfarbe. Als impliziter Style (kein x:Key, TargetType="Window") gilt dies
+             automatisch fuer jedes Window in der Anwendung, ohne dass es explizit referenziert werden
+             muss. Foreground ist eine vererbte Eigenschaft (Property Value Inheritance) und wirkt dadurch
+             automatisch auf alle Kind-Controls, die keine eigene, explizite Foreground setzen - Background
+             dagegen wird NICHT vererbt und muss daher bei einzelnen Panels/Controls mit eigenem
+             Standard-Hintergrund (z.B. TabControl) zusaetzlich explizit auf Transparent gesetzt werden
+             (siehe MainWindow.xaml). -->
+        <Style TargetType="Window">
+            <Setter Property="Background" Value="#010d19" />
+            <Setter Property="Foreground" Value="#F6FBFD" />
         </Style>
         </ResourceDictionary>
     </Application.Resources>

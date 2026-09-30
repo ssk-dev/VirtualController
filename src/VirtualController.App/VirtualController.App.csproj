@@ -35,6 +35,7 @@
        Taskleiste), nicht zwangslaeufig das Titelleisten-Icon jedes einzelnen WPF-Fensters. -->
   <ItemGroup>
     <Resource Include="..\..\assets\VirtualController.ico" Link="Icons\VirtualController.ico" />
+    <Resource Include="..\..\assets\logo.png" Link="Icons\logo.png" />
   </ItemGroup>
 
   <ItemGroup>

@@ -4,5 +4,12 @@
              xmlns:local="clr-namespace:VirtualController.Updater.Converters">
     <Application.Resources>
         <local:BoolToVisibilityConverter x:Key="BoolToVisibilityConverter" />
+
+        <!-- Globaler Standard-Look fuer das Updater-Fenster: dunkler App-Hintergrund und helle
+             Standard-Schriftfarbe, konsistent mit dem gleichnamigen Style in VirtualController.App/App.xaml. -->
+        <Style TargetType="Window">
+            <Setter Property="Background" Value="#010d19" />
+            <Setter Property="Foreground" Value="#F6FBFD" />
+        </Style>
     </Application.Resources>
 </Application>

@@ -8,7 +8,7 @@
 
     <DockPanel>
         <!-- Kopfzeile: Treiber-Status + globale Aktionen -->
-        <Border DockPanel.Dock="Top" Padding="10" Background="#F2F2F2" BorderBrush="#DDD" BorderThickness="0,0,0,1">
+        <Border DockPanel.Dock="Top" Padding="10" Background="Transparent" BorderBrush="#DDD" BorderThickness="0,0,0,1">
             <Grid>
                 <Grid.ColumnDefinitions>
                     <ColumnDefinition Width="*" />
@@ -16,6 +16,8 @@
                 </Grid.ColumnDefinitions>
 
                 <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
+                    <Image Source="pack://application:,,,/Icons/logo.png" Height="24" Margin="0,0,12,0"
+                           VerticalAlignment="Center" />
                     <Ellipse Width="12" Height="12" Margin="0,0,8,0"
                              Fill="{Binding DriverReady, Converter={StaticResource BoolToStatusBrushConverter}}" />
                     <TextBlock Text="{Binding DriverStatusText}" VerticalAlignment="Center" FontWeight="Bold" />
@@ -43,7 +45,7 @@
              (bisheriger separater "Geraete konfigurieren"-Dialog, jetzt als eigener Tab mit einer
              weiteren, inneren Tab-Leiste je Geraet) und "Einstellungen" (Platzhalter fuer zukuenftige,
              globale Anwendungseinstellungen). -->
-        <TabControl SelectedIndex="{Binding SelectedTabIndex}">
+        <TabControl SelectedIndex="{Binding SelectedTabIndex}" Background="Transparent">
             <TabItem Header="Mapping">
                 <DockPanel>
                     <!-- Linke Spalte: Liste der virtuellen Controller -->
@@ -81,7 +83,7 @@
                             <RowDefinition Height="*" />
                         </Grid.RowDefinitions>
 
-                        <Border Grid.Row="0" Padding="12" Background="#FAFAFA" BorderBrush="#DDD" BorderThickness="0,0,0,1">
+                        <Border Grid.Row="0" Padding="12" Background="Transparent" BorderBrush="#DDD" BorderThickness="0,0,0,1">
                             <StackPanel>
                                 <StackPanel Orientation="Horizontal" Margin="0,0,0,6">
                                     <TextBlock Text="Name:" VerticalAlignment="Center" Width="90" />
@@ -139,7 +141,7 @@
                              ein eigener Switch-Trigger, der diesen Modus direkt aktiviert (siehe Tab-Leiste unten).
                              Beide Mechanismen sind immer vollstaendig konfiguriert vorhanden - dieser Schalter legt nur
                              fest, welcher davon zur Laufzeit tatsaechlich ausgewertet wird (siehe ControllerSession). -->
-                        <Border Grid.Row="1" Padding="12,8" Background="#F5F5FA" BorderBrush="#DDD" BorderThickness="0,0,0,1">
+                        <Border Grid.Row="1" Padding="12,8" Background="Transparent" BorderBrush="#DDD" BorderThickness="0,0,0,1">
                             <StackPanel Orientation="Horizontal">
                                 <TextBlock Text="Modi Switch / Toggle:" VerticalAlignment="Center" FontWeight="Bold" Width="130" />
                                 <ComboBox ItemsSource="{x:Static vm:VirtualControllerViewModel.ModeSwitchMechanismOptions}"

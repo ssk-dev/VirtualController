@@ -89,7 +89,7 @@
              zuvor standen Positiv-/Negativ-Eintraege optisch nicht unterscheidbar von unabhaengigen Buttons. -->
         <DataTemplate DataType="{x:Type vm:DeviceConfigAxisPairViewModel}">
             <Border BorderBrush="#D8D8D8" BorderThickness="1" CornerRadius="4"
-                    Background="#FAFAFA" Padding="6,4" Margin="0,0,0,8" HorizontalAlignment="Left">
+                    Background="Transparent" Padding="6,4" Margin="0,0,0,8" HorizontalAlignment="Left">
                 <StackPanel>
                     <!-- Eigenstaendiger Master-Schalter fuer die komplette Achse (beide Richtungen
                          zugleich) - wird ausgeblendet, wenn diese Achse Teil eines Sticks ist, dessen
@@ -124,7 +124,7 @@
              Einzelrichtungen separat abhaken. -->
         <DataTemplate DataType="{x:Type vm:DeviceConfigStickGroupViewModel}">
             <Border BorderBrush="#B0B0B0" BorderThickness="2" CornerRadius="6"
-                    Background="White" Padding="8" Margin="0,0,0,10" HorizontalAlignment="Left">
+                    Background="Transparent" Padding="8" Margin="0,0,0,10" HorizontalAlignment="Left">
                 <StackPanel>
                     <StackPanel Orientation="Horizontal" Margin="0,0,0,6">
                         <!-- Tri-State, da bei nur einer deaktivierten Richtung (z.B. Y+) ein rein

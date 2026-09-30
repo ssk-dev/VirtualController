@@ -1,0 +1,34 @@
+<ResourceDictionary xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+                    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml">
+
+    <!-- Zentrale Farbpalette des dunklen "Virtual Controller"-Designs. Angelehnt an die urspruengliche
+         HTML/CSS-Designvorlage (siehe assets/style.css, assets/layout-mapping.html): kraeftiger
+         Cyan-Akzent fuer primaere Aktionen, dunkle Panel-Flaeche etwas heller als der App-Hintergrund
+         (#010d19) fuer Karten/Eingabefelder, sowie ein blaeulicher Rahmenton fuer Konturen. Als
+         benannte Brushes ausgelagert, damit sowohl die globalen Basis-Styles (Button, TextBox, ...)
+         als auch zukuenftige, gezielte UI-Ueberarbeitungen (Header, Sidebar, Mapping-Tabelle) dieselbe
+         Palette referenzieren, ohne Farbwerte mehrfach zu duplizieren. -->
+
+    <SolidColorBrush x:Key="AccentBrush" Color="#02B4FE" />
+    <SolidColorBrush x:Key="AccentLightBrush" Color="#11DBFE" />
+    <LinearGradientBrush x:Key="AccentGradientBrush" StartPoint="0,0" EndPoint="1,1">
+        <GradientStop Color="#02B4FE" Offset="0" />
+        <GradientStop Color="#11DBFE" Offset="1" />
+    </LinearGradientBrush>
+
+    <SolidColorBrush x:Key="PanelBackgroundBrush" Color="#0B1626" />
+    <SolidColorBrush x:Key="PanelBorderBrush" Color="#2A517D" />
+    <SolidColorBrush x:Key="MutedTextBrush" Color="#7997CB" />
+    <SolidColorBrush x:Key="SuccessBrush" Color="#6CE8A4" />
+
+    <!-- Entspricht der globalen Window-Foreground (#F6FBFD, siehe App.xaml). Muss hier zusaetzlich als
+         benannter Brush existieren, da Standard-WPF-Controls wie Button/CheckBox/ComboBox einen eigenen,
+         vom System-Theme vorgegebenen Foreground-Default besitzen, der die reine Vererbung vom Window
+         ueberschreibt - die impliziten Styles in Styles.xaml muessen Foreground daher explizit auf
+         diesen Brush setzen, statt sich allein auf Property Value Inheritance zu verlassen. -->
+    <SolidColorBrush x:Key="TextBrush" Color="#F6FBFD" />
+
+    <SolidColorBrush x:Key="ButtonHoverBrush" Color="#14385C" />
+    <SolidColorBrush x:Key="ButtonPressedBrush" Color="#1D5A8F" />
+
+</ResourceDictionary>

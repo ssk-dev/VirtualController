@@ -24,7 +24,7 @@
             <TextBlock Grid.Column="1" Text="{Binding Value, StringFormat=F2}" FontSize="11" Foreground="#999" FontFamily="Consolas" />
         </Grid>
 
-        <Border Height="20" CornerRadius="3" Background="#ECECEC" BorderBrush="#CCC" BorderThickness="1" ClipToBounds="True">
+        <Border Height="20" CornerRadius="3" Background="Transparent" BorderBrush="#CCC" BorderThickness="1" ClipToBounds="True">
             <Grid>
                 <!-- Deadzone-Band: zentraler Bereich, dessen Breite proportional zum konfigurierten Deadzone-Wert waechst. -->
                 <Grid>
