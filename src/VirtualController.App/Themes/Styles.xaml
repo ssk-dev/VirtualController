@@ -207,4 +207,58 @@
         </Setter>
     </Style>
 
+    <!-- DataGrid, DataGridColumnHeader, DataGridRow, DataGridCell: die Mapping-Tabellen im "Mapping"-Tab
+         nutzten bisher weiterhin die native, helle WPF-Chrome (heller Spaltenkopf, weisser Zeilenhintergrund,
+         schwarze Gridlines), was auf dem neuen dunklen App-Hintergrund als deutlicher Kontrastbruch auffiel.
+         Im Gegensatz zu Button/ComboBox/CheckBox reichen hier einfache Property-Setter aus, da DataGrid seine
+         Bestandteile (Header, Zeilen, Zellen) ueber eigene, oben separat gestylte Sub-Controls zusammensetzt,
+         statt eine eigene geschlossene Chrome zu zeichnen. -->
+    <Style TargetType="DataGrid">
+        <Setter Property="Background" Value="{StaticResource PanelBackgroundBrush}" />
+        <Setter Property="Foreground" Value="{StaticResource TextBrush}" />
+        <Setter Property="BorderBrush" Value="{StaticResource PanelBorderBrush}" />
+        <Setter Property="BorderThickness" Value="1" />
+        <Setter Property="RowBackground" Value="{StaticResource PanelBackgroundBrush}" />
+        <Setter Property="AlternatingRowBackground" Value="{StaticResource PanelBackgroundBrush}" />
+        <Setter Property="GridLinesVisibility" Value="Horizontal" />
+        <Setter Property="HorizontalGridLinesBrush" Value="{StaticResource PanelBorderBrush}" />
+        <Setter Property="HeadersVisibility" Value="Column" />
+    </Style>
+
+    <Style TargetType="DataGridColumnHeader">
+        <Setter Property="Background" Value="{StaticResource PanelBackgroundBrush}" />
+        <Setter Property="Foreground" Value="{StaticResource MutedTextBrush}" />
+        <Setter Property="BorderBrush" Value="{StaticResource PanelBorderBrush}" />
+        <Setter Property="BorderThickness" Value="0,0,1,1" />
+        <Setter Property="Padding" Value="6,4" />
+        <Setter Property="FontWeight" Value="Bold" />
+    </Style>
+
+    <!-- Nur der Fallback-Standardwert - einzelne DataGrids in MainWindow.xaml setzen teils einen eigenen,
+         inline RowStyle (z.B. Hervorhebung anhand von IsSourceActive), der diesen impliziten Background-
+         Setter dann gezielt ueberschreibt. -->
+    <Style TargetType="DataGridRow">
+        <Setter Property="Background" Value="{StaticResource PanelBackgroundBrush}" />
+        <Style.Triggers>
+            <Trigger Property="IsMouseOver" Value="True">
+                <Setter Property="Background" Value="{StaticResource ButtonHoverBrush}" />
+            </Trigger>
+        </Style.Triggers>
+    </Style>
+
+    <Style TargetType="DataGridCell">
+        <Setter Property="Background" Value="Transparent" />
+        <Setter Property="Foreground" Value="{StaticResource TextBrush}" />
+        <Setter Property="BorderBrush" Value="{StaticResource PanelBorderBrush}" />
+        <Setter Property="BorderThickness" Value="0,0,0,1" />
+        <Setter Property="Padding" Value="6,4" />
+        <Setter Property="FocusVisualStyle" Value="{x:Null}" />
+        <Style.Triggers>
+            <Trigger Property="IsSelected" Value="True">
+                <Setter Property="Background" Value="{StaticResource ButtonPressedBrush}" />
+                <Setter Property="Foreground" Value="{StaticResource TextBrush}" />
+            </Trigger>
+        </Style.Triggers>
+    </Style>
+
 </ResourceDictionary>

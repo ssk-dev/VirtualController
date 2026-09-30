@@ -311,15 +311,26 @@
                                     </ListBox.ItemContainerStyle>
                                     <ListBox.ItemTemplate>
                                         <DataTemplate DataType="{x:Type vm:ModeViewModel}">
-                                            <Border BorderBrush="#AAA" BorderThickness="1" CornerRadius="4" Padding="8,4"
-                                                    Background="{Binding IsActive, Converter={StaticResource BoolToHighlightBrushConverter}}"
+                                            <Border BorderThickness="1" CornerRadius="14" Padding="12,6"
                                                     PreviewMouseLeftButtonDown="OnModeTabBorderPreviewMouseLeftButtonDown">
+                                                <Border.Style>
+                                                    <Style TargetType="Border">
+                                                        <Setter Property="Background" Value="{StaticResource PanelBackgroundBrush}" />
+                                                        <Setter Property="BorderBrush" Value="{StaticResource PanelBorderBrush}" />
+                                                        <Style.Triggers>
+                                                            <DataTrigger Binding="{Binding IsActive}" Value="True">
+                                                                <Setter Property="Background" Value="{StaticResource ButtonPressedBrush}" />
+                                                                <Setter Property="BorderBrush" Value="{StaticResource AccentBrush}" />
+                                                            </DataTrigger>
+                                                        </Style.Triggers>
+                                                    </Style>
+                                                </Border.Style>
                                                 <StackPanel Orientation="Horizontal">
                                                     <Ellipse Width="10" Height="10" Margin="0,0,6,0" VerticalAlignment="Center"
                                                              Fill="{Binding IsActive, Converter={StaticResource BoolToStatusBrushConverter}}"
                                                              ToolTip="Gruen = dieser Modus ist aktuell der aktive Modus des Controllers." />
                                                     <TextBox Text="{Binding Name, UpdateSourceTrigger=PropertyChanged}" Width="100"
-                                                             VerticalAlignment="Center" />
+                                                             VerticalAlignment="Center" Background="Transparent" BorderThickness="0" Padding="2,0" />
                                                     <CheckBox IsChecked="{Binding Enabled}" VerticalAlignment="Center" Margin="6,0,0,0"
                                                               ToolTip="Deaktivierte Modi werden beim Toggle-/Switch-Wechsel uebersprungen." />
 
@@ -349,7 +360,7 @@
 
                                                     <Button Command="{Binding RemoveCommand}" Padding="4,0" Margin="8,0,0,0"
                                                             ToolTip="Diesen Modus entfernen.">
-                                                        <TextBlock Text="&#xE711;" FontFamily="Segoe MDL2 Assets" />
+                                                        <TextBlock Text="&#xE74D;" FontFamily="Segoe MDL2 Assets" />
                                                     </Button>
                                                 </StackPanel>
                                             </Border>
