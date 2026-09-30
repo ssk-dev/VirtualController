@@ -564,4 +564,19 @@
         </Setter>
     </Style>
 
+    <!-- Separator: wird in MainWindow.xaml (Einstellungen-Tab) genutzt, um Abschnitte optisch zu trennen.
+         Die native Chrome zeichnet standardmaessig einen "eingepraegten" 3D-Look aus je einer helleren und
+         einer dunkleren SystemColors-Linie, was auf dem dunklen Hintergrund als Fremdkoerper auffaellt.
+         Schlichtes ControlTemplate mit einer einzigen duennen Linie in PanelBorderBrush statt der
+         geprägten Doppel-Linie. -->
+    <Style TargetType="Separator">
+        <Setter Property="Template">
+            <Setter.Value>
+                <ControlTemplate TargetType="Separator">
+                    <Border Height="1" Background="{StaticResource PanelBorderBrush}" />
+                </ControlTemplate>
+            </Setter.Value>
+        </Setter>
+    </Style>
+
 </ResourceDictionary>
