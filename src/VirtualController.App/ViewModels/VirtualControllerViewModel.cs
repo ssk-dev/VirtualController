@@ -130,6 +130,15 @@ public sealed partial class VirtualControllerViewModel : ObservableObject
     /// </summary>
     public ObservableCollection<DeviceSelectionViewModel> AvailableDeviceSelections { get; } = new();
 
+    /// <summary>Physische Geraete, die diesem virtuellen Controller zugeordnet sind (siehe
+    /// <see cref="Core.Mapping.VirtualControllerProfile.AssignedDeviceIds"/>), aber aktuell NICHT
+    /// angeschlossen sind - werden in der View unterhalb von <see cref="AvailableDeviceSelections"/> in
+    /// einer eigenen, ausgegrauten Liste "Zugewiesene Geräte" angezeigt, damit die bestehende Zuweisung
+    /// auch waehrend das Geraet getrennt ist sichtbar bleibt. Wird bei jedem Aufruf von
+    /// <see cref="RefreshDeviceSelections"/> neu ermittelt (siehe <see cref="UpdateAssignedDisconnectedDeviceSelections"/>).
+    /// </summary>
+    public ObservableCollection<AssignedDisconnectedDeviceViewModel> AssignedDisconnectedDeviceSelections { get; } = new();
+
     private readonly Func<IReadOnlyList<PhysicalDeviceInfo>> _getAvailableDevices;
     private readonly Func<IReadOnlyDictionary<string, DeviceSettings>> _getDeviceSettings;
     private readonly Func<PhysicalInputRef, string?> _getCustomInputName;
@@ -243,6 +252,8 @@ public sealed partial class VirtualControllerViewModel : ObservableObject
             AvailableDeviceSelections.Add(selection);
         }
 
+        UpdateAssignedDisconnectedDeviceSelections(devices);
+
         // Bereits vorhandene Mapping-Zeilen zeigen den Verbindungsstatus ihrer physischen Quelle an
         // (siehe MappingRowViewModel.IsSourceConnected) - muss bei jeder Aenderung der Geraeteliste
         // neu ermittelt werden, z.B. wenn ein Geraet waehrend der Laufzeit getrennt/wieder verbunden wird.
@@ -263,6 +274,34 @@ public sealed partial class VirtualControllerViewModel : ObservableObject
         }
 
         UpdateMappingSourceLiveMonitoring();
+    }
+
+    /// <summary>Baut <see cref="AssignedDisconnectedDeviceSelections"/> anhand der aktuellen Zuweisung
+    /// (<see cref="Core.Mapping.VirtualControllerProfile.AssignedDeviceIds"/>) neu auf: enthaelt genau
+    /// jene zugeordneten Geraete-Ids, die NICHT in <paramref name="availableDevices"/> (also aktuell nicht
+    /// angeschlossen bzw. deaktiviert/ausgeblendet) enthalten sind. Der Anzeigename wird dabei aus dem
+    /// zuletzt bekannten Geraetenamen (siehe <see cref="Core.Devices.DeviceSettings.LastKnownDisplayName"/>)
+    /// ermittelt, analog zu <see cref="MainViewModel.GetAllKnownDevices"/>.</summary>
+    private void UpdateAssignedDisconnectedDeviceSelections(IReadOnlyList<PhysicalDeviceInfo> availableDevices)
+    {
+        var availableIds = availableDevices.Select(d => d.DeviceId).ToHashSet();
+        var deviceSettings = _getDeviceSettings();
+
+        AssignedDisconnectedDeviceSelections.Clear();
+
+        foreach (var deviceId in Profile.AssignedDeviceIds)
+        {
+            if (availableIds.Contains(deviceId))
+            {
+                continue; // Aktuell angeschlossen -> bereits in AvailableDeviceSelections vertreten.
+            }
+
+            string displayName = deviceSettings.TryGetValue(deviceId, out var settings)
+                ? settings.LastKnownDisplayName ?? deviceId
+                : deviceId;
+
+            AssignedDisconnectedDeviceSelections.Add(new AssignedDisconnectedDeviceViewModel(deviceId, displayName));
+        }
     }
 
     /// <summary>Liefert nur die aktuell fuer diesen virtuellen Controller ausgewaehlten physischen Geraete,
@@ -320,7 +359,14 @@ public sealed partial class VirtualControllerViewModel : ObservableObject
 
     private void OnDeviceSelectionChanged(DeviceSelectionViewModel selection)
     {
-        Profile.AssignedDeviceIds = AvailableDeviceSelections.Where(s => s.IsSelected).Select(s => s.Device.DeviceId).ToList();
+        // Bewusst NICHT einfach durch die aktuell sichtbare Auswahl ersetzen: aktuell getrennte, aber
+        // weiterhin zugeordnete Geraete (siehe AssignedDisconnectedDeviceSelections) sind hier nicht
+        // vertreten (sie tauchen ja gar nicht in AvailableDeviceSelections auf) und wuerden sonst bei
+        // jeder Checkbox-Aenderung eines beliebigen ANDEREN, gerade angeschlossenen Geraets faelschlich
+        // aus der Zuweisung entfernt.
+        var selectedVisibleIds = AvailableDeviceSelections.Where(s => s.IsSelected).Select(s => s.Device.DeviceId);
+        var stillAssignedDisconnectedIds = AssignedDisconnectedDeviceSelections.Select(d => d.DeviceId);
+        Profile.AssignedDeviceIds = selectedVisibleIds.Union(stillAssignedDisconnectedIds).ToList();
         ProfileChanged?.Invoke(this);
     }
 

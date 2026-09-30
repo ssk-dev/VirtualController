@@ -451,6 +451,7 @@
                                 <DockPanel>
                                     <TextBlock DockPanel.Dock="Top" Text="Verfügbare Geräte:" FontWeight="Bold" Margin="0,0,0,4" />
                                     <ScrollViewer VerticalScrollBarVisibility="Auto">
+                                        <StackPanel>
                                         <ItemsControl ItemsSource="{Binding AvailableDeviceSelections}">
                                             <ItemsControl.ItemsPanel>
                                                 <ItemsPanelTemplate>
@@ -486,6 +487,29 @@
                                                 </DataTemplate>
                                             </ItemsControl.ItemTemplate>
                                         </ItemsControl>
+
+                                        <!-- Zugewiesene, aber aktuell nicht angeschlossene Geraete: rein informativ und
+                                             ausgegraut (analog zur Live-Hervorhebung in "Verfügbare Geräte", nur invertiert
+                                             und dauerhaft), damit die bestehende Zuweisung sichtbar bleibt, ohne dass der
+                                             Nutzer sie mit tatsaechlich angeschlossenen Geraeten verwechseln kann. Nur
+                                             sichtbar, solange mindestens ein zugewiesenes Geraet getrennt ist. -->
+                                        <TextBlock Text="Zugewiesene Geräte:" FontWeight="Bold" Margin="0,12,0,4"
+                                                   Visibility="{Binding AssignedDisconnectedDeviceSelections.Count, Converter={StaticResource CountToVisibilityConverter}}" />
+                                        <ItemsControl ItemsSource="{Binding AssignedDisconnectedDeviceSelections}"
+                                                      Visibility="{Binding AssignedDisconnectedDeviceSelections.Count, Converter={StaticResource CountToVisibilityConverter}}">
+                                            <ItemsControl.ItemsPanel>
+                                                <ItemsPanelTemplate>
+                                                    <StackPanel Orientation="Vertical" />
+                                                </ItemsPanelTemplate>
+                                            </ItemsControl.ItemsPanel>
+                                            <ItemsControl.ItemTemplate>
+                                                <DataTemplate DataType="{x:Type vm:AssignedDisconnectedDeviceViewModel}">
+                                                    <TextBlock Text="{Binding DisplayName}" Margin="0,0,0,4" Opacity="0.4"
+                                                               ToolTip="Diesem Controller zugeordnet, aber aktuell nicht angeschlossen." />
+                                                </DataTemplate>
+                                            </ItemsControl.ItemTemplate>
+                                        </ItemsControl>
+                                        </StackPanel>
                                     </ScrollViewer>
                                 </DockPanel>
                             </Border>
