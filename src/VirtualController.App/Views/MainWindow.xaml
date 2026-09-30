@@ -610,6 +610,11 @@
                     <TextBlock Margin="0,4,0,0" Foreground="Gray" FontStyle="Italic" TextWrapping="Wrap" MaxWidth="500"
                                Text="Öffnet das Update-Protokoll (Download, Kopieren der neuen Dateien, Neustart) zur genauen Analyse, falls ein Update-Vorgang unerwartet verlaufen ist." />
 
+                    <Button Content="AppData-Ordner öffnen" Command="{Binding Update.OpenAppDataFolderCommand}" Padding="8,4"
+                            Margin="0,12,0,0" HorizontalAlignment="Left" />
+                    <TextBlock Margin="0,4,0,0" Foreground="Gray" FontStyle="Italic" TextWrapping="Wrap" MaxWidth="500"
+                               Text="Öffnet den Anwendungsdatenordner (%AppData%\VirtualController) im Explorer, mit allen gespeicherten Profilen, Geräte-Einstellungen und Protokolldateien." />
+
                     <TextBlock Margin="0,16,0,0" Text="Hier entstehen zukuenftig weitere globale Anwendungseinstellungen." Foreground="Gray" FontStyle="Italic" />
                 </StackPanel>
             </TabItem>

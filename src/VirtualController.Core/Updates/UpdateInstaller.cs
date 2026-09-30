@@ -271,6 +271,27 @@ public sealed class UpdateInstaller
             $installedSizeAfter = if (Test-Path $installedExePath) { (Get-Item $installedExePath).Length } else { -1 }
             Write-UpdaterLog "Nach dem Kopieren: installierte exe='$installedExePath' Groesse=$installedSizeAfter Bytes (vorher: $installedSizeBefore Bytes, staging: $stagedSize Bytes)"
 
+            # Vergleicht gezielt die Groesse der exe im entpackten ZIP (staging, $stagedSize) mit der
+            # Groesse der anschliessend tatsaechlich installierten exe ($installedSizeAfter) - genau diese
+            # Differenz war Ursache eines gemeldeten Bugs (Ziel-exe wuchs von 69MB auf 159MB an). Copy-Item
+            # mit -Recurse -Force ueberschreibt/ergaenzt lediglich Dateien, LOESCHT aber niemals Dateien im
+            # Zielverzeichnis, die im Quellverzeichnis nicht (mehr) existieren - Ueberreste eines fruehen,
+            # fehlgeschlagenen Updates (z.B. eine liegen gebliebene alte oder halbwegs ueberschriebene exe,
+            # oder durch Virenscanner/Datei-Sperren waehrend des Kopierens unterbrochene Schreibvorgaenge)
+            # koennten daher eine falsche Dateigroesse erklaeren.
+            if ($copySucceeded) {
+                if ($stagedSize -ge 0 -and $installedSizeAfter -ge 0) {
+                    if ($installedSizeAfter -eq $stagedSize) {
+                        Write-UpdaterLog "Groessenpruefung OK: installierte exe ($installedSizeAfter Bytes) entspricht exakt der exe im entpackten Update-Archiv ($stagedSize Bytes)."
+                    } else {
+                        $sizeDiff = $installedSizeAfter - $stagedSize
+                        Write-UpdaterLog "WARNUNG Groessenabweichung: installierte exe ($installedSizeAfter Bytes) unterscheidet sich von der exe im entpackten Update-Archiv ($stagedSize Bytes) um $sizeDiff Bytes. Moegliche Ursachen: Copy-Item loescht keine im Quellverzeichnis nicht mehr vorhandenen Dateien im Ziel (Ueberreste eines frueheren fehlgeschlagenen Updates), ein Virenscanner/Datei-Handle hat den Kopiervorgang unterbrochen, oder das Zielverzeichnis war bereits vor diesem Update in einem inkonsistenten Zustand."
+                    }
+                } else {
+                    Write-UpdaterLog "Groessenpruefung nicht moeglich: stagedSize=$stagedSize, installedSizeAfter=$installedSizeAfter (mindestens eine der beiden Dateien wurde nicht gefunden)."
+                }
+            }
+
             if ($copySucceeded) {
                 try {
                     $newProc = Start-Process -FilePath $installedExePath -WorkingDirectory $installDir -PassThru

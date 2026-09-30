@@ -85,10 +85,13 @@ jobs:
       #   fix:
       #   - errorhandling
       #
-      # Alle "-"-Aufzaehlungspunkte unterhalb einer "feature:"- bzw. "fix:"-Kopfzeile werden ueber ALLE
-      # Commits im Bereich hinweg gesammelt und zu genau einem "## Features"- bzw. "## Fixes"-Block
-      # zusammengefuehrt, statt (wie bei generate_release_notes) einer reinen Commit-Liste. Commits ohne
-      # ein solches Format tragen einfach nichts zu den Release Notes bei.
+      # Als Kopfzeile werden "feature:"/"features:"/"feat:" (-> "## Features") sowie "fix:"/"fixes:"
+      # (-> "## Fixes") gleichbedeutend akzeptiert (case-insensitive), damit unterschiedliche im Team
+      # verwendete Schreibweisen (z.B. "feat:" statt "features:") nicht zu uebersehenen Aufzaehlungspunkten
+      # fuehren. Alle "-"-Aufzaehlungspunkte unterhalb einer solchen Kopfzeile werden ueber ALLE Commits im
+      # Bereich hinweg gesammelt und zu genau einem "## Features"- bzw. "## Fixes"-Block zusammengefuehrt,
+      # statt (wie bei generate_release_notes) einer reinen Commit-Liste. Commits ohne ein solches Format
+      # tragen einfach nichts zu den Release Notes bei.
       - name: Release Notes aus Commit-Nachrichten gruppieren
         id: release_notes
         shell: pwsh
@@ -107,11 +110,16 @@ jobs:
 
           $logRange = if ($previousTag) { "$previousTag..HEAD" } else { "HEAD" }
 
-          # "%x00" (NUL-Byte) trennt einzelne Commits eindeutig voneinander - im Gegensatz zu einer
-          # Leerzeile kann dieses Zeichen nicht versehentlich Teil einer mehrzeiligen Commit-Nachricht sein.
-          $rawLogLines = git log $logRange --pretty=format:"%B%x00"
-          $rawLog = ($rawLogLines -join "`n")
-          $commitBodies = $rawLog -split "`0"
+          # Ein fuehrendes NUL-Byte ("%x00") VOR jeder Commit-Nachricht (statt eines nachgestellten
+          # Trennzeichens) markiert eindeutig den BEGINN jedes einzelnen Commits, unabhaengig davon, ob/wo
+          # git selbst zusaetzliche Zeilenumbrueche zwischen den einzelnen Log-Eintraegen einfuegt - eine
+          # rein nachgestellte Trennung hatte sich in der Praxis als zu fragil erwiesen und fuehrte dazu,
+          # dass zuverlaessig nur der erste Commit im Bereich beruecksichtigt wurde. "Out-String" fasst die
+          # von PowerShell automatisch in ein Zeilen-Array zerlegte Ausgabe wieder zu einem einzigen,
+          # zusammenhaengenden Text zusammen, damit beim anschliessenden Aufteilen keine Zeilenumbrueche
+          # verloren gehen oder versehentlich verschoben werden.
+          $rawLog = (git log $logRange --pretty=format:"%x00%B" | Out-String)
+          $commitBodies = $rawLog -split [char]0 | Where-Object { $_.Trim() -ne '' }
 
           $features = [System.Collections.Generic.List[string]]::new()
           $fixes = [System.Collections.Generic.List[string]]::new()
@@ -121,12 +129,24 @@ jobs:
               foreach ($line in ($commitBody -split "`n")) {
                   $trimmed = $line.Trim()
 
-                  if ($trimmed -match '^(?i)feature\s*:\s*$') {
+                  # Kopfzeilen werden bewusst NICHT nur dann erkannt, wenn nach dem Doppelpunkt nichts
+                  # weiter folgt (reines "feature:" auf einer eigenen Zeile) - in der Praxis vorkommende
+                  # Commit-Nachrichten haben den ersten Punkt teils direkt in derselben Zeile wie die
+                  # Kopfzeile (z.B. "feature: - add gamecontroller cpl") oder sogar ganz ohne
+                  # "-"-Aufzaehlungszeichen (z.B. "fix: add missing slider axis"). Beide Formen werden hier
+                  # gleichbedeutend behandelt: der Text nach dem Doppelpunkt wird - nach Entfernen eines
+                  # optionalen fuehrenden "-" - direkt als erster Punkt des jeweiligen Abschnitts erfasst,
+                  # $currentSection bleibt zusaetzlich fuer etwaige nachfolgende eigene "- ..."-Zeilen offen.
+                  if ($trimmed -match '^(?i)(?:feature|features|feat)\s*:\s*(.*)$') {
                       $currentSection = 'feature'
+                      $rest = ($Matches[1] -replace '^-\s*', '').Trim()
+                      if ($rest -ne '') { $features.Add($rest) }
                       continue
                   }
-                  if ($trimmed -match '^(?i)fix\s*:\s*$') {
+                  if ($trimmed -match '^(?i)(?:fix|fixes)\s*:\s*(.*)$') {
                       $currentSection = 'fix'
+                      $rest = ($Matches[1] -replace '^-\s*', '').Trim()
+                      if ($rest -ne '') { $fixes.Add($rest) }
                       continue
                   }
                   if ($trimmed -eq '') {
@@ -159,7 +179,7 @@ jobs:
               $bodyLines.Add('')
           }
           if ($bodyLines.Count -eq 0) {
-              $bodyLines.Add('Keine kategorisierten Änderungen (feature:/fix:) in diesem Release.')
+              $bodyLines.Add('Keine kategorisierten Änderungen (feature:/feat:/fix: fehlen) in diesem Release.')
           }
 
           $bodyLines -join "`n" | Out-File -FilePath 'release-notes.md' -Encoding utf8

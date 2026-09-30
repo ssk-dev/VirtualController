@@ -3,6 +3,7 @@ using CommunityToolkit.Mvvm.Input;
 using System.Diagnostics;
 using System.IO;
 using VirtualController.Core.Logging;
+using VirtualController.Core.Profiles;
 using VirtualController.Core.Updates;
 
 namespace VirtualController.App.ViewModels;
@@ -181,6 +182,28 @@ public sealed partial class UpdateViewModel : ObservableObject
         catch (Exception ex)
         {
             StatusText = $"Update-Log-Datei konnte nicht geoeffnet werden: {ex.Message}";
+        }
+    }
+
+    /// <summary>Oeffnet den Anwendungsdatenordner ("%AppData%\VirtualController", siehe
+    /// <see cref="ProfileStore.BaseDirectory"/>) im Windows-Explorer, damit der Nutzer bei Bedarf direkt
+    /// auf saemtliche gespeicherten Dateien zugreifen kann (Profile, Geraete-Einstellungen, Logs,
+    /// <see cref="Logging.UpdateLog"/>), ohne den Pfad manuell in der Adressleiste eingeben zu muessen.</summary>
+    [RelayCommand]
+    private void OpenAppDataFolder()
+    {
+        try
+        {
+            if (!Directory.Exists(ProfileStore.BaseDirectory))
+            {
+                Directory.CreateDirectory(ProfileStore.BaseDirectory);
+            }
+
+            Process.Start(new ProcessStartInfo { FileName = ProfileStore.BaseDirectory, UseShellExecute = true });
+        }
+        catch (Exception ex)
+        {
+            StatusText = $"Anwendungsdatenordner konnte nicht geoeffnet werden: {ex.Message}";
         }
     }
 
