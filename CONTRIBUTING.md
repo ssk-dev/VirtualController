@@ -78,4 +78,4 @@ issue, so that all the information needed to triage it is included from the star
 ## License
 
 By contributing, you agree that your contributions will be licensed under the project's
-[Non-Commercial Source License (NCSL)](LICENSE).
+[Non-Commercial Source License (NCSL)](LICENSE.md).
