@@ -1,5 +1,6 @@
 <ResourceDictionary xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
-                    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml">
+                    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+                    xmlns:sys="clr-namespace:System;assembly=mscorlib">
 
     <!-- Globale Basis-Styles fuer Standard-WPF-Controls, um den nativen Windows-Look durch die dunkle
          "Virtual Controller"-Optik (siehe Theme.xaml fuer die Farbpalette) zu ersetzen. Als implizite
@@ -7,6 +8,13 @@
          gesamten Anwendung gelten, ohne dass jedes einzelne XAML dafuer angepasst werden muss. Umfasst
          Button, TextBox, ComboBox und CheckBox (Schritt 1 der Redesign-Teilschritte) - weitere Controls
          (DataGrid, ...) folgen in separaten, einzeln testbaren Schritten. -->
+
+    <!-- Einheitliche Hoehe der Aktions-Buttons in der Kopfzeile (siehe MainWindow.xaml, Button
+         "Geraete aktualisieren"/"Profile laden"/"Profile speichern"/"Windows Gamecontroller"). Als
+         benannte Konstante ausgelagert, damit andere Elemente (z.B. die vertikale Trennlinie zwischen
+         Logo und ViGEmBus-Status-Pille) dieselbe Hoehe referenzieren koennen, ohne sie zur Laufzeit per
+         ElementName-Binding von einem konkreten Button ablesen zu muessen. -->
+    <sys:Double x:Key="HeaderActionButtonHeight">40</sys:Double>
 
     <!-- Button: dunkle Karten-Optik mit abgerundeten Ecken statt nativer Windows-Chrome. Hover hebt den
          Rahmen/Hintergrund leicht an, IsPressed nutzt den Akzent-Farbverlauf als kurzes Klick-Feedback
@@ -57,10 +65,10 @@
         <Setter Property="Background" Value="Transparent" />
         <Setter Property="Foreground" Value="{StaticResource TextBrush}" />
         <Setter Property="BorderThickness" Value="0" />
-        <Setter Property="Width" Value="44" />
-        <Setter Property="Height" Value="32" />
+        <Setter Property="Width" Value="24" />
+        <Setter Property="Height" Value="24" />
         <Setter Property="FontFamily" Value="Segoe MDL2 Assets" />
-        <Setter Property="FontSize" Value="11" />
+        <Setter Property="FontSize" Value="8" />
         <Setter Property="Cursor" Value="Arrow" />
         <Setter Property="Template">
             <Setter.Value>
@@ -85,10 +93,10 @@
         <Setter Property="Background" Value="Transparent" />
         <Setter Property="Foreground" Value="{StaticResource TextBrush}" />
         <Setter Property="BorderThickness" Value="0" />
-        <Setter Property="Width" Value="44" />
-        <Setter Property="Height" Value="32" />
+        <Setter Property="Width" Value="24" />
+        <Setter Property="Height" Value="24" />
         <Setter Property="FontFamily" Value="Segoe MDL2 Assets" />
-        <Setter Property="FontSize" Value="11" />
+        <Setter Property="FontSize" Value="8" />
         <Setter Property="Cursor" Value="Arrow" />
         <Setter Property="Template">
             <Setter.Value>

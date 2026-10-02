@@ -29,6 +29,23 @@
     <SolidColorBrush x:Key="MutedTextBrush" Color="#7997CB" />
     <SolidColorBrush x:Key="SuccessBrush" Color="#6CE8A4" />
 
+     <SolidColorBrush x:Key="PanelVirtualControllersBorderBrush" Color="#061a2b" />
+     <LinearGradientBrush x:Key="PanelVirtualControllersBackgroundBrush"
+                     StartPoint="0,0"
+                     EndPoint="1,0">
+          <GradientStop Color="#33004459" Offset="0"/>
+          <GradientStop Color="#660f495b" Offset="1"/>
+     </LinearGradientBrush>
+     <SolidColorBrush x:Key="PanelVirtualControllersBorderBrushActive" Color="#043960" />
+     <LinearGradientBrush x:Key="PanelVirtualControllersBackgroundBrushActive"
+                     StartPoint="0,0"
+                     EndPoint="1,0">
+          <GradientStop Color="#33008cff" Offset="0"/>
+          <GradientStop Color="#660f495b" Offset="1"/>
+     </LinearGradientBrush>
+
+
+
     <!-- Warnfarben (Hintergrund/Rahmen/Text) fuer nicht-kritische Hinweisboxen (z.B. HID-Diagnose in
          BenchmarkWindow.xaml) - analog zu SuccessBrush, aber in Amber-Tonen. Bewusst dunkel/desaturiert
          gehalten (statt der urspruenglich hellen #FFF3CD/#FFECB5/#856404-Kombination), damit die Box auch

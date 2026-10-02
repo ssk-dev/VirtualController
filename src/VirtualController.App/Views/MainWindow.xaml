@@ -3,9 +3,10 @@
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         xmlns:vm="clr-namespace:VirtualController.App.ViewModels"
         xmlns:shell="clr-namespace:System.Windows.Shell;assembly=PresentationFramework"
-        Title="{Binding WindowTitle}" Height="720" Width="1100"
+        Title="{Binding WindowTitle}" Height="900" Width="1440"
         Icon="pack://application:,,,/Icons/VirtualController.ico"
         WindowStyle="None" ResizeMode="CanResize"
+        Topmost="True"
         Closing="MainWindow_OnClosing">
 
     <!-- Ersetzt die native, hell gerenderte und nicht themebare Windows-Titelleiste durch eine eigene,
@@ -29,19 +30,20 @@
              vom Drag-Verhalten geschluckt werden. Das Maximieren/Wiederherstellen-Glyph wird ueber
              MainWindow.xaml.cs (MaximizeRestoreGlyph) an den aktuellen WindowState angepasst, da ein
              reiner XAML-Trigger auf Window.WindowState hierfuer nicht direkt am Button ansetzen kann. -->
-        <Border x:Name="TitleBar" DockPanel.Dock="Top" Height="32" Background="{StaticResource AppBackgroundBrush}"
-                BorderBrush="{StaticResource PanelBorderBrush}" BorderThickness="0,0,0,1">
+        
+        <Border x:Name="TitleBar" DockPanel.Dock="Top" Height="24" Background="{StaticResource AppBackgroundBrush}"
+                BorderBrush="{StaticResource PanelBorderBrush}" BorderThickness="0,0,0,0">
             <Grid>
                 <Grid.ColumnDefinitions>
                     <ColumnDefinition Width="*" />
                     <ColumnDefinition Width="Auto" />
                 </Grid.ColumnDefinitions>
-
+              <!--
                 <StackPanel Orientation="Horizontal" VerticalAlignment="Center" Margin="10,0,0,0">
                     <Image Source="pack://application:,,,/Icons/VirtualController.ico" Width="16" Height="16" Margin="0,0,8,0" />
                     <TextBlock Text="{Binding WindowTitle}" FontSize="12" VerticalAlignment="Center" Foreground="{StaticResource MutedTextBrush}" />
                 </StackPanel>
-
+               -->
                 <StackPanel Grid.Column="1" Orientation="Horizontal" WindowChrome.IsHitTestVisibleInChrome="True">
                     <Button Style="{StaticResource TitleBarButtonStyle}" Click="OnMinimizeButtonClicked" ToolTip="Minimieren">
                         <TextBlock Text="&#xE921;" />
@@ -57,7 +59,7 @@
         </Border>
 
         <!-- Kopfzeile: Treiber-Status + globale Aktionen -->
-        <Border DockPanel.Dock="Top" Padding="10" Background="Transparent" BorderBrush="{StaticResource PanelBorderBrush}" BorderThickness="0,0,0,1">
+        <Border DockPanel.Dock="Top" Background="Transparent" BorderBrush="{StaticResource PanelBorderBrush}" Padding="20,10,20,20">
             <Grid>
                 <Grid.ColumnDefinitions>
                     <ColumnDefinition Width="*" />
@@ -65,69 +67,87 @@
                 </Grid.ColumnDefinitions>
 
                 <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
-                    <Image Source="pack://application:,,,/Icons/logo.png" Height="24" Margin="0,0,16,0"
+                    <Image Source="pack://application:,,,/Icons/logo.png" Height="60" Margin="0,0,0,0"
                            VerticalAlignment="Center" />
+
+                    <!-- Vertikale Trennlinie zwischen Logo und ViGEmBus-Status-Pille: Hoehe entspricht der
+                         global definierten Hoehe der Header-Aktions-Buttons (HeaderActionButtonHeight,
+                         siehe Themes/Styles.xaml), Abstand zu beiden Seiten (Logo links / ViGEmBus-Pille
+                         rechts) betraegt je 20px. -->
+                    <Border Width="1" Margin="20,0" VerticalAlignment="Center"
+                            Background="{StaticResource PanelBorderBrush}"
+                            Height="{StaticResource HeaderActionButtonHeight}" />
 
                     <!-- ViGEmBus-Status als eigene "Pille": Punkt-Indikator + zweizeiliger Text (Haupttext/
                          Untertitel), angelehnt an die urspruengliche Design-Vorlage (assets/layout-mapping.html,
-                         ".header-vigembus-box"). -->
-                    <Border BorderBrush="{StaticResource PanelBorderBrush}" BorderThickness="1" CornerRadius="6"
-                            Background="{StaticResource PanelBackgroundBrush}" Padding="10,4" Margin="0,0,12,0">
-                        <StackPanel Orientation="Horizontal">
-                            <Ellipse Width="12" Height="12" Margin="0,0,8,0" VerticalAlignment="Center"
-                                     Fill="{Binding DriverReady, Converter={StaticResource BoolToStatusBrushConverter}}" />
-                            <StackPanel>
-                                <TextBlock Text="{Binding DriverStatusText}" FontWeight="Bold" Foreground="{StaticResource TextBrush}" />
-                                <TextBlock Text="{Binding DriverReady, Converter={StaticResource BoolToDriverSubtextConverter}}"
-                                           FontSize="11" Foreground="{StaticResource MutedTextBrush}" />
+                         ".header-vigembus-box"). Kein eigener Rahmen und identischer Hintergrund wie die
+                         Kopfzeile selbst (AppBackgroundBrush), damit sich die Pille optisch nicht von der
+                         Kopfzeile abhebt. -->
+                    <StackPanel Orientation="Vertical" VerticalAlignment="Center">
+                
+                        <Border BorderThickness="0" Padding="10,4" Margin="0,0,12,0">
+                            <StackPanel Orientation="Horizontal">
+                                <Ellipse Width="12" Height="12" Margin="0,0,8,0" VerticalAlignment="Center"
+                                        Fill="{Binding DriverReady, Converter={StaticResource BoolToStatusBrushConverter}}" />
+                                <StackPanel VerticalAlignment="Center">
+                                    <TextBlock Text="{Binding DriverStatusText}" FontWeight="Bold" Foreground="{StaticResource TextBrush}" />
+                                    <TextBlock Text="{Binding DriverReady, Converter={StaticResource BoolToDriverSubtextConverter}}"
+                                            FontSize="11" Foreground="{StaticResource MutedTextBrush}" />
+                                </StackPanel>
                             </StackPanel>
-                        </StackPanel>
-                    </Border>
-                    <TextBlock Text="{Binding LastErrorMessage}" Foreground="Red" VerticalAlignment="Center" />
+                        </Border>
+                        <TextBlock Text="{Binding LastErrorMessage}" Foreground="Red" VerticalAlignment="Center" />
+                    </StackPanel>
                 </StackPanel>
 
-                <StackPanel Grid.Column="1" Orientation="Horizontal">
-                    <!-- Platzhalter-Icons (Segoe MDL2 Assets) vor jeder Button-Beschriftung, angelehnt an die
-                         Icon-Vorlage in assets/layout-mapping.html; werden spaeter durch eigene Icon-Assets
-                         ersetzt. -->
-                    <Button Command="{Binding ConnectDriverCommand}" Margin="4,0" Padding="8,4">
-                        <StackPanel Orientation="Horizontal">
-                            <TextBlock Text="&#xE71B;" FontFamily="Segoe MDL2 Assets" Margin="0,0,6,0" VerticalAlignment="Center" />
-                            <TextBlock Text="Treiber verbinden" VerticalAlignment="Center" />
+                <StackPanel Grid.Column="1" Orientation="Vertical">
+                    <StackPanel Orientation="Horizontal" Height="{StaticResource HeaderActionButtonHeight}">
+                        <!-- Platzhalter-Icons (Segoe MDL2 Assets) vor jeder Button-Beschriftung, angelehnt an die
+                            Icon-Vorlage in assets/layout-mapping.html; werden spaeter durch eigene Icon-Assets
+                            ersetzt. -->
+                        <Button Command="{Binding RefreshDevicesCommand}" Margin="4,0" Padding="8,4">
+                                <Button.Background>
+        <LinearGradientBrush StartPoint="0,0" EndPoint="1,0">
+            <GradientStop Color="#0078D4" Offset="0"/>
+            <GradientStop Color="#00A4EF" Offset="1"/>
+        </LinearGradientBrush>
+    </Button.Background>
+
+                            <StackPanel Orientation="Horizontal">
+                                <TextBlock Text="&#xE72C;" FontFamily="Segoe MDL2 Assets" Margin="0,0,6,0" VerticalAlignment="Center" />
+                                <TextBlock Text="Geraete aktualisieren" VerticalAlignment="Center" />
+                            </StackPanel>
+                        </Button>
+                        <Button Command="{Binding LoadProfilesCommand}" Margin="4,0" Padding="8,4">
+                            <StackPanel Orientation="Horizontal">
+                                <TextBlock Text="&#xE8B7;" FontFamily="Segoe MDL2 Assets" Margin="0,0,6,0" VerticalAlignment="Center" />
+                                <TextBlock Text="Profile laden" VerticalAlignment="Center" />
+                            </StackPanel>
+                        </Button>
+                        <StackPanel Orientation="Horizontal" Margin="12,0,4,0"
+                                    Visibility="{Binding HasUnsavedChanges, Converter={StaticResource BoolToVisibilityConverter}}">
+                            <TextBlock Text="&#xE7BA;" FontFamily="Segoe MDL2 Assets" Foreground="#C00000" Margin="0,0,6,0" VerticalAlignment="Center" />
+                            <TextBlock Text="Ungespeicherte Aenderungen" Foreground="#C00000" FontWeight="Bold" VerticalAlignment="Center" />
                         </StackPanel>
-                    </Button>
-                    <Button Command="{Binding RefreshDevicesCommand}" Margin="4,0" Padding="8,4">
-                        <StackPanel Orientation="Horizontal">
-                            <TextBlock Text="&#xE72C;" FontFamily="Segoe MDL2 Assets" Margin="0,0,6,0" VerticalAlignment="Center" />
-                            <TextBlock Text="Geraete aktualisieren" VerticalAlignment="Center" />
-                        </StackPanel>
-                    </Button>
-                    <Button Command="{Binding LoadProfilesCommand}" Margin="4,0" Padding="8,4">
-                        <StackPanel Orientation="Horizontal">
-                            <TextBlock Text="&#xE8B7;" FontFamily="Segoe MDL2 Assets" Margin="0,0,6,0" VerticalAlignment="Center" />
-                            <TextBlock Text="Profile laden" VerticalAlignment="Center" />
-                        </StackPanel>
-                    </Button>
-                    <StackPanel Orientation="Horizontal" Margin="12,0,4,0"
-                                Visibility="{Binding HasUnsavedChanges, Converter={StaticResource BoolToVisibilityConverter}}">
-                        <TextBlock Text="&#xE7BA;" FontFamily="Segoe MDL2 Assets" Foreground="#C00000" Margin="0,0,6,0" VerticalAlignment="Center" />
-                        <TextBlock Text="Ungespeicherte Aenderungen" Foreground="#C00000" FontWeight="Bold" VerticalAlignment="Center" />
+                        <Button Command="{Binding SaveProfilesCommand}" Margin="4,0" Padding="8,4"
+                                Foreground="{Binding HasUnsavedChanges, Converter={StaticResource BoolToUnsavedForegroundConverter}}"
+                                FontWeight="{Binding HasUnsavedChanges, Converter={StaticResource BoolToFontWeightConverter}}">
+                            <StackPanel Orientation="Horizontal">
+                                <TextBlock Text="&#xE74E;" FontFamily="Segoe MDL2 Assets" Margin="0,0,6,0" VerticalAlignment="Center" />
+                                <TextBlock Text="Profile speichern" VerticalAlignment="Center" />
+                            </StackPanel>
+                        </Button>
+                        <Button Command="{Binding OpenWindowsGameControllersCommand}" Margin="4,0" Padding="8,4"
+                                ToolTip="Oeffnet die native Windows-Systemsteuerung fuer Gamecontroller (joy.cpl).">
+                            <StackPanel Orientation="Horizontal">
+                                <TextBlock Text="&#xE975;" FontFamily="Segoe MDL2 Assets" Margin="0,0,6,0" VerticalAlignment="Center" />
+                                <TextBlock Text="Windows Gamecontroller" VerticalAlignment="Center" />
+                            </StackPanel>
+                        </Button>
                     </StackPanel>
-                    <Button Command="{Binding SaveProfilesCommand}" Margin="4,0" Padding="8,4"
-                            Foreground="{Binding HasUnsavedChanges, Converter={StaticResource BoolToUnsavedForegroundConverter}}"
-                            FontWeight="{Binding HasUnsavedChanges, Converter={StaticResource BoolToFontWeightConverter}}">
-                        <StackPanel Orientation="Horizontal">
-                            <TextBlock Text="&#xE74E;" FontFamily="Segoe MDL2 Assets" Margin="0,0,6,0" VerticalAlignment="Center" />
-                            <TextBlock Text="Profile speichern" VerticalAlignment="Center" />
-                        </StackPanel>
-                    </Button>
-                    <Button Command="{Binding OpenWindowsGameControllersCommand}" Margin="4,0" Padding="8,4"
-                            ToolTip="Oeffnet die native Windows-Systemsteuerung fuer Gamecontroller (joy.cpl).">
-                        <StackPanel Orientation="Horizontal">
-                            <TextBlock Text="&#xE975;" FontFamily="Segoe MDL2 Assets" Margin="0,0,6,0" VerticalAlignment="Center" />
-                            <TextBlock Text="Windows Gamecontroller" VerticalAlignment="Center" />
-                        </StackPanel>
-                    </Button>
+                    <StackPanel Orientation="Horizontal" HorizontalAlignment="Right" Margin="0,4,12,0">
+                                <TextBlock Text="{Binding Update.CurrentVersionText, StringFormat='Version: {0}'}" FontSize="10" VerticalAlignment="Center" Foreground="{StaticResource MutedTextBrush}" />
+                    </StackPanel>
                 </StackPanel>
             </Grid>
         </Border>
@@ -163,8 +183,8 @@
                                             <Setter.Value>
                                                 <ControlTemplate TargetType="ListBoxItem">
                                                     <Border x:Name="CardBorder"
-                                                            Background="{StaticResource PanelBackgroundBrush}"
-                                                            BorderBrush="{StaticResource PanelBorderBrush}"
+                                                            Background="{StaticResource PanelVirtualControllersBackgroundBrush}"
+                                                            BorderBrush="{StaticResource PanelVirtualControllersBorderBrush}"
                                                             BorderThickness="1" CornerRadius="6" Padding="10,8">
                                                         <Grid>
                                                             <Grid.ColumnDefinitions>
@@ -179,8 +199,8 @@
                                                     </Border>
                                                     <ControlTemplate.Triggers>
                                                         <Trigger Property="IsSelected" Value="True">
-                                                            <Setter TargetName="CardBorder" Property="BorderBrush" Value="{StaticResource AccentBrush}" />
-                                                            <Setter TargetName="CardBorder" Property="Background" Value="{StaticResource ButtonPressedBrush}" />
+                                                            <Setter TargetName="CardBorder" Property="BorderBrush" Value="{StaticResource PanelVirtualControllersBorderBrushActive}" />
+                                                            <Setter TargetName="CardBorder" Property="Background" Value="{StaticResource PanelVirtualControllersBackgroundBrushActive}" />
                                                             <Setter TargetName="SelectedArrow" Property="Visibility" Value="Visible" />
                                                         </Trigger>
                                                         <Trigger Property="IsMouseOver" Value="True">
@@ -239,13 +259,19 @@
 
                                     <TextBlock Text="{Binding StatusText}" Margin="20,0,0,0" VerticalAlignment="Center" FontWeight="Bold" />
 
-                                    <Button Command="{Binding StartCommand}" Margin="16,0,4,0" Padding="10,4">
+                                    <Button Command="{Binding StartCommand}" Margin="16,0,4,0" Padding="24,12">
+                                            <Button.Background>
+                                                <LinearGradientBrush StartPoint="0,0" EndPoint="1,0">
+                                                    <GradientStop Color="#01adff" Offset="0"/>
+                                                    <GradientStop Color="#0ae3f8" Offset="1"/>
+                                                </LinearGradientBrush>
+                                            </Button.Background>
                                         <StackPanel Orientation="Horizontal">
                                             <TextBlock Text="&#xE768;" FontFamily="Segoe MDL2 Assets" Margin="0,0,6,0" VerticalAlignment="Center" />
-                                            <TextBlock Text="Start" VerticalAlignment="Center" />
+                                            <TextBlock Text="Start" VerticalAlignment="Center"/>
                                         </StackPanel>
                                     </Button>
-                                    <Button Command="{Binding StopCommand}" Margin="4,0" Padding="10,4">
+                                    <Button Command="{Binding StopCommand}" Margin="12,0" Padding="24,12">
                                         <StackPanel Orientation="Horizontal">
                                             <TextBlock Text="&#xE71A;" FontFamily="Segoe MDL2 Assets" Margin="0,0,6,0" VerticalAlignment="Center" />
                                             <TextBlock Text="Stop" VerticalAlignment="Center" />
@@ -360,7 +386,7 @@
                                     </ListBox.ItemContainerStyle>
                                     <ListBox.ItemTemplate>
                                         <DataTemplate DataType="{x:Type vm:ModeViewModel}">
-                                            <Border BorderThickness="1" CornerRadius="14" Padding="12,6"
+                                            <Border BorderThickness="1" Padding="24,12"
                                                     PreviewMouseLeftButtonDown="OnModeTabBorderPreviewMouseLeftButtonDown">
                                                 <Border.Style>
                                                     <Style TargetType="Border">
@@ -417,9 +443,9 @@
                                     </ListBox.ItemTemplate>
                                 </ListBox>
 
-                                <Button Command="{Binding AddModeCommand}" Padding="6,4" VerticalAlignment="Center">
+                                <Button Command="{Binding AddModeCommand}" Padding="24,12" Margin="24,0,0,0" VerticalAlignment="Center">
                                     <StackPanel Orientation="Horizontal">
-                                        <TextBlock Text="&#xE710;" FontFamily="Segoe MDL2 Assets" Margin="0,0,4,0" VerticalAlignment="Center" />
+                                        <TextBlock Text="&#xE710;" FontFamily="Segoe MDL2 Assets" Margin="0,0,12,0" VerticalAlignment="Center" />
                                         <TextBlock Text="Neuer Modus" VerticalAlignment="Center" />
                                     </StackPanel>
                                 </Button>
@@ -468,6 +494,7 @@
                                         <DataGrid ItemsSource="{Binding SelectedMode.UnassignedMappings, NotifyOnTargetUpdated=True}"
                                                   AutoGenerateColumns="False" CanUserAddRows="False"
                                                   EnableRowVirtualization="False" Margin="0,0,0,16"
+                                                  HorizontalAlignment="Left"
                                                   Binding.TargetUpdated="OnMappingsDataGridTargetUpdated"
                                                   Visibility="{Binding SelectedMode.UnassignedMappings.Count, Converter={StaticResource CountToVisibilityConverter}}">
                                             <DataGrid.RowStyle>
@@ -573,6 +600,7 @@
                                                         <DataGrid ItemsSource="{Binding Rows, NotifyOnTargetUpdated=True}"
                                                                   AutoGenerateColumns="False" CanUserAddRows="False"
                                                                   EnableRowVirtualization="False"
+                                                                  HorizontalAlignment="Left"
                                                                   Binding.TargetUpdated="OnMappingsDataGridTargetUpdated">
                                                             <DataGrid.RowStyle>
                                                                 <!-- Live-Hervorhebung der Mapping-Zeile, waehrend ihre zugewiesene physische
