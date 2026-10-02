@@ -213,17 +213,24 @@ public static class MappingEngine
         float magnitude = wantPositive ? MathF.Max(raw, 0f) : MathF.Max(-raw, 0f);
         bool digitalPressed = magnitude > 0f;
 
+        // Analog zu "magnitude", aber VORZEICHENERHALTEND statt auf 0..1 normalisiert: wird fuer
+        // DirectionalOnly bei Achsen-Zielen benoetigt (siehe unten) - "magnitude" eignet sich dort
+        // NICHT, da ihr Vorzeichen immer positiv ist und damit die isolierte Achsenhaelfte faelschlich
+        // stets Richtung positiv auf der virtuellen Achse ausschlagen wuerde, unabhaengig davon, ob
+        // SourceKind tatsaechlich AxisPositive oder AxisNegative ist.
+        float directionalSignedValue = wantPositive ? MathF.Max(raw, 0f) : MathF.Min(raw, 0f);
+
         switch (entry.TargetKind)
         {
             case MappingTargetKind.Axis when entry.TargetAxis.HasValue:
                 // DirectionalOnly: nur die durch SourceKind festgelegte Haelfte der physischen Achse
-                // (bereits oben als "magnitude" auf 0..1 isoliert) verwenden, statt wie im Standardfall
-                // den vollen bidirektionalen Rohwert durchzureichen. So koennen zwei unabhaengige
-                // physische Achsenhaelften (z.B. Y+ und X+) mit jeweils eigenem Invert-Vorzeichen auf
-                // dieselbe oder unterschiedliche virtuelle Achsen aufgeteilt werden. Die geraeteweite
-                // Deadzone (inkl. Neuskalierung ab der Deadzone-Grenze) ist bereits ueber
-                // AxisSignalProcessor.Process in "raw"/"magnitude" enthalten.
-                float normalized = entry.DirectionalOnly ? magnitude : raw;
+                // (als vorzeichenerhaltendes "directionalSignedValue" isoliert) verwenden, statt wie im
+                // Standardfall den vollen bidirektionalen Rohwert durchzureichen. So koennen zwei
+                // unabhaengige physische Achsenhaelften (z.B. Y+ und X+) mit jeweils eigenem Invert-
+                // Vorzeichen auf dieselbe oder unterschiedliche virtuelle Achsen aufgeteilt werden. Die
+                // geraeteweite Deadzone (inkl. Neuskalierung ab der Deadzone-Grenze) ist bereits ueber
+                // AxisSignalProcessor.Process in "raw" enthalten.
+                float normalized = entry.DirectionalOnly ? directionalSignedValue : raw;
                 if (entry.Invert) normalized = -normalized;
                 SetAxis(target, entry.TargetAxis.Value, normalized);
                 break;

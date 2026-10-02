@@ -398,12 +398,14 @@ public sealed partial class MappingRowViewModel : ObservableObject
 
     partial void OnInvertChanged(bool value)
     {
+        DebugLog.Write($"[Row {RowId}] OnInvertChanged ausgeloest: value={value} (vorher Entry.Invert={Entry.Invert})");
         Entry.Invert = value;
         Changed?.Invoke(this);
     }
 
     partial void OnDirectionalOnlyChanged(bool value)
     {
+        DebugLog.Write($"[Row {RowId}] OnDirectionalOnlyChanged ausgeloest: value={value} (vorher Entry.DirectionalOnly={Entry.DirectionalOnly})");
         Entry.DirectionalOnly = value;
         Changed?.Invoke(this);
     }

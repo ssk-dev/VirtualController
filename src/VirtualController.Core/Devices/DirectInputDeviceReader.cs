@@ -68,7 +68,13 @@ public sealed class DirectInputDeviceReader : IDeviceReader
                 axes[(int)axisId] = axisId switch
                 {
                     PhysicalAxisId.X => NormalizeBidirectional(joyState.X),
-                    PhysicalAxisId.Y => NormalizeBidirectional(joyState.Y),
+                    // DirectInput liefert fuer die Y-Achse einen positiven Rohwert beim Zurueckziehen/
+                    // Abwaertsbewegen des Sticks - das Gegenteil der XInput-Konvention (positiv =
+                    // vorwaerts/oben), der die virtuellen Controller (Xbox360VirtualPad/DualShock4VirtualPad)
+                    // sowie die gesamte Mapping-Auswertung (MappingEngine) folgen. Durch die Negierung hier,
+                    // direkt an der Quelle, muss diese Umrechnung nicht mehr an jeder einzelnen Verwendungsstelle
+                    // (Live-Vorschau, Mapping-Engine) separat beruecksichtigt werden.
+                    PhysicalAxisId.Y => -NormalizeBidirectional(joyState.Y),
                     PhysicalAxisId.Z => NormalizeBidirectional(joyState.Z),
                     PhysicalAxisId.RotationX => NormalizeBidirectional(joyState.RotationX),
                     PhysicalAxisId.RotationY => NormalizeBidirectional(joyState.RotationY),

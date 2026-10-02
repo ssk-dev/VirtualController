@@ -523,15 +523,15 @@ public sealed partial class DeviceConfigDeviceViewModel : ObservableObject, IDis
     /// (dort fuer die Live-Vorschau, hier zusaetzlich fuer die gemeinsame Enable/Disable-Gruppierung und
     /// die eingebettete 2D-Visualisierung). Bei XInput repraesentieren Z/RotationX zusaetzlich den
     /// rechten Stick; bei DirectInput haben diese Slots keine feste Bedeutung und duerfen deshalb NICHT
-    /// automatisch zu einem Stick kombiniert werden. <c>InvertYForDisplay</c> spiegelt die
-    /// API-abhaengige Y-Vorzeichenkonvention wider (XInput: positiv = vorwaerts/oben; DirectInput:
-    /// positiv = zurueckziehen/abwaerts).</summary>
+    /// automatisch zu einem Stick kombiniert werden. <c>InvertYForDisplay</c> ist fuer beide APIs stets
+    /// true: der rohe Y-Wert wird bereits in <see cref="DirectInputDeviceReader"/> an der Quelle negiert,
+    /// sodass positiv = vorwaerts/oben einheitlich fuer XInput und DirectInput gilt.</summary>
     private static IEnumerable<(int XIndex, int YIndex, string Name, bool InvertYForDisplay)> GetStickAxisPairs(InputApi api)
     {
         yield return (
             (int)PhysicalAxisId.X, (int)PhysicalAxisId.Y,
             api == InputApi.XInput ? "Linker Stick" : "Stick (X/Y)",
-            api == InputApi.XInput);
+            true);
 
         if (api == InputApi.XInput)
         {

@@ -63,6 +63,17 @@ public partial class MainWindow : Window
         // statt an einer einzelnen DataGrid, da SelectionChangedEvent durch die dazwischenliegende
         // ItemsControl/DataTemplate-Verschachtelung unveraendert bis hierher durchbubbelt.
         MappingsScrollViewer.AddHandler(Selector.SelectionChangedEvent, new System.Windows.Controls.SelectionChangedEventHandler(OnAnyComboBoxSelectionChanged), true);
+
+        // Analoger Fix fuer denselben Bug, nur fuer CheckBoxen statt ComboBoxen ("Invertieren", "Nur
+        // diese Richtung"): auch hier wechselt die Zelle beim Klick nicht zuverlaessig in den
+        // Bearbeitungsmodus, wodurch UpdateSource() des Zwei-Wege-IsChecked-Bindings nicht ausgeloest
+        // wird - die CheckBox selbst flippt dabei trotzdem sichtbar um (ToggleButton aktualisiert seine
+        // eigene IsChecked-Dependency-Property immer lokal), was den fehlenden Ruecktransport ins
+        // ViewModel optisch verschleiert. ToggleButton.CheckedEvent/UncheckedEvent sind wie
+        // Selector.SelectionChangedEvent bubbelnde RoutedEvents und erreichen diesen gemeinsamen
+        // Vorfahren unabhaengig von der ItemsControl/DataTemplate-Verschachtelung.
+        MappingsScrollViewer.AddHandler(System.Windows.Controls.Primitives.ToggleButton.CheckedEvent, new RoutedEventHandler(OnAnyCheckBoxCheckedChanged), true);
+        MappingsScrollViewer.AddHandler(System.Windows.Controls.Primitives.ToggleButton.UncheckedEvent, new RoutedEventHandler(OnAnyCheckBoxCheckedChanged), true);
     }
 
     /// <summary>Minimiert das Fenster ueber den Minimieren-Button der eigenen Titelleiste (siehe
@@ -127,6 +138,24 @@ public partial class MainWindow : Window
         {
             System.Windows.Data.BindingOperations.GetBindingExpression(comboBox, Selector.SelectedItemProperty)?.UpdateSource();
             System.Windows.Data.BindingOperations.GetBindingExpression(comboBox, Selector.SelectedValueProperty)?.UpdateSource();
+        }
+    }
+
+    private void OnAnyCheckBoxCheckedChanged(object sender, RoutedEventArgs e)
+    {
+        // Analoger Fix fuer denselben Bug wie OnAnyComboBoxSelectionChanged, nur fuer CheckBoxen
+        // ("Invertieren", "Nur diese Richtung") statt ComboBoxen: ToggleButton aktualisiert beim Klick
+        // immer sofort seine eigene IsChecked-Dependency-Property (die CheckBox "flippt" also optisch
+        // zuverlaessig um), unabhaengig davon, ob die umgebende DataGridTemplateColumn-Zelle tatsaechlich
+        // in den Bearbeitungsmodus gewechselt ist. Bleibt die Zelle im reinen Anzeigemodus, loest WPF
+        // den Ruecktransport (UpdateSource) des Zwei-Wege-IsChecked-Bindings nicht aus - das Binding
+        // selbst bleibt dabei weiterhin "Active" und fehlerfrei, nur eben ungenutzt. Durch das explizite
+        // Erzwingen von UpdateSource() direkt hier (Checked/Unchecked bubbelt von jeder CheckBox im
+        // DataGrid bis zu diesem Fenster-weiten Handler durch) wird der Wert garantiert sofort ins
+        // ViewModel uebernommen, unabhaengig vom Zellen-Fokuszustand.
+        if (e.OriginalSource is System.Windows.Controls.CheckBox checkBox)
+        {
+            System.Windows.Data.BindingOperations.GetBindingExpression(checkBox, System.Windows.Controls.Primitives.ToggleButton.IsCheckedProperty)?.UpdateSource();
         }
     }
 

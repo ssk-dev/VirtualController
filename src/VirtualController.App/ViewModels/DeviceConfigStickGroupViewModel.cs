@@ -112,7 +112,7 @@ public sealed partial class DeviceConfigStickGroupViewModel : ObservableObject, 
     /// <param name="device">Physisches Geraet, dem dieser Stick angehoert - fuer eigene Kalibrierungs-Reader.</param>
     /// <param name="settings">Geraeteweite Einstellungen, in denen <see cref="Name"/> persistiert wird (siehe <see cref="DeviceSettings.StickNames"/>).</param>
     /// <param name="notifyChanged">Callback, um das Gesamtprofil als geaendert zu markieren.</param>
-    /// <param name="invertYForDisplay">true fuer XInput (positiver Y-Wert = Vorwaerts/Oben), false fuer DirectInput, siehe <see cref="AxisVisualizationFactory"/>.</param>
+    /// <param name="invertYForDisplay">stets true: positiver Y-Wert bedeutet Vorwaerts/Oben, einheitlich fuer XInput und DirectInput (der rohe Y-Wert wird bei DirectInput bereits in <see cref="DirectInputDeviceReader"/> an der Quelle negiert), siehe <see cref="GetStickAxisPairs"/>.</param>
     public DeviceConfigStickGroupViewModel(
         string name,
         DeviceConfigAxisPairViewModel xAxis,

@@ -37,10 +37,10 @@ public static class AxisVisualizationFactory
 
         if (available.Contains(PhysicalAxisId.X) && available.Contains(PhysicalAxisId.Y))
         {
-            // DirectInput liefert fuer joyState.Y einen positiven Rohwert beim Zurueckziehen/Abwaerts-
-            // bewegen des Sticks (Gegenteil der XInput-Konvention) -> invertYForDisplay: false, damit
-            // "Stick nach vorne/oben" auch hier als Marker-Bewegung nach oben angezeigt wird.
-            items.Add(Build2DAxis(device, settings, "Stick (X/Y)", PhysicalAxisId.X, PhysicalAxisId.Y, invertYForDisplay: false));
+            // DirectInputDeviceReader negiert die Y-Achse bereits an der Quelle, sodass sie wie bei
+            // XInput positive Rohwerte bei Vorwaerts-/Aufwaertsbewegung liefert -> invertYForDisplay: true,
+            // identisch zu den XInput-Sticks oben.
+            items.Add(Build2DAxis(device, settings, "Stick (X/Y)", PhysicalAxisId.X, PhysicalAxisId.Y, invertYForDisplay: true));
             available.Remove(PhysicalAxisId.X);
             available.Remove(PhysicalAxisId.Y);
         }
