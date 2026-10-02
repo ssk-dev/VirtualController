@@ -36,6 +36,30 @@ visible devices (no per-game DLL hijacking).
 - **Device/input management**: rename, disable or completely hide individual devices or
   individual inputs from all selection lists (e.g. for irrelevant devices) - independent of
   which virtual controller they are currently assigned to.
+- **Manual input assignment**: a searchable dialog lists every known physical input (button,
+  axis, trigger, D-Pad direction) across all connected devices, so a mapping entry can be
+  assigned without having to physically press/move the desired input first.
+- **Live axis/stick visualization**: the device configuration tab shows a live-updating gauge
+  per single axis and a 2D pad per analog stick (both axes combined), reflecting raw value,
+  calibrated range, deadzone and center point in real time - used during calibration as well
+  as for general troubleshooting.
+- **Per-device hardware benchmark**: optional, opt-in measurement session per physical device
+  with a dedicated live window, covering actual polling rate (current/min/max/average/median),
+  an honest latency approximation (deviation from the nominal USB polling interval, since true
+  end-to-end input latency cannot be measured without dedicated reference hardware),
+  reliability (dropped/out-of-order reports) and signal quality. Keeps running independently of
+  whether its window is open, closed or reopened, and results can be exported as JSON.
+- **Mode-change notification**: optional short on-screen toast confirming which mode became
+  active, shown for every mode switch of a virtual controller that has this enabled.
+- **Automatic and manual update checks**: compares the installed version against the project's
+  GitHub Releases (optionally including pre-releases) and shows a popup with release notes once
+  a newer version is found; installation runs via a hidden PowerShell helper process that
+  swaps the files after the app closes and restarts it. A separate "switch version" dialog
+  lists every published release and also allows deliberately switching to an older version
+  (rollback), independent of the regular, upgrade-only update check.
+- **Quick access to Windows' native controller settings**: a header button opens the built-in
+  Windows "Game Controllers" panel (`joy.cpl`) for quick comparison/troubleshooting against
+  what Windows itself reports for a device, without leaving the app.
 - **Optional HidHide integration**: locks the physical devices assigned to a virtual
   controller for all other applications while it is running, so that e.g. a game does not
   react to both the physical AND the derived virtual device at the same time. Requires the
@@ -122,10 +146,14 @@ Alternatively, the workflow can also be triggered manually via the "Actions" tab
   - `Mapping/` profile model (virtual controller + modes + mapping table) and the mapping engine
   - `Timing/` high-resolution loop (up to 1000 Hz+), purely user mode, no driver needed
   - `Engine/` connects everything into running sessions per virtual controller
+  - `Benchmark/` per-device hardware benchmark session (polling rate, latency approximation,
+    reliability and signal quality metrics) with JSON export
   - `Profiles/` JSON persistence under `%AppData%\VirtualController\` - split into
     `Controllers\controller-{name}.json` (per virtual controller), `Devices\device-{brand}-{name}.json`
     (per physical device) and `settings.json` (general settings); automatically migrates an old,
     combined `profiles.json` still present on first startup into this format
+  - `Updates/` checks the project's GitHub Releases for newer (or, for rollback, any other)
+    versions and performs the actual installation via a hidden PowerShell helper process
 - **VirtualController.App** - WPF UI (MVVM via CommunityToolkit.Mvvm), tray icon. Performs
   in-app updates via a hidden, generated PowerShell process (see
   `VirtualController.Core.Updates.UpdateInstaller`): this waits for the application process to
