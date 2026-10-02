@@ -3,7 +3,13 @@
 Windows tool for creating multiple virtual game controllers (Xbox 360 / DualShock 4 as the
 Windows backend, the "Nintendo" layout is purely cosmetic), onto which any connected
 physical controller can be freely mapped - inspired by x360ce, but as standalone, system-wide
-visible devices (no per-game DLL hijacking).
+visible devices (no per-game DLL hijacking). Free and open-source controller remapper /
+virtual gamepad emulator for Windows: remap buttons, axes and D-Pad directions from any
+XInput or DirectInput joystick/gamepad/HID device onto independent virtual Xbox 360 or
+DualShock 4 controllers via [ViGEmBus](https://github.com/nefarius/ViGEmBus), with live axis
+visualization, calibration and per-profile mode switching.
+
+![VirtualController app screenshot: device mapping table and live axis/stick visualization in the device configuration dialog](./assets/virtualcontroller-app.png)
 
 ## Features
 
