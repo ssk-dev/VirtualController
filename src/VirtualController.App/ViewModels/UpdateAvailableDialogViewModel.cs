@@ -26,6 +26,11 @@ public sealed partial class UpdateAvailableDialogViewModel : ObservableObject
     [ObservableProperty]
     private string? _installStatusText;
 
+    /// <summary>Whether the app is about to restart after a successful installation start. Shows the
+    /// "Die app wird neugestartet..." message in the dialog before it closes.</summary>
+    [ObservableProperty]
+    private bool _isRestarting;
+
     /// <summary>Overall installation progress (0-100) across all steps (see
     /// <see cref="UpdateInstallProgress.OverallPercent"/>), displayed in the view's progress bar.</summary>
     [ObservableProperty]
@@ -88,11 +93,13 @@ public sealed partial class UpdateAvailableDialogViewModel : ObservableObject
             // The separate updater process is now running and waiting for this process to exit (see
             // UpdateInstaller.LaunchUpdaterProcess). The caller (Views.MainWindow), not this view model,
             // shuts down the WPF application so the view model does not need access to the Application instance.
+            IsRestarting = true;
             RequestClose?.Invoke();
         }
         catch (UpdateInstallException ex)
         {
             IsInstalling = false;
+            IsRestarting = false;
             InstallStatusText = null;
             InstallStepText = null;
             InstallProgressPercent = 0;

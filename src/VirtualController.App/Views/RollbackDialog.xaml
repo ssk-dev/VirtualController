@@ -6,7 +6,9 @@
         Icon="pack://application:,,,/Icons/VirtualController.ico"
         WindowStartupLocation="CenterOwner"
         ResizeMode="NoResize"
-        ShowInTaskbar="False">
+        ShowInTaskbar="False"
+        Background="{StaticResource AppBackgroundBrush}"
+        Foreground="{StaticResource TextBrush}">
 
         <!-- "Change version" dialog (see RollbackDialog.xaml.cs) that lists every version available from the
             update source. Unlike the regular update dialog (UpdateAvailableDialog), it also allows switching
@@ -36,6 +38,9 @@
             <ProgressBar Minimum="0" Maximum="100" Height="16" Value="{Binding InstallProgressPercent, Mode=OneWay}" />
             <TextBlock Margin="0,6,0,0" Foreground="{StaticResource MutedTextBrush}" FontStyle="Italic" TextWrapping="Wrap"
                        Text="{Binding InstallStepText}" />
+            <TextBlock Margin="0,12,0,0" Foreground="{StaticResource AccentBrush}" FontWeight="Bold" TextWrapping="Wrap"
+                       Text="{loc:Loc update_dialog.restarting}"
+                       Visibility="{Binding IsRestarting, Converter={StaticResource BoolToVisibilityConverter}}" />
         </StackPanel>
 
         <ListBox Margin="0,14,0,0" ItemsSource="{Binding Versions}" SelectedItem="{Binding SelectedVersion}"

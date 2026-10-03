@@ -109,6 +109,7 @@
   "update_dialog.changes": "Changes in this version",
   "update_dialog.skip": "Skip update",
   "update_dialog.install": "Install update",
+  "update_dialog.restarting": "The app will restart now. This may take a moment.",
   "rollback.title": "Change version",
   "rollback.message": "Choose a version to switch to. This also works for older versions (rollback).",
   "rollback.loading": "Loading versions...",

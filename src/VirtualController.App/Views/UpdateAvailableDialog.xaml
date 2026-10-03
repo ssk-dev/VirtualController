@@ -6,7 +6,9 @@
         Icon="pack://application:,,,/Icons/VirtualController.ico"
         WindowStartupLocation="CenterOwner"
         ResizeMode="NoResize"
-        ShowInTaskbar="False">
+        ShowInTaskbar="False"
+        Background="{StaticResource AppBackgroundBrush}"
+        Foreground="{StaticResource TextBrush}">
 
         <!-- Modal update dialog (see UpdateAvailableDialog.xaml.cs) that announces a new version and offers
             "Install update" and "Skip update". During installation (IsInstalling), both buttons are disabled
@@ -42,6 +44,9 @@
                 <ProgressBar Minimum="0" Maximum="100" Height="16" Value="{Binding InstallProgressPercent, Mode=OneWay}" />
                 <TextBlock Margin="0,6,0,0" Foreground="{StaticResource MutedTextBrush}" FontStyle="Italic" TextWrapping="Wrap"
                            Text="{Binding InstallStepText}" />
+                <TextBlock Margin="0,12,0,0" Foreground="{StaticResource AccentBrush}" FontWeight="Bold" TextWrapping="Wrap"
+                           Text="{loc:Loc update_dialog.restarting}"
+                           Visibility="{Binding IsRestarting, Converter={StaticResource BoolToVisibilityConverter}}" />
             </StackPanel>
         </StackPanel>
     </DockPanel>

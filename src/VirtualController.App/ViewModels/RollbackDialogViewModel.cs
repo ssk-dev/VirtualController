@@ -63,6 +63,11 @@ public sealed partial class RollbackDialogViewModel : ObservableObject
     [ObservableProperty]
     private string? _installStatusText;
 
+    /// <summary>Whether the app is about to restart after a successful installation start. Shows the
+    /// "Die app wird neugestartet..." message in the dialog before it closes.</summary>
+    [ObservableProperty]
+    private bool _isRestarting;
+
     /// <summary>Overall installation progress (0-100); see <see cref="UpdateInstallProgress.OverallPercent"/>.</summary>
     [ObservableProperty]
     private double _installProgressPercent;
@@ -176,11 +181,13 @@ public sealed partial class RollbackDialogViewModel : ObservableObject
 
             // The separate updater process has started. See UpdateAvailableDialogViewModel.InstallAsync
             // for why the caller (Views.MainWindow) is responsible for shutting down the app.
+            IsRestarting = true;
             RequestClose?.Invoke();
         }
         catch (UpdateInstallException ex)
         {
             IsInstalling = false;
+            IsRestarting = false;
             InstallStatusText = null;
             InstallStepText = null;
             InstallProgressPercent = 0;

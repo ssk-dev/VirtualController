@@ -109,6 +109,7 @@
   "update_dialog.changes": "Änderungen in dieser Version",
   "update_dialog.skip": "Update überspringen",
   "update_dialog.install": "Update installieren",
+  "update_dialog.restarting": "Die App wird jetzt neugestartet. Das kann einen Moment dauern.",
   "rollback.title": "Version wechseln",
   "rollback.message": "Wähle eine Version, zu der gewechselt werden soll. Das funktioniert auch für ältere Versionen (Rollback).",
   "rollback.loading": "Versionen werden geladen...",
