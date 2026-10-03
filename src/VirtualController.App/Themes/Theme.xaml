@@ -14,6 +14,20 @@
         <GradientStop Color="#11DBFE" Offset="1" />
     </LinearGradientBrush>
 
+    <!-- Bild-2-Palette: dunkleres Navy mit stärkerem Kontrast für Karten und Panels -->
+    <SolidColorBrush x:Key="CardBackgroundBrush" Color="#0D1B2E" />
+    <SolidColorBrush x:Key="CardBorderBrush" Color="#1E3A5F" />
+    <SolidColorBrush x:Key="CardHoverBorderBrush" Color="#02B4FE" />
+    <SolidColorBrush x:Key="CardSelectedBorderBrush" Color="#02B4FE" />
+    <SolidColorBrush x:Key="CardSelectedBackgroundBrush" Color="#0A2A4A" />
+
+    <SolidColorBrush x:Key="DangerBrush" Color="#FF4C4C" />
+    <SolidColorBrush x:Key="DangerLightBrush" Color="#FF6B6B" />
+    <SolidColorBrush x:Key="WarningBadgeBrush" Color="#FFA500" />
+
+    <SolidColorBrush x:Key="IconBrush" Color="#02B4FE" />
+    <SolidColorBrush x:Key="IconMutedBrush" Color="#7997CB" />
+
     <!-- Darkest palette tone, matching the app background previously defined as a literal hex value in
          App.xaml's Window style. Named so individual regions (e.g. the root DockPanel in MainWindow.xaml)
          can set it explicitly rather than relying on a transparent background and the parent Window's

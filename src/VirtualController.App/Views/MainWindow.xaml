@@ -101,20 +101,13 @@
                     <StackPanel Orientation="Horizontal" Height="{StaticResource HeaderActionButtonHeight}">
                             <!-- Placeholder icons (Segoe MDL2 Assets) before each button label, based on the
                                 icon design in assets/layout-mapping.html; replace these with custom assets later. -->
-                        <Button Command="{Binding RefreshDevicesCommand}" Margin="4,0" Padding="8,4">
-                                <Button.Background>
-        <LinearGradientBrush StartPoint="0,0" EndPoint="1,0">
-            <GradientStop Color="#0078D4" Offset="0"/>
-            <GradientStop Color="#00A4EF" Offset="1"/>
-        </LinearGradientBrush>
-    </Button.Background>
-
+                        <Button Command="{Binding RefreshDevicesCommand}" Style="{StaticResource PrimaryButtonStyle}" Margin="4,0">
                             <StackPanel Orientation="Horizontal">
                                 <TextBlock Text="&#xE72C;" FontFamily="Segoe MDL2 Assets" Margin="0,0,6,0" VerticalAlignment="Center" />
                                 <TextBlock Text="{loc:Loc header.refresh_devices}" VerticalAlignment="Center" />
                             </StackPanel>
                         </Button>
-                        <Button Command="{Binding LoadProfilesCommand}" Margin="4,0" Padding="8,4">
+                        <Button Command="{Binding LoadProfilesCommand}" Margin="4,0">
                             <StackPanel Orientation="Horizontal">
                                 <TextBlock Text="&#xE8B7;" FontFamily="Segoe MDL2 Assets" Margin="0,0,6,0" VerticalAlignment="Center" />
                                 <TextBlock Text="{loc:Loc header.load_profiles}" VerticalAlignment="Center" />
@@ -122,10 +115,10 @@
                         </Button>
                         <StackPanel Orientation="Horizontal" Margin="12,0,4,0"
                                     Visibility="{Binding HasUnsavedChanges, Converter={StaticResource BoolToVisibilityConverter}}">
-                            <TextBlock Text="&#xE7BA;" FontFamily="Segoe MDL2 Assets" Foreground="#C00000" Margin="0,0,6,0" VerticalAlignment="Center" />
-                            <TextBlock Text="{loc:Loc header.unsaved_changes}" Foreground="#C00000" FontWeight="Bold" VerticalAlignment="Center" />
+                            <TextBlock Text="&#xE7BA;" FontFamily="Segoe MDL2 Assets" Foreground="{StaticResource WarningBadgeBrush}" Margin="0,0,6,0" VerticalAlignment="Center" />
+                            <TextBlock Text="{loc:Loc header.unsaved_changes}" Foreground="{StaticResource WarningBadgeBrush}" FontWeight="Bold" VerticalAlignment="Center" />
                         </StackPanel>
-                        <Button Command="{Binding SaveProfilesCommand}" Margin="4,0" Padding="8,4"
+                        <Button Command="{Binding SaveProfilesCommand}" Margin="4,0"
                                 Foreground="{Binding HasUnsavedChanges, Converter={StaticResource BoolToUnsavedForegroundConverter}}"
                                 FontWeight="{Binding HasUnsavedChanges, Converter={StaticResource BoolToFontWeightConverter}}">
                             <StackPanel Orientation="Horizontal">
@@ -133,7 +126,7 @@
                                 <TextBlock Text="{loc:Loc header.save_profiles}" VerticalAlignment="Center" />
                             </StackPanel>
                         </Button>
-                        <Button Command="{Binding OpenWindowsGameControllersCommand}" Margin="4,0" Padding="8,4"
+                        <Button Command="{Binding OpenWindowsGameControllersCommand}" Margin="4,0"
                                 ToolTip="{loc:Loc header.gamecontrollers_tooltip}">
                             <StackPanel Orientation="Horizontal">
                                 <TextBlock Text="&#xE975;" FontFamily="Segoe MDL2 Assets" Margin="0,0,6,0" VerticalAlignment="Center" />
@@ -157,7 +150,7 @@
                     <!-- Left column: virtual controller list -->
                     <Border DockPanel.Dock="Left" Width="260" BorderBrush="{StaticResource PanelBorderBrush}" BorderThickness="0,0,1,0">
                         <DockPanel>
-                            <Button DockPanel.Dock="Top" Margin="8" Padding="6" Command="{Binding AddControllerCommand}">
+                            <Button DockPanel.Dock="Top" Margin="8" Padding="6" Command="{Binding AddControllerCommand}" Style="{StaticResource PrimaryButtonStyle}">
                                 <StackPanel Orientation="Horizontal">
                                     <TextBlock Text="&#xE710;" FontFamily="Segoe MDL2 Assets" Margin="0,0,6,0" VerticalAlignment="Center" />
                                     <TextBlock Text="{loc:Loc mapping.new_controller}" VerticalAlignment="Center" />
@@ -259,19 +252,13 @@
 
                                     <TextBlock Text="{Binding StatusText}" Margin="20,0,0,0" VerticalAlignment="Center" FontWeight="Bold" />
 
-                                    <Button Command="{Binding StartCommand}" Margin="16,0,4,0" Padding="24,12">
-                                            <Button.Background>
-                                                <LinearGradientBrush StartPoint="0,0" EndPoint="1,0">
-                                                    <GradientStop Color="#01adff" Offset="0"/>
-                                                    <GradientStop Color="#0ae3f8" Offset="1"/>
-                                                </LinearGradientBrush>
-                                            </Button.Background>
+                                    <Button Command="{Binding StartCommand}" Margin="16,0,4,0" Style="{StaticResource SuccessButtonStyle}">
                                         <StackPanel Orientation="Horizontal">
                                             <TextBlock Text="&#xE768;" FontFamily="Segoe MDL2 Assets" Margin="0,0,6,0" VerticalAlignment="Center" />
                                             <TextBlock Text="{loc:Loc mapping.start}" VerticalAlignment="Center"/>
                                         </StackPanel>
                                     </Button>
-                                    <Button Command="{Binding StopCommand}" Margin="12,0" Padding="24,12">
+                                    <Button Command="{Binding StopCommand}" Margin="12,0" Style="{StaticResource DangerButtonStyle}">
                                         <StackPanel Orientation="Horizontal">
                                             <TextBlock Text="&#xE71A;" FontFamily="Segoe MDL2 Assets" Margin="0,0,6,0" VerticalAlignment="Center" />
                                             <TextBlock Text="{loc:Loc mapping.stop}" VerticalAlignment="Center" />
@@ -289,7 +276,7 @@
                                               IsEnabled="{Binding DataContext.IsHidHideAvailable, RelativeSource={RelativeSource AncestorType=Window}}"
                                               ToolTip="{loc:Loc mapping.hidhide_tooltip}" />
 
-                                    <Button Command="{Binding RemoveCommand}" Margin="16,0,0,0" Padding="10,4">
+                                    <Button Command="{Binding RemoveCommand}" Margin="16,0,0,0" Style="{StaticResource DangerButtonStyle}">
                                         <StackPanel Orientation="Horizontal">
                                             <TextBlock Text="&#xE74D;" FontFamily="Segoe MDL2 Assets" Margin="0,0,6,0" VerticalAlignment="Center" />
                                             <TextBlock Text="{loc:Loc mapping.remove}" VerticalAlignment="Center" />
@@ -304,7 +291,7 @@
                                     <CheckBox Content="{loc:Loc mapping.auto_start}" VerticalAlignment="Center"
                                               IsChecked="{Binding AutoStartEnabled}"
                                               ToolTip="{loc:Loc mapping.auto_start_tooltip}" />
-                                    <Button Command="{Binding ChooseAutoStartExecutableCommand}" Margin="16,0,4,0" Padding="10,4">
+                                    <Button Command="{Binding ChooseAutoStartExecutableCommand}" Margin="16,0,4,0">
                                         <StackPanel Orientation="Horizontal">
                                             <TextBlock Text="&#xE8E5;" FontFamily="Segoe MDL2 Assets" Margin="0,0,6,0" VerticalAlignment="Center" />
                                             <TextBlock Text="{loc:Loc mapping.choose_program}" VerticalAlignment="Center" />
@@ -335,13 +322,13 @@
                                       because it applies to the whole controller, not to an individual mode. -->
                                 <StackPanel Orientation="Horizontal" Margin="16,0,0,0"
                                             Visibility="{Binding ModeSwitchMechanism, Converter={StaticResource EnumEqualsVisibilityConverter}, ConverterParameter=Toggle}">
-                                    <Button Command="{Binding CaptureToggleTriggerCommand}" Padding="6,2" Margin="0,0,6,0">
+                                    <Button Command="{Binding CaptureToggleTriggerCommand}" Style="{StaticResource IconButtonStyle}" Margin="0,0,6,0">
                                         <StackPanel Orientation="Horizontal">
                                             <TextBlock Text="&#xE70F;" FontFamily="Segoe MDL2 Assets" Margin="0,0,4,0" VerticalAlignment="Center" />
                                             <TextBlock Text="{loc:Loc mapping.capture}" VerticalAlignment="Center" />
                                         </StackPanel>
                                     </Button>
-                                    <Button Click="OnAssignToggleTriggerClicked" Padding="6,2" Margin="0,0,6,0"
+                                    <Button Click="OnAssignToggleTriggerClicked" Style="{StaticResource IconButtonStyle}" Margin="0,0,6,0"
                                             ToolTip="{loc:Loc mapping.assign_tooltip}">
                                         <StackPanel Orientation="Horizontal">
                                             <TextBlock Text="&#xE71B;" FontFamily="Segoe MDL2 Assets" Margin="0,0,4,0" VerticalAlignment="Center" />
@@ -416,13 +403,13 @@
                                                     <!-- Only used with the switch mechanism: this mode's individual trigger. -->
                                                     <StackPanel Orientation="Horizontal" Margin="8,0,0,0"
                                                                 Visibility="{Binding DataContext.ModeSwitchMechanism, ElementName=ControllerDetailGrid, Converter={StaticResource EnumEqualsVisibilityConverter}, ConverterParameter=Switch}">
-                                                        <Button Command="{Binding CaptureSwitchTriggerCommand}" Padding="6,2" Margin="0,0,6,0">
+                                                        <Button Command="{Binding CaptureSwitchTriggerCommand}" Style="{StaticResource IconButtonStyle}" Margin="0,0,6,0">
                                                             <StackPanel Orientation="Horizontal">
                                                                 <TextBlock Text="&#xE70F;" FontFamily="Segoe MDL2 Assets" Margin="0,0,4,0" VerticalAlignment="Center" />
                                                                 <TextBlock Text="{loc:Loc mapping.capture}" VerticalAlignment="Center" />
                                                             </StackPanel>
                                                         </Button>
-                                                        <Button Click="OnAssignSwitchTriggerClicked" Padding="6,2" Margin="0,0,6,0"
+                                                        <Button Click="OnAssignSwitchTriggerClicked" Style="{StaticResource IconButtonStyle}" Margin="0,0,6,0"
                                                                 ToolTip="{loc:Loc mapping.assign_tooltip}">
                                                             <StackPanel Orientation="Horizontal">
                                                                 <TextBlock Text="&#xE71B;" FontFamily="Segoe MDL2 Assets" Margin="0,0,4,0" VerticalAlignment="Center" />
@@ -437,7 +424,7 @@
                                                                    Visibility="{Binding SwitchTriggerValidationError, Converter={StaticResource BoolToVisibilityConverter}}" />
                                                     </StackPanel>
 
-                                                    <Button Command="{Binding RemoveCommand}" Padding="4,0" Margin="8,0,0,0"
+                                                    <Button Command="{Binding RemoveCommand}" Style="{StaticResource IconButtonStyle}" Margin="8,0,0,0"
                                                             ToolTip="{loc:Loc mapping.remove_mode_tooltip}">
                                                         <TextBlock Text="&#xE74D;" FontFamily="Segoe MDL2 Assets" />
                                                     </Button>
@@ -447,7 +434,7 @@
                                     </ListBox.ItemTemplate>
                                 </ListBox>
 
-                                <Button Command="{Binding AddModeCommand}" Padding="24,12" Margin="24,0,0,0" VerticalAlignment="Center">
+                                <Button Command="{Binding AddModeCommand}" Style="{StaticResource PrimaryButtonStyle}" Margin="24,0,0,0" VerticalAlignment="Center">
                                     <StackPanel Orientation="Horizontal">
                                         <TextBlock Text="&#xE710;" FontFamily="Segoe MDL2 Assets" Margin="0,0,12,0" VerticalAlignment="Center" />
                                         <TextBlock Text="{loc:Loc mapping.new_mode}" VerticalAlignment="Center" />
@@ -465,7 +452,7 @@
                             <!-- Left column: mapping table for the selected virtual controller -->
                             <DockPanel Grid.Column="0" Margin="0,0,12,0">
                                 <Button DockPanel.Dock="Top" HorizontalAlignment="Left"
-                                        Margin="0,0,0,8" Padding="6,4" Command="{Binding AddMappingCommand}">
+                                        Margin="0,0,0,8" Command="{Binding AddMappingCommand}" Style="{StaticResource PrimaryButtonStyle}">
                                     <StackPanel Orientation="Horizontal">
                                         <TextBlock Text="&#xE710;" FontFamily="Segoe MDL2 Assets" Margin="0,0,4,0" VerticalAlignment="Center" />
                                         <TextBlock Text="{loc:Loc mapping.add_row}" VerticalAlignment="Center" />
@@ -507,13 +494,13 @@
                                                     <DataGridTemplateColumn.CellTemplate>
                                                         <DataTemplate DataType="{x:Type vm:MappingRowViewModel}">
                                                             <StackPanel Orientation="Horizontal">
-                                                                <Button Command="{Binding CaptureCommand}" Padding="6,2" Margin="0,0,6,0">
+                                                                <Button Command="{Binding CaptureCommand}" Style="{StaticResource IconButtonStyle}" Margin="0,0,6,0">
                                                                     <StackPanel Orientation="Horizontal">
                                                                         <TextBlock Text="&#xE70F;" FontFamily="Segoe MDL2 Assets" Margin="0,0,4,0" VerticalAlignment="Center" />
                                                                         <TextBlock Text="{loc:Loc mapping.capture}" VerticalAlignment="Center" />
                                                                     </StackPanel>
                                                                 </Button>
-                                                                <Button Click="OnAssignInputClicked" Padding="6,2" Margin="0,0,6,0"
+                                                                <Button Click="OnAssignInputClicked" Style="{StaticResource IconButtonStyle}" Margin="0,0,6,0"
                                                                         ToolTip="{loc:Loc mapping.assign_tooltip}">
                                                                     <StackPanel Orientation="Horizontal">
                                                                         <TextBlock Text="&#xE71B;" FontFamily="Segoe MDL2 Assets" Margin="0,0,4,0" VerticalAlignment="Center" />
@@ -586,7 +573,7 @@
                                                 <DataGridTemplateColumn Header="" Width="90">
                                                     <DataGridTemplateColumn.CellTemplate>
                                                         <DataTemplate DataType="{x:Type vm:MappingRowViewModel}">
-                                                            <Button Command="{Binding RemoveCommand}" Padding="6,2">
+                                                            <Button Command="{Binding RemoveCommand}" Style="{StaticResource DangerButtonStyle}" Margin="0,0,0,0">
                                                                 <StackPanel Orientation="Horizontal">
                                                                     <TextBlock Text="&#xE74D;" FontFamily="Segoe MDL2 Assets" Margin="0,0,4,0" VerticalAlignment="Center" />
                                                                     <TextBlock Text="{loc:Loc mapping.remove}" VerticalAlignment="Center" />
@@ -628,13 +615,13 @@
                                                                 <DataGridTemplateColumn.CellTemplate>
                                                                     <DataTemplate DataType="{x:Type vm:MappingRowViewModel}">
                                                                         <StackPanel Orientation="Horizontal">
-                                                                            <Button Command="{Binding CaptureCommand}" Padding="6,2" Margin="0,0,6,0">
+                                                                            <Button Command="{Binding CaptureCommand}" Style="{StaticResource IconButtonStyle}" Margin="0,0,6,0">
                                                                                 <StackPanel Orientation="Horizontal">
                                                                                     <TextBlock Text="&#xE70F;" FontFamily="Segoe MDL2 Assets" Margin="0,0,4,0" VerticalAlignment="Center" />
                                                                                     <TextBlock Text="{loc:Loc mapping.capture}" VerticalAlignment="Center" />
                                                                                 </StackPanel>
                                                                             </Button>
-                                                                            <Button Click="OnAssignInputClicked" Padding="6,2" Margin="0,0,6,0"
+                                                                            <Button Click="OnAssignInputClicked" Style="{StaticResource IconButtonStyle}" Margin="0,0,6,0"
                                                                                     ToolTip="{loc:Loc mapping.assign_tooltip}">
                                                                                 <StackPanel Orientation="Horizontal">
                                                                                     <TextBlock Text="&#xE71B;" FontFamily="Segoe MDL2 Assets" Margin="0,0,4,0" VerticalAlignment="Center" />
@@ -707,7 +694,7 @@
                                                             <DataGridTemplateColumn Header="" Width="90">
                                                                 <DataGridTemplateColumn.CellTemplate>
                                                                     <DataTemplate DataType="{x:Type vm:MappingRowViewModel}">
-                                                                        <Button Command="{Binding RemoveCommand}" Padding="6,2">
+                                                                        <Button Command="{Binding RemoveCommand}" Style="{StaticResource DangerButtonStyle}">
                                                                             <StackPanel Orientation="Horizontal">
                                                                                 <TextBlock Text="&#xE74D;" FontFamily="Segoe MDL2 Assets" Margin="0,0,4,0" VerticalAlignment="Center" />
                                                                                 <TextBlock Text="{loc:Loc mapping.remove}" VerticalAlignment="Center" />
