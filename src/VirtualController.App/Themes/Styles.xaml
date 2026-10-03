@@ -49,7 +49,7 @@
             <Setter.Value>
                 <ControlTemplate TargetType="Button">
                     <Border x:Name="ButtonBorder" Background="{TemplateBinding Background}"
-                            BorderBrush="{TemplateBinding BorderBrush}" BorderThickness="1" CornerRadius="4">
+                            BorderBrush="{TemplateBinding BorderBrush}" BorderThickness="1" CornerRadius="0">
                         <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center"
                                           Margin="{TemplateBinding Padding}" />
                     </Border>
@@ -67,12 +67,12 @@
         </Setter>
     </Style>
 
-    <!-- Card style for panels and list items: dark background, subtle border, rounded corners, padding. -->
+    <!-- Card style for panels and list items: dark background, subtle border, sharp corners, padding. -->
     <Style x:Key="CardBorderStyle" TargetType="Border">
         <Setter Property="Background" Value="{StaticResource CardBackgroundBrush}" />
         <Setter Property="BorderBrush" Value="{StaticResource CardBorderBrush}" />
         <Setter Property="BorderThickness" Value="1" />
-        <Setter Property="CornerRadius" Value="8" />
+        <Setter Property="CornerRadius" Value="0" />
         <Setter Property="Padding" Value="12" />
         <Setter Property="Margin" Value="0,0,0,8" />
     </Style>
@@ -82,7 +82,7 @@
         <Setter Property="Background" Value="{StaticResource CardSelectedBackgroundBrush}" />
         <Setter Property="BorderBrush" Value="{StaticResource CardSelectedBorderBrush}" />
         <Setter Property="BorderThickness" Value="2" />
-        <Setter Property="CornerRadius" Value="8" />
+        <Setter Property="CornerRadius" Value="0" />
         <Setter Property="Padding" Value="12" />
         <Setter Property="Margin" Value="0,0,0,8" />
     </Style>
@@ -97,7 +97,7 @@
                     <Border x:Name="TabItemBorder"
                             Background="{StaticResource PanelBackgroundBrush}"
                             BorderBrush="{StaticResource PanelBorderBrush}"
-                            BorderThickness="1,1,1,0" CornerRadius="6,6,0,0" Padding="14,8">
+                            BorderThickness="1,1,1,0" CornerRadius="0" Padding="14,8">
                         <StackPanel Orientation="Horizontal">
                             <TextBlock x:Name="TabIcon" FontFamily="Segoe MDL2 Assets" FontSize="14"
                                        VerticalAlignment="Center" Margin="0,0,8,0"
@@ -138,7 +138,7 @@
                             Background="{TemplateBinding Background}"
                             BorderBrush="{TemplateBinding BorderBrush}"
                             BorderThickness="{TemplateBinding BorderThickness}"
-                            CornerRadius="4">
+                            CornerRadius="0">
                         <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center"
                                           Margin="{TemplateBinding Padding}" />
                     </Border>
@@ -258,7 +258,7 @@
                                             Background="{TemplateBinding Background}"
                                             BorderBrush="{TemplateBinding BorderBrush}"
                                             BorderThickness="{TemplateBinding BorderThickness}"
-                                            CornerRadius="4">
+                                            CornerRadius="0">
                                         <Grid>
                                             <Grid.ColumnDefinitions>
                                                 <ColumnDefinition Width="*" />
@@ -297,7 +297,7 @@
                                AllowsTransparency="True" Focusable="False" PopupAnimation="Fade">
                             <Border Background="{StaticResource PanelBackgroundBrush}"
                                     BorderBrush="{StaticResource PanelBorderBrush}"
-                                    BorderThickness="1" CornerRadius="4"
+                                    BorderThickness="1" CornerRadius="0"
                                     MinWidth="{TemplateBinding ActualWidth}"
                                     MaxHeight="{TemplateBinding MaxDropDownHeight}">
                                 <ScrollViewer SnapsToDevicePixels="True">
@@ -349,7 +349,7 @@
                         <Border x:Name="CheckBoxBorder" Width="16" Height="16" VerticalAlignment="Center"
                                 Background="{StaticResource PanelBackgroundBrush}"
                                 BorderBrush="{StaticResource PanelBorderBrush}"
-                                BorderThickness="1" CornerRadius="3">
+                                BorderThickness="1" CornerRadius="0">
                             <TextBlock x:Name="CheckGlyph" Text="&#xE73E;" FontFamily="Segoe MDL2 Assets"
                                        FontSize="11" Foreground="{StaticResource AccentBrush}"
                                        HorizontalAlignment="Center" VerticalAlignment="Center"
@@ -388,21 +388,25 @@
         <Setter Property="GridLinesVisibility" Value="Horizontal" />
         <Setter Property="HorizontalGridLinesBrush" Value="{StaticResource PanelBorderBrush}" />
         <Setter Property="HeadersVisibility" Value="Column" />
+        <Setter Property="RowHeight" Value="36" />
+        <Setter Property="ColumnHeaderHeight" Value="36" />
     </Style>
 
     <Style TargetType="DataGridColumnHeader">
-        <Setter Property="Background" Value="{StaticResource PanelBackgroundBrush}" />
+        <Setter Property="Background" Value="{StaticResource CardBackgroundBrush}" />
         <Setter Property="Foreground" Value="{StaticResource MutedTextBrush}" />
         <Setter Property="BorderBrush" Value="{StaticResource PanelBorderBrush}" />
         <Setter Property="BorderThickness" Value="0,0,1,1" />
-        <Setter Property="Padding" Value="6,4" />
+        <Setter Property="Padding" Value="12,8" />
         <Setter Property="FontWeight" Value="Bold" />
+        <Setter Property="FontSize" Value="11" />
     </Style>
 
         <!-- Fallback default only. Some DataGrids in MainWindow.xaml define an inline RowStyle (e.g. highlighting
             IsSourceActive) that intentionally overrides this implicit background setter. -->
     <Style TargetType="DataGridRow">
         <Setter Property="Background" Value="{StaticResource PanelBackgroundBrush}" />
+        <Setter Property="MinHeight" Value="36" />
         <Style.Triggers>
             <Trigger Property="IsMouseOver" Value="True">
                 <Setter Property="Background" Value="{StaticResource ButtonHoverBrush}" />
@@ -415,8 +419,9 @@
         <Setter Property="Foreground" Value="{StaticResource TextBrush}" />
         <Setter Property="BorderBrush" Value="{StaticResource PanelBorderBrush}" />
         <Setter Property="BorderThickness" Value="0,0,0,1" />
-        <Setter Property="Padding" Value="6,4" />
+        <Setter Property="Padding" Value="12,8" />
         <Setter Property="FocusVisualStyle" Value="{x:Null}" />
+        <Setter Property="VerticalContentAlignment" Value="Center" />
         <Style.Triggers>
             <Trigger Property="IsSelected" Value="True">
                 <Setter Property="Background" Value="{StaticResource ButtonPressedBrush}" />
@@ -470,7 +475,7 @@
                     <Border x:Name="TabItemBorder"
                             Background="{StaticResource PanelBackgroundBrush}"
                             BorderBrush="{StaticResource PanelBorderBrush}"
-                            BorderThickness="1,1,1,0" CornerRadius="6,6,0,0" Padding="14,8">
+                            BorderThickness="1,1,1,0" CornerRadius="0" Padding="14,8">
                         <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center"
                                           ContentSource="Header" />
                     </Border>
@@ -632,12 +637,12 @@
             <Setter.Value>
                 <ControlTemplate TargetType="ProgressBar">
                     <Border Background="{TemplateBinding Background}" BorderBrush="{TemplateBinding BorderBrush}"
-                            BorderThickness="{TemplateBinding BorderThickness}" CornerRadius="4" ClipToBounds="True">
+                            BorderThickness="{TemplateBinding BorderThickness}" CornerRadius="0" ClipToBounds="True">
                             <!-- PART_Track is required for ProgressBar to determine available width and calculate
                                 PART_Indicator width; without it, the fill remains at zero width. -->
                         <Border x:Name="PART_Track" Background="Transparent">
                             <Rectangle x:Name="PART_Indicator" HorizontalAlignment="Left"
-                                       Fill="{StaticResource AccentGradientBrush}" RadiusX="3" RadiusY="3" />
+                                       Fill="{StaticResource AccentGradientBrush}" RadiusX="0" RadiusY="0" />
                         </Border>
                     </Border>
                     <ControlTemplate.Triggers>
@@ -673,7 +678,7 @@
         <Setter Property="Template">
             <Setter.Value>
                 <ControlTemplate TargetType="Thumb">
-                    <Border x:Name="ThumbBorder" Background="{StaticResource PanelBorderBrush}" CornerRadius="3" />
+                    <Border x:Name="ThumbBorder" Background="{StaticResource PanelBorderBrush}" CornerRadius="0" />
                     <ControlTemplate.Triggers>
                         <Trigger Property="IsMouseOver" Value="True">
                             <Setter TargetName="ThumbBorder" Property="Background" Value="{StaticResource AccentBrush}" />
@@ -744,7 +749,7 @@
             <Setter.Value>
                 <ControlTemplate TargetType="ToolTip">
                     <Border Background="{StaticResource PanelBackgroundBrush}" BorderBrush="{StaticResource AccentBrush}"
-                            BorderThickness="1" CornerRadius="4" Padding="8,5">
+                            BorderThickness="1" CornerRadius="0" Padding="8,5">
                         <ContentPresenter>
                             <ContentPresenter.ContentTemplate>
                                 <DataTemplate>
