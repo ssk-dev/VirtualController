@@ -3,11 +3,9 @@ using Vortice.DirectInput;
 namespace VirtualController.Core.Devices;
 
 /// <summary>
-/// Isoliert die Erzeugung des DirectInput-COM-Wurzelobjekts an einer einzigen Stelle.
-/// Verifiziert gegen Vortice.DirectInput 3.2.0: <see cref="IDirectInput8"/> besitzt keinen
-/// oeffentlichen parameterlosen Konstruktor (nur einen internen fuer das COM-Marshalling).
-/// Die korrekte Erzeugung erfolgt ueber die statische Factory-Methode
-/// <see cref="DInput.DirectInput8Create()"/>.
+/// Centralizes creation of the DirectInput COM root object. Verified against Vortice.DirectInput 3.2.0:
+/// <see cref="IDirectInput8"/> has no public parameterless constructor (only an internal one for COM marshaling).
+/// Create instances through the static factory method <see cref="DInput.DirectInput8Create()"/>.
 /// </summary>
 internal static class DirectInputFactory
 {

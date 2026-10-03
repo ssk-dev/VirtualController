@@ -2,16 +2,15 @@
                     xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
                     xmlns:conv="clr-namespace:VirtualController.App.Converters">
 
-    <!-- Gemeinsame Value-Converter der Anwendung. Ausgelagert aus App.xaml in eine eigenstaendige,
-         per Source= referenzierbare ResourceDictionary, damit sowohl App.xaml (fuer MainWindow.xaml)
-         als auch DeviceConfigTemplates.xaml (fuer den "Gerätekonfiguration"-Tab) dieselben Converter
-         nutzen koennen. Grund: StaticResource-Referenzen innerhalb von DataTemplates werden beim
-         Kompilieren der jeweiligen XAML-Datei im Scope dieser Datei selbst (+ ihrer eigenen
-         MergedDictionaries) aufgeloest - NICHT im Scope einer uebergeordneten Datei, die sie per
-         MergedDictionaries einbindet. Waeren die Converter (wie zuvor) ausschliesslich in App.xaml
-         definiert, wuerden alle {StaticResource ...}-Verweise innerhalb der in DeviceConfigTemplates.xaml
-         definierten Templates zur Laufzeit beim ersten Rendern (z.B. erster Klick auf den
-         "Gerätekonfiguration"-Tab) mit einer XamlParseException fehlschlagen. -->
+    <!-- Shared application value converters, moved from App.xaml into a standalone,
+         source-referenceable ResourceDictionary so both App.xaml (for MainWindow.xaml)
+         and DeviceConfigTemplates.xaml (for the "Device Configuration" tab) can use them.
+         StaticResource references inside DataTemplates are resolved at compile time in the scope
+         of the XAML file that defines the template, plus its own MergedDictionaries, not in the
+         scope of a parent file that merges it. If the converters were defined only in App.xaml,
+         as before, every {StaticResource ...} reference in templates defined in
+         DeviceConfigTemplates.xaml would fail at runtime with a XamlParseException when first
+         rendered (for example, when the "Device Configuration" tab is opened). -->
     <conv:BoolToStatusBrushConverter x:Key="BoolToStatusBrushConverter" />
     <conv:BoolToVisibilityConverter x:Key="BoolToVisibilityConverter" />
     <conv:InverseBoolConverter x:Key="InverseBoolConverter" />
@@ -22,8 +21,5 @@
     <conv:BoolToFontWeightConverter x:Key="BoolToFontWeightConverter" />
     <conv:FractionToStarGridLengthConverter x:Key="FractionToStarGridLengthConverter" />
     <conv:CountToVisibilityConverter x:Key="CountToVisibilityConverter" />
-    <conv:BoolToLogButtonTextConverter x:Key="BoolToLogButtonTextConverter" />
-    <conv:BoolToBenchmarkButtonTextConverter x:Key="BoolToBenchmarkButtonTextConverter" />
-    <conv:BoolToDriverSubtextConverter x:Key="BoolToDriverSubtextConverter" />
 
 </ResourceDictionary>

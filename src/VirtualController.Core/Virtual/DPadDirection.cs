@@ -1,6 +1,6 @@
 namespace VirtualController.Core.Virtual;
 
-/// <summary>8-Wege-Richtung des D-Pads (Kreuz).</summary>
+/// <summary>Eight-way D-pad direction.</summary>
 public enum DPadDirection
 {
     None,
@@ -21,7 +21,7 @@ public static class DPadDirectionExtensions
     public static bool HasLeft(this DPadDirection d) => d is DPadDirection.Left or DPadDirection.UpLeft or DPadDirection.DownLeft;
     public static bool HasRight(this DPadDirection d) => d is DPadDirection.Right or DPadDirection.UpRight or DPadDirection.DownRight;
 
-    /// <summary>Baut eine Richtung aus vier unabhaengigen Digital-Flags (z.B. vier gemappten Buttons).</summary>
+    /// <summary>Combines four independent digital flags (e.g. four mapped buttons) into a direction.</summary>
     public static DPadDirection FromFlags(bool up, bool down, bool left, bool right)
     {
         if (up && right) return DPadDirection.UpRight;
@@ -35,9 +35,9 @@ public static class DPadDirectionExtensions
         return DPadDirection.None;
     }
 
-    /// <summary>Wandelt einen rohen DirectInput-POV-Winkel (Hundertstel-Grad, 0 = oben, im Uhrzeigersinn, -1 = zentriert)
-    /// in eine Richtung um. Wird von allen Stellen genutzt, die ein einzelnes POV-Element als 4-Wege-Kreuz
-    /// (vier separate Digital-Eingaben) behandeln, damit ueberall exakt dieselben Winkel-Grenzen gelten.</summary>
+    /// <summary>Converts a raw DirectInput POV angle (hundredths of a degree, 0 = up, clockwise, -1 = centered)
+    /// into a direction. Shared by all code treating one POV element as four digital directions so angle
+    /// boundaries remain consistent.</summary>
     public static DPadDirection FromPovDegrees(int povDegrees)
     {
         if (povDegrees < 0) return DPadDirection.None;

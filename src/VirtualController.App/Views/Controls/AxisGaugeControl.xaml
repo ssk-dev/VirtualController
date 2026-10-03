@@ -8,11 +8,10 @@
              d:DataContext="{d:DesignInstance Type=vm:AxisVisualizationViewModel, IsDesignTimeCreatable=False}"
              d:DesignWidth="160">
     <!--
-        Generische, nicht editierbare Live-Anzeige einer einzelnen physischen Achse als horizontaler
-        Balken/Slider (siehe Anforderung "Grafische Darstellung der Controller-Eingaben"). Der
-        DataContext ist stets ein AxisVisualizationViewModel; alle Positionen (Marker, Deadzone-Band)
-        werden ausschliesslich ueber Grid-Star-Spalten (FractionToStarGridLengthConverter) relativ zur
-        tatsaechlichen Breite berechnet - es findet keine eigene Pixel-Arithmetik oder Wertelogik statt.
+        Generic, read-only live display of one physical axis as a horizontal bar/slider. The DataContext is
+        always an AxisVisualizationViewModel. All positions (marker and deadzone band) are calculated relative
+        to the actual width only through Grid star columns (FractionToStarGridLengthConverter); there is no
+        custom pixel arithmetic or value logic.
     -->
     <StackPanel Margin="0,2,0,4">
         <Grid Margin="0,0,0,2">
@@ -26,7 +25,7 @@
 
         <Border Height="20" CornerRadius="3" Background="Transparent" BorderBrush="{StaticResource PanelBorderBrush}" BorderThickness="1" ClipToBounds="True">
             <Grid>
-                <!-- Deadzone-Band: zentraler Bereich, dessen Breite proportional zum konfigurierten Deadzone-Wert waechst. -->
+                <!-- Deadzone band: centered region whose width is proportional to the configured deadzone. -->
                 <Grid>
                     <Grid.ColumnDefinitions>
                         <ColumnDefinition Width="{Binding DeadzoneStartFraction, Converter={StaticResource FractionToStarGridLengthConverter}}" />
@@ -39,8 +38,8 @@
                         <Border.Style>
                             <Style TargetType="Border">
                                 <Style.Triggers>
-                                    <!-- Feuert nur beim UEBERGANG von "innerhalb" nach "ausserhalb" (EnterActions),
-                                         nicht dauerhaft solange der Zustand bestehen bleibt -> kein Flackern. -->
+                                     <!-- Fires only on the transition from inside to outside (EnterActions), not
+                                         continuously while the state persists, avoiding flicker. -->
                                     <DataTrigger Binding="{Binding IsOutsideDeadzone}" Value="True">
                                         <DataTrigger.EnterActions>
                                             <BeginStoryboard>
@@ -59,11 +58,11 @@
                     </Border>
                 </Grid>
 
-                <!-- Nullpunkt-Markierung, nur fuer bidirektionale (zentrierte) Achsen sinnvoll. -->
+                <!-- Center marker, meaningful only for bidirectional (centered) axes. -->
                 <Rectangle Width="1" Fill="{StaticResource MutedTextBrush}"
                            Visibility="{Binding IsBidirectional, Converter={StaticResource BoolToVisibilityConverter}}" />
 
-                <!-- Aktueller Wert als schmaler, gut sichtbarer Balken/Marker. -->
+                <!-- Current value as a narrow, visible bar/marker. -->
                 <Grid>
                     <Grid.ColumnDefinitions>
                         <ColumnDefinition Width="{Binding MarkerFraction, Converter={StaticResource FractionToStarGridLengthConverter}}" />

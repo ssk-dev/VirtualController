@@ -1,33 +1,34 @@
 <Window x:Class="VirtualController.App.Views.AssignInputDialog"
         xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
-        Title="Physische Eingabe zuweisen" Height="480" Width="440"
+        xmlns:loc="clr-namespace:VirtualController.App.Localization"
+        Title="{loc:Loc assign.title}" Height="480" Width="440"
         Icon="pack://application:,,,/Icons/VirtualController.ico"
         WindowStartupLocation="CenterOwner"
         ShowInTaskbar="False">
 
     <DockPanel Margin="10">
-        <!-- Live-Suchfeld: filtert die Liste bei jedem Tastendruck (siehe
-             AssignInputDialogViewModel.OnSearchTextChanged -> View.Refresh()), sowohl gegen den
-             Anzeigenamen der Eingabe als auch gegen den Geraetenamen. -->
+           <!-- Live search filters the list as the user types (see
+               AssignInputDialogViewModel.OnSearchTextChanged -> View.Refresh()), matching both the input
+               display name and the device name. -->
         <TextBox DockPanel.Dock="Top" Margin="0,0,0,8" Padding="4"
                  Text="{Binding SearchText, UpdateSourceTrigger=PropertyChanged}"
-                 ToolTip="Suche nach Eingabe- oder Geraetename" />
+                 ToolTip="{loc:Loc assign.search_tooltip}" />
 
         <StackPanel DockPanel.Dock="Bottom" Orientation="Horizontal" HorizontalAlignment="Right" Margin="0,8,0,0">
-            <Button Content="OK" Command="{Binding ConfirmCommand}" IsDefault="True" Width="80" Padding="4" Margin="0,0,6,0" />
-            <Button Content="Abbrechen" Command="{Binding CancelCommand}" IsCancel="True" Width="80" Padding="4" />
+            <Button Content="{loc:Loc common.ok}" Command="{Binding ConfirmCommand}" IsDefault="True" Width="80" Padding="4" Margin="0,0,6,0" />
+            <Button Content="{loc:Loc common.cancel}" Command="{Binding CancelCommand}" IsCancel="True" Width="80" Padding="4" />
         </StackPanel>
 
-        <!-- Tabellarische Darstellung statt reiner Namensliste: das verbundene Geraet steht direkt in
-             jeder Zeile (Spalte "Geraet"), statt nur ueber einen separaten Gruppenkopf sichtbar zu sein -
-             dadurch bleibt die Zuordnung Eingabe->Geraet auch beim Scrollen/Filtern immer erkennbar. -->
+           <!-- Use a table rather than a plain name list. Show the connected device directly in each row
+               ("Device" column) instead of only in a separate group header, so the input-to-device
+               relationship remains clear while scrolling or filtering. -->
         <ListView ItemsSource="{Binding View}" SelectedItem="{Binding SelectedInput}"
                   MouseDoubleClick="OnListViewDoubleClick">
             <ListView.View>
                 <GridView>
-                    <GridViewColumn Header="Geraet" Width="160" DisplayMemberBinding="{Binding DeviceDisplayName}" />
-                    <GridViewColumn Header="Eingabe" Width="220" DisplayMemberBinding="{Binding Label}" />
+                    <GridViewColumn Header="{loc:Loc assign.col_device}" Width="160" DisplayMemberBinding="{Binding DeviceDisplayName}" />
+                    <GridViewColumn Header="{loc:Loc assign.col_input}" Width="220" DisplayMemberBinding="{Binding Label}" />
                 </GridView>
             </ListView.View>
         </ListView>

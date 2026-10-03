@@ -5,14 +5,12 @@ using System.Text;
 namespace VirtualController.App.Diagnostics;
 
 /// <summary>
-/// Sehr einfaches, robustes Datei-Logging fuer die gezielte Fehlersuche des "Ziel-Typ/Ziel-Wert
-/// springt in einer anderen Zeile auf einen falschen Wert"-Bugs: schreibt zeitgestempelte Zeilen
-/// sofort (kein Buffering, kein async) in eine Log-Datei unter %AppData%\VirtualController\debug.log.
-/// Nach einer Reproduktion in der UI kann die Datei eingesehen werden, um die exakte Abfolge aller
-/// relevanten ViewModel-Aenderungen nachzuvollziehen (welche Mapping-Zeile hat wann welchen Wert
-/// gesetzt/empfangen). Bewusst als simple statische Klasse ohne Dependency Injection, damit sie an
-/// jeder beliebigen Stelle im Code ohne Konstruktor-Aenderungen genutzt werden kann. Fehler beim
-/// Schreiben werden verschluckt - Logging darf die Anwendung niemals zum Absturz bringen.
+/// Minimal, robust file logging for diagnosing target type/value changes appearing on the wrong mapping row.
+/// Writes timestamped lines immediately (no buffering or async) to %AppData%\VirtualController\debug.log.
+/// After reproducing an issue in the UI, inspect the file to trace relevant view-model changes and determine
+/// which mapping row set or received each value. Implemented as a simple static class without dependency
+/// injection so any code can use it without constructor changes. Write failures are swallowed; logging must
+/// never crash the application.
 /// </summary>
 public static class DebugLog
 {
@@ -22,7 +20,7 @@ public static class DebugLog
 
     private static readonly object Lock = new();
 
-    /// <summary>Schreibt eine neue Zeile mit Zeitstempel und Thread-Id an das Ende der Log-Datei.</summary>
+    /// <summary>Appends a new line with a timestamp and thread ID to the log file.</summary>
     public static void Write(string message)
     {
         try
@@ -43,11 +41,11 @@ public static class DebugLog
         }
         catch
         {
-            // Logging darf die Anwendung niemals zum Absturz bringen.
+            // Logging must never crash the application.
         }
     }
 
-    /// <summary>Leert die Log-Datei und schreibt eine Trennzeile, z.B. beim Start einer neuen Diagnose-Sitzung.</summary>
+    /// <summary>Clears the log file and writes a separator, e.g. when starting a new diagnostic session.</summary>
     public static void Reset(string sessionLabel)
     {
         try
@@ -65,7 +63,7 @@ public static class DebugLog
         }
         catch
         {
-            // Logging darf die Anwendung niemals zum Absturz bringen.
+            // Logging must never crash the application.
         }
     }
 }

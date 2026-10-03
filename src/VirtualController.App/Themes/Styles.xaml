@@ -2,23 +2,17 @@
                     xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
                     xmlns:sys="clr-namespace:System;assembly=mscorlib">
 
-    <!-- Globale Basis-Styles fuer Standard-WPF-Controls, um den nativen Windows-Look durch die dunkle
-         "Virtual Controller"-Optik (siehe Theme.xaml fuer die Farbpalette) zu ersetzen. Als implizite
-         Styles (kein x:Key) definiert, damit sie automatisch fuer jedes Control dieses Typs in der
-         gesamten Anwendung gelten, ohne dass jedes einzelne XAML dafuer angepasst werden muss. Umfasst
-         Button, TextBox, ComboBox und CheckBox (Schritt 1 der Redesign-Teilschritte) - weitere Controls
-         (DataGrid, ...) folgen in separaten, einzeln testbaren Schritten. -->
+        <!-- Global base styles replace the native Windows appearance of standard WPF controls with the dark
+            "Virtual Controller" design (see Theme.xaml for the palette). Implicit styles (no x:Key) apply to
+            every control of each type across the application without requiring individual XAML changes. -->
 
-    <!-- Einheitliche Hoehe der Aktions-Buttons in der Kopfzeile (siehe MainWindow.xaml, Button
-         "Geraete aktualisieren"/"Profile laden"/"Profile speichern"/"Windows Gamecontroller"). Als
-         benannte Konstante ausgelagert, damit andere Elemente (z.B. die vertikale Trennlinie zwischen
-         Logo und ViGEmBus-Status-Pille) dieselbe Hoehe referenzieren koennen, ohne sie zur Laufzeit per
-         ElementName-Binding von einem konkreten Button ablesen zu muessen. -->
+        <!-- Shared height for header action buttons (see MainWindow.xaml: Refresh devices, Load profiles, Save
+            profiles, and Windows Game Controllers). A named constant lets other elements, such as the divider
+            between the logo and ViGEmBus status pill, use the same height without binding to a specific button. -->
     <sys:Double x:Key="HeaderActionButtonHeight">40</sys:Double>
 
-    <!-- Button: dunkle Karten-Optik mit abgerundeten Ecken statt nativer Windows-Chrome. Hover hebt den
-         Rahmen/Hintergrund leicht an, IsPressed nutzt den Akzent-Farbverlauf als kurzes Klick-Feedback
-         (ersetzt den bisherigen, einfachen Background-Trigger in App.xaml). -->
+        <!-- Button: dark card appearance with rounded corners instead of native Windows chrome. Hover subtly
+            highlights the border/background; IsPressed uses the accent gradient for click feedback. -->
     <Style TargetType="Button">
         <Setter Property="Background" Value="{StaticResource PanelBackgroundBrush}" />
         <Setter Property="BorderBrush" Value="{StaticResource PanelBorderBrush}" />
@@ -55,12 +49,9 @@
         </Setter>
     </Style>
 
-    <!-- Titelleisten-Buttons (Minimieren/Maximieren/Schließen) der eigenen, dunklen Titelleiste (siehe
-         MainWindow.xaml): bewusst als eigene, gekeyte Styles (kein x:Key -> implizit auf ALLE Buttons)
-         statt den Standard-Button-Style zu ueberschreiben, da diese Buttons flach/randlos und quadratisch
-         sein sollen, waehrend normale Buttons in der Anwendung weiterhin die Karten-Optik mit Rahmen
-         behalten. TitleBarCloseButtonStyle nutzt zusaetzlich einen roten Hover-Hintergrund, analog zur
-         etablierten Windows-Konvention fuer den Schliessen-Button. -->
+        <!-- Custom dark title bar controls (minimize/maximize/close; see MainWindow.xaml) use keyed styles instead
+            of overriding the implicit button style. These buttons are flat, borderless squares while regular
+            buttons retain their card appearance. TitleBarCloseButtonStyle adds the conventional red close hover. -->
     <Style x:Key="TitleBarButtonStyle" TargetType="Button">
         <Setter Property="Background" Value="Transparent" />
         <Setter Property="Foreground" Value="{StaticResource TextBrush}" />
@@ -117,7 +108,7 @@
         </Setter>
     </Style>
 
-    <!-- TextBox: dunkles Eingabefeld passend zur Panel-Optik statt weissem Standard-Hintergrund. -->
+    <!-- TextBox: dark input field matching the panel appearance instead of the default white background. -->
     <Style TargetType="TextBox">
         <Setter Property="Background" Value="{StaticResource PanelBackgroundBrush}" />
         <Setter Property="BorderBrush" Value="{StaticResource PanelBorderBrush}" />
@@ -133,13 +124,10 @@
         </Style.Triggers>
     </Style>
 
-    <!-- ComboBox: vollstaendiges eigenes ControlTemplate statt nur Background/Foreground/BorderBrush-Setter,
-         da das native WPF-ComboBox-Template intern eine eigene, vom System-Theme vorgegebene
-         ToggleButton-Chrome und ein eigenes Popup zeichnet, die einfache Property-Setter ignorieren
-         (aehnliches Problem wie bei Button, das dort bereits per eigenem ControlTemplate geloest wurde).
-         Zeigt den ausgewaehlten Wert ueber SelectionBoxItem an und oeffnet bei IsDropDownOpen ein
-         dunkles Popup mit der Optionsliste (Styling der einzelnen Eintraege siehe ComboBoxItem-Style
-         unten). -->
+        <!-- ComboBox: uses a full custom ControlTemplate because the native WPF template draws its own
+            system-themed ToggleButton chrome and popup, ignoring simple background/foreground/border setters.
+            Displays the selected value through SelectionBoxItem and opens a dark options popup when
+            IsDropDownOpen is true (individual items are styled below). -->
     <Style TargetType="ComboBox">
         <Setter Property="Background" Value="{StaticResource PanelBackgroundBrush}" />
         <Setter Property="BorderBrush" Value="{StaticResource PanelBorderBrush}" />
@@ -212,8 +200,8 @@
         </Setter>
     </Style>
 
-    <!-- Eintraege innerhalb der geoeffneten ComboBox-Dropdownliste: heller Text auf dunklem Grund statt
-         nativem, dunklem Standardwert; Hover/Auswahl heben den Eintrag mit der Akzentfarbe hervor. -->
+        <!-- Items in an open ComboBox dropdown: light text on a dark background, with accent highlights on hover
+            and selection. -->
     <Style TargetType="ComboBoxItem">
         <Setter Property="Foreground" Value="{StaticResource TextBrush}" />
         <Setter Property="Background" Value="Transparent" />
@@ -237,11 +225,9 @@
         </Setter>
     </Style>
 
-    <!-- CheckBox: wie bei Button/ComboBox reicht ein einfacher Foreground/Background/BorderBrush-Setter
-         nicht aus, da die native WPF-CheckBox das Kaestchen selbst ueber eine vom System-Theme
-         vorgegebene Chrome zeichnet und diese Setter ignoriert (Kaestchen blieb dunkel/unlesbar). Eigenes
-         ControlTemplate mit einem 16x16 dunklen Kaestchen (Panel-Optik) und einem Haekchen-Glyph
-         (Segoe MDL2 Assets), das nur bei IsChecked==true sichtbar ist. -->
+        <!-- CheckBox: uses a custom ControlTemplate because native WPF chrome ignores simple foreground,
+            background, and border setters for the box itself. Provides a 16x16 dark box with a Segoe MDL2
+            checkmark glyph, visible only when IsChecked is true. -->
     <Style TargetType="CheckBox">
         <Setter Property="Foreground" Value="{StaticResource TextBrush}" />
         <Setter Property="Cursor" Value="Hand" />
@@ -277,12 +263,10 @@
         </Setter>
     </Style>
 
-    <!-- DataGrid, DataGridColumnHeader, DataGridRow, DataGridCell: die Mapping-Tabellen im "Mapping"-Tab
-         nutzten bisher weiterhin die native, helle WPF-Chrome (heller Spaltenkopf, weisser Zeilenhintergrund,
-         schwarze Gridlines), was auf dem neuen dunklen App-Hintergrund als deutlicher Kontrastbruch auffiel.
-         Im Gegensatz zu Button/ComboBox/CheckBox reichen hier einfache Property-Setter aus, da DataGrid seine
-         Bestandteile (Header, Zeilen, Zellen) ueber eigene, oben separat gestylte Sub-Controls zusammensetzt,
-         statt eine eigene geschlossene Chrome zu zeichnen. -->
+        <!-- DataGrid and its headers, rows, and cells use the dark palette instead of the native light WPF chrome
+            (bright headers, white rows, black grid lines), which contrasted sharply with the app background.
+            Simple property setters are sufficient because DataGrid composes separately styled sub-controls
+            instead of drawing a closed visual template. -->
     <Style TargetType="DataGrid">
         <Setter Property="Background" Value="{StaticResource PanelBackgroundBrush}" />
         <Setter Property="Foreground" Value="{StaticResource TextBrush}" />
@@ -304,9 +288,8 @@
         <Setter Property="FontWeight" Value="Bold" />
     </Style>
 
-    <!-- Nur der Fallback-Standardwert - einzelne DataGrids in MainWindow.xaml setzen teils einen eigenen,
-         inline RowStyle (z.B. Hervorhebung anhand von IsSourceActive), der diesen impliziten Background-
-         Setter dann gezielt ueberschreibt. -->
+        <!-- Fallback default only. Some DataGrids in MainWindow.xaml define an inline RowStyle (e.g. highlighting
+            IsSourceActive) that intentionally overrides this implicit background setter. -->
     <Style TargetType="DataGridRow">
         <Setter Property="Background" Value="{StaticResource PanelBackgroundBrush}" />
         <Style.Triggers>
@@ -331,25 +314,19 @@
         </Style.Triggers>
     </Style>
 
-    <!-- TabControl/TabItem: der TabControl selbst setzt in MainWindow.xaml bereits lokal
-         Background="Transparent", die einzelnen TabItems (Reiter-Kopfzeile) sowie deren umgebender
-         Content-Rahmen zeichneten bisher aber weiterhin die native, helle System-Theme-Chrome, was im
-         Screenshot deutlich als hellerer Bereich auffiel. Wie bei Button/ComboBox/CheckBox reicht hier
-         kein einfacher Property-Setter, da TabItem seine Kopfzeilen-Form selbst zeichnet - daher eigenes
-         ControlTemplate mit abgerundeten oberen Ecken im Panel-Look; der aktive Tab wird per
-         IsSelected-Trigger mit Akzent-Rahmen und hellerem Text hervorgehoben. -->
+        <!-- TabControl/TabItem: MainWindow.xaml sets the TabControl background to transparent, but native light
+            system chrome was still drawn for each tab header and the surrounding content border. As with other
+            controls, a custom template is needed because TabItem draws its own header shape. The template uses
+            rounded top corners and highlights the selected tab with an accent border and brighter text. -->
     <Style TargetType="TabControl">
         <Setter Property="Background" Value="Transparent" />
         <Setter Property="BorderBrush" Value="{StaticResource PanelBorderBrush}" />
         <Setter Property="BorderThickness" Value="0" />
         <Setter Property="Template">
             <Setter.Value>
-                <!-- Einfache Property-Setter allein reichen bei TabControl nicht aus: die native Chrome
-                     zeichnet den Inhaltsbereich (Content-Bereich unterhalb der Reiter-Kopfzeile) ueber
-                     einen eigenen, Theme-gebundenen Border, der Background/BorderBrush-Setter ignoriert -
-                     genau wie bei Button/ComboBox/CheckBox ist daher ein vollstaendiges eigenes
-                     ControlTemplate notwendig, damit auch der Inhaltsbereich tatsaechlich transparent
-                     (und damit dunkel, da der Window-Hintergrund durchscheint) bleibt. -->
+                 <!-- Simple property setters are insufficient: native chrome draws the content area through a
+                     theme-bound border that ignores Background/BorderBrush. A full custom template keeps the
+                     content area transparent so the dark window background shows through. -->
                 <ControlTemplate TargetType="TabControl">
                     <Grid KeyboardNavigation.TabNavigation="Local">
                         <Grid.RowDefinitions>
@@ -402,11 +379,9 @@
         </Setter>
     </Style>
 
-    <!-- Expander: wie bei TabControl/TabItem reicht auch hier kein einfacher Property-Setter, da die
-         native Chrome den Umschalt-Header (Pfeil-Glyph + Text) als eigenen, Theme-gebundenen ToggleButton
-         zeichnet, der auf dem dunklen Hintergrund als hellerer Fremdkoerper auffiel. Eigenes ControlTemplate
-         mit Cyan-Pfeil-Glyph (Segoe MDL2 Assets, wechselt je nach IsExpanded zwischen Chevron-runter/-hoch)
-         statt des nativen schwarzen Pfeils. -->
+        <!-- Expander: native chrome draws the toggle header (arrow and text) through a theme-bound ToggleButton,
+            which stands out against the dark background. This custom template uses a cyan Segoe MDL2 chevron
+            that changes direction based on IsExpanded. -->
     <Style TargetType="Expander">
         <Setter Property="Foreground" Value="{StaticResource TextBrush}" />
         <Setter Property="Template">
@@ -446,12 +421,9 @@
         </Setter>
     </Style>
 
-    <!-- ListBox: analog zu DataGrid reichen hier einfache Property-Setter aus, da ListBox seine Optik
-         aus separat gestylten ListBoxItem-Subcontrols zusammensetzt statt eine eigene geschlossene Chrome
-         zu zeichnen. Betrifft insbesondere die bisher komplett ungestylten ListBoxen in RollbackDialog.xaml
-         (Versionsliste) sowie die Geraete-/Ausgeblendete-Geraete-Listen im "Gerätekonfiguration"-Tab von
-         MainWindow.xaml, die (im Gegensatz zur Controller-/Modus-Liste) keinen eigenen expliziten
-         ItemContainerStyle setzen. -->
+        <!-- ListBox: simple property setters work because it composes separately styled ListBoxItem controls
+            instead of drawing its own closed chrome. This styles the version list in RollbackDialog.xaml and the
+            device/hidden-device lists in MainWindow.xaml, which do not define their own ItemContainerStyle. -->
     <Style TargetType="ListBox">
         <Setter Property="Background" Value="{StaticResource PanelBackgroundBrush}" />
         <Setter Property="Foreground" Value="{StaticResource TextBrush}" />
@@ -459,11 +431,9 @@
         <Setter Property="BorderThickness" Value="1" />
     </Style>
 
-    <!-- ListBoxItem: wie bei ComboBoxItem reicht ein einfacher Setter nicht aus, da die native
-         ListBoxItem-Chrome ihre Hover-/Auswahl-Hervorhebung selbst ueber eine vom System-Theme
-         vorgegebene Farbe zeichnet (blauer Standard-Hintergrund statt Akzentfarbe). Eigenes
-         ControlTemplate mit transparentem Standard-Hintergrund, Hover in ButtonHoverBrush und Auswahl
-         in ButtonPressedBrush - dieselbe Farblogik wie bei ComboBoxItem. -->
+        <!-- ListBoxItem: native chrome uses system colors for hover/selection. This custom template uses a
+            transparent default, ButtonHoverBrush on hover, and ButtonPressedBrush when selected, matching
+            ComboBoxItem. -->
     <Style TargetType="ListBoxItem">
         <Setter Property="Padding" Value="6,4" />
         <Setter Property="Template">
@@ -485,11 +455,9 @@
         </Setter>
     </Style>
 
-    <!-- ListView/ListViewItem/GridViewColumnHeader: WPFs implizite Style-Aufloesung greift nur bei
-         exaktem DefaultStyleKey-Typ (ListView registriert typeof(ListView), nicht typeof(ListBox);
-         ListViewItem registriert typeof(ListViewItem), nicht typeof(ListBoxItem)) - die obigen
-         ListBox/ListBoxItem-Styles greifen deshalb NICHT fuer ListView (siehe AssignInputDialog.xaml),
-         das bislang komplett mit nativer, heller Chrome gerendert wurde. -->
+        <!-- ListView/ListViewItem/GridViewColumnHeader: WPF implicit style lookup uses the exact DefaultStyleKey
+            type (ListView is not ListBox, and ListViewItem is not ListBoxItem), so the ListBox styles above do
+            not apply here. These styles provide the dark appearance for AssignInputDialog.xaml. -->
     <Style TargetType="ListView">
         <Setter Property="Background" Value="{StaticResource PanelBackgroundBrush}" />
         <Setter Property="Foreground" Value="{StaticResource TextBrush}" />
@@ -497,9 +465,8 @@
         <Setter Property="BorderThickness" Value="1" />
     </Style>
 
-    <!-- ListViewItem braucht - anders als ListBoxItem - zwingend einen GridViewRowPresenter statt eines
-         einfachen ContentPresenter, da GridView die Spalten jeder Zeile darueber rendert; ein reiner
-         ContentPresenter wuerde die GridView-Spalten (siehe AssignInputDialog.xaml) komplett leer lassen. -->
+        <!-- ListViewItem requires a GridViewRowPresenter rather than a plain ContentPresenter because GridView
+            renders each row's columns through it. A plain presenter would leave the AssignInputDialog columns empty. -->
     <Style TargetType="ListViewItem">
         <Setter Property="Padding" Value="4,4" />
         <Setter Property="Template">
@@ -523,9 +490,8 @@
         </Setter>
     </Style>
 
-    <!-- GridViewColumnHeader erbt (wie Button) von ButtonBase und ignoriert einfache Property-Setter
-         aufgrund seiner nativen, dreidimensional wirkenden Chrome - eigenes ControlTemplate analog zum
-         bestehenden DataGridColumnHeader-Style. -->
+        <!-- GridViewColumnHeader inherits from ButtonBase and its native three-dimensional chrome ignores simple
+            property setters, so use a custom template like DataGridColumnHeader. -->
     <Style TargetType="GridViewColumnHeader">
         <Setter Property="Background" Value="{StaticResource PanelBackgroundBrush}" />
         <Setter Property="Foreground" Value="{StaticResource MutedTextBrush}" />
@@ -543,13 +509,10 @@
         </Setter>
     </Style>
 
-    <!-- ProgressBar: native Chrome zeichnet eine helle Windows-Standard-Leiste (grauer Track, blauer
-         Fortschritts-Fuellstand), die auf dem dunklen Hintergrund als klarer Fremdkoerper auffiel. Wie
-         bei Button/CheckBox/ComboBox reicht kein einfacher Property-Setter, da ProgressBar seine
-         Fuellstands-Anzeige ueber eine eigene, Theme-gebundene Chrome zeichnet. Eigenes ControlTemplate
-         mit dunklem Track (PanelBackgroundBrush) und Cyan-Akzent-Farbverlauf als Fuellstand
-         (AccentGradientBrush) - "PART_Indicator" muss exakt so benannt sein, damit WPF dessen Breite
-         intern automatisch anhand von Value/Minimum/Maximum berechnet. -->
+        <!-- ProgressBar: native chrome draws a light Windows bar with a gray track and blue fill, which clashes
+            with the dark background. A custom template is required because simple setters cannot override its
+            theme-bound fill. Use a dark track and cyan accent gradient; PART_Indicator must keep this exact name
+            so WPF can calculate its width from Value/Minimum/Maximum. -->
     <Style TargetType="ProgressBar">
         <Setter Property="Background" Value="{StaticResource PanelBackgroundBrush}" />
         <Setter Property="BorderBrush" Value="{StaticResource PanelBorderBrush}" />
@@ -559,19 +522,17 @@
                 <ControlTemplate TargetType="ProgressBar">
                     <Border Background="{TemplateBinding Background}" BorderBrush="{TemplateBinding BorderBrush}"
                             BorderThickness="{TemplateBinding BorderThickness}" CornerRadius="4" ClipToBounds="True">
-                        <!-- PART_Track ist erforderlich, damit ProgressBar intern die verfuegbare Breite
-                             ermitteln und daraus die Breite von PART_Indicator berechnen kann - ohne
-                             PART_Track bliebe der Fuellstand permanent auf 0 Breite stehen. -->
+                            <!-- PART_Track is required for ProgressBar to determine available width and calculate
+                                PART_Indicator width; without it, the fill remains at zero width. -->
                         <Border x:Name="PART_Track" Background="Transparent">
                             <Rectangle x:Name="PART_Indicator" HorizontalAlignment="Left"
                                        Fill="{StaticResource AccentGradientBrush}" RadiusX="3" RadiusY="3" />
                         </Border>
                     </Border>
                     <ControlTemplate.Triggers>
-                        <!-- IsIndeterminate wird nur fuer den "Bitte warten"-Bildschirm des Updaters ohne
-                             echten Fortschrittswert verwendet - statt eines statisch-halbleeren Balkens
-                             (der wie ein haengengebliebener Fortschritt wirken wuerde) wird der Indikator
-                             hier auf volle Breite gestreckt. -->
+                            <!-- IsIndeterminate is used by the updater's waiting screen when there is no actual
+                                progress value. Stretch the indicator to full width rather than showing a static
+                                half-filled bar that could look stalled. -->
                         <Trigger Property="IsIndeterminate" Value="True">
                             <Setter TargetName="PART_Indicator" Property="HorizontalAlignment" Value="Stretch" />
                         </Trigger>
@@ -581,13 +542,10 @@
         </Setter>
     </Style>
 
-    <!-- ScrollBar: bislang kein eigener Style vorhanden, wodurch jeder ScrollViewer mit ueberlaufendem
-         Inhalt (ComboBox-Dropdown, DataGrid, Mapping-Tabelle, Benchmark-/Update-Fenster,
-         Geraetekonfiguration) die native, helle Windows-Scrollleiste zeigte. Schlanker, flacher
-         Scrollbalken ohne sichtbare Pfeiltasten (die Seiten-RepeatButtons bleiben transparent, bleiben
-         aber klickbar fuer Seitenweises Scrollen ueber den Track) - Thumb in PanelBorderBrush, bei Hover
-         in AccentBrush hervorgehoben. Kein Vorbild in assets/style.css vorhanden, daher an die bestehende
-         Palette angelehntes, minimalistisches Erscheinungsbild. -->
+        <!-- ScrollBar: a custom style replaces the native light Windows bar in overflowing ScrollViewers such
+            as ComboBox dropdowns, DataGrids, mapping tables, and benchmark/update windows. The slim, flat bar
+            hides arrow buttons (page repeat buttons remain transparent but clickable) and uses a panel-colored
+            thumb highlighted with the accent color on hover. -->
     <Style x:Key="ScrollBarPageButton" TargetType="RepeatButton">
         <Setter Property="Focusable" Value="False" />
         <Setter Property="IsTabStop" Value="False" />
@@ -665,12 +623,9 @@
         </Style.Triggers>
     </Style>
 
-    <!-- ToolTip: die zahlreichen einfachen ToolTip="..."-String-Attribute (MainWindow.xaml,
-         DeviceConfigTemplates.xaml, AssignInputDialog.xaml) rendern ohne eigenen Style als natives,
-         helles System-Popup, das auf dem dunklen Hintergrund deutlich als Fremdkoerper auffaellt.
-         Dunkler Hintergrund mit Akzent-Rahmen (bewusst AccentBrush statt PanelBorderBrush, da ToolTips
-         als kurzlebige Overlay-Elemente sich optisch von normalen Panels/Karten abheben sollen) und
-         MaxWidth, damit laengere Hinweistexte umbrechen statt sich ueber den ganzen Bildschirm zu ziehen. -->
+        <!-- ToolTip: without a custom style, ToolTip="..." attributes render as bright native system popups that
+            clash with the dark background. Use a dark surface with an accent border to distinguish these brief
+            overlays from regular panels, and limit MaxWidth so long hints wrap instead of spanning the screen. -->
     <Style TargetType="ToolTip">
         <Setter Property="Foreground" Value="{StaticResource TextBrush}" />
         <Setter Property="MaxWidth" Value="320" />
@@ -692,11 +647,8 @@
         </Setter>
     </Style>
 
-    <!-- Separator: wird in MainWindow.xaml (Einstellungen-Tab) genutzt, um Abschnitte optisch zu trennen.
-         Die native Chrome zeichnet standardmaessig einen "eingepraegten" 3D-Look aus je einer helleren und
-         einer dunkleren SystemColors-Linie, was auf dem dunklen Hintergrund als Fremdkoerper auffaellt.
-         Schlichtes ControlTemplate mit einer einzigen duennen Linie in PanelBorderBrush statt der
-         geprägten Doppel-Linie. -->
+        <!-- Separator: used in the Settings tab to divide sections. Native chrome draws an embossed 3D line from
+            two system colors, which clashes with the dark background. Use a single thin PanelBorderBrush line. -->
     <Style TargetType="Separator">
         <Setter Property="Template">
             <Setter.Value>

@@ -8,16 +8,16 @@
   </PropertyGroup>
 
   <ItemGroup>
-    <!-- Kernel-Treiber-Client (kein SDK, nur dieser NuGet-Wrapper + einmalige ViGEmBus-Treiberinstallation zur Laufzeit) -->
+    <!-- Kernel driver client (not an SDK; only this NuGet wrapper plus a one-time ViGEmBus driver installation at runtime) -->
     <PackageReference Include="Nefarius.Drivers.HidHide" Version="3.4.0" />
     <PackageReference Include="Nefarius.ViGEm.Client" Version="1.21.256" />
-    <!-- Aktiv gepflegte SharpDX-Nachfolger fuer XInput/DirectInput (reines P/Invoke, keine Zusatz-Installation) -->
+    <!-- Actively maintained SharpDX successors for XInput/DirectInput (P/Invoke only; no additional installation) -->
     <PackageReference Include="Vortice.XInput" Version="3.2.0" />
     <PackageReference Include="Vortice.DirectInput" Version="3.2.0" />
     <PackageReference Include="System.Text.Json" Version="10.0.8" />
-    <!-- Rohe HID-Report-Ebene fuer das Geraete-Benchmark (Identification/Transport/Signal, siehe
-         Devices/Hid/IHidReportSource.cs) - kapselt hid.dll-P/Invoke (HidD_*, HidP_*, CreateFile/ReadFile)
-         in einer gut getesteten Bibliothek, statt dies selbst neu zu implementieren. -->
+    <!-- Raw HID report layer for the device benchmark (Identification/Transport/Signal; see
+         Devices/Hid/IHidReportSource.cs). Wraps hid.dll P/Invoke (HidD_*, HidP_*, CreateFile/ReadFile)
+         in a well-tested library instead of reimplementing it. -->
     <PackageReference Include="HidSharp" Version="2.6.4" />
   </ItemGroup>
 

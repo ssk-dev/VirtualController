@@ -6,8 +6,8 @@ using Brush = System.Windows.Media.Brush;
 
 namespace VirtualController.App.Converters;
 
-/// <summary>Wandelt den "Ist diese physische Eingabe aktuell aktiv?"-Zustand einer Eingabezeile in eine
-/// auffaellige Hervorhebungsfarbe fuer die Live-Anzeige in der aufklappbaren Eingabeliste.</summary>
+/// <summary>Converts whether a physical input is currently active into a highlight color
+/// for the live indicator in the expandable input list.</summary>
 public sealed class BoolToHighlightBrushConverter : IValueConverter
 {
     private static readonly Brush ActiveBrush = new SolidColorBrush(Color.FromRgb(0xFF, 0xE0, 0x8A));

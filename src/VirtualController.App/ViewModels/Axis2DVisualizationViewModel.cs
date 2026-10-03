@@ -5,32 +5,28 @@ using VirtualController.Core.Devices;
 namespace VirtualController.App.ViewModels;
 
 /// <summary>
-/// Kombiniert zwei physische Achsen (X und Y) desselben Sticks/Joysticks zu einer gemeinsamen
-/// 2D-Position fuer die quadratische Koordinatenfeld-Visualisierung (siehe
-/// <see cref="Views.Controls.Axis2DPadControl"/>). Rein darstellend, analog zu
-/// <see cref="AxisVisualizationViewModel"/> - enthaelt keine eigene Logik zur Erzeugung oder
-/// Veraenderung von Controllerwerten.
+/// Combines two physical axes (X and Y) of the same stick/joystick into a 2D position for the square
+/// coordinate-field visualization (see <see cref="Views.Controls.Axis2DPadControl"/>). Display-only,
+/// like <see cref="AxisVisualizationViewModel"/>; it does not generate or modify controller values.
 /// </summary>
 public sealed partial class Axis2DVisualizationViewModel : ObservableObject, IAxisVisualizationItem
 {
     /// <summary>
-    /// true, wenn ein positiver Y-Wert auf dem Anzeigefeld nach oben dargestellt werden soll (XInput-
-    /// Konvention: Vorwaerts-/Aufwaertsbewegung des Sticks liefert positive Werte), false, wenn ein
-    /// positiver Y-Wert nach unten dargestellt werden soll (DirectInput-Konvention: der rohe Y-Wert
-    /// waechst beim Zurueckziehen/Abwaertsbewegen des Sticks, sinkt beim Vorwaertsdruecken). Ohne diese
-    /// Unterscheidung wuerde die Live-Vorschau bei DirectInput-Joysticks die Stickbewegung vertikal
-    /// invertiert darstellen.
+    /// True when a positive Y value should appear upward (XInput convention: moving the stick forward/up
+    /// produces positive values); false when it should appear downward (DirectInput convention: the raw Y
+    /// value increases when pulling down and decreases when pushing up). Without this distinction, the live
+    /// preview would show DirectInput stick movement vertically inverted.
     /// </summary>
     private readonly bool _invertYForDisplay;
 
-    /// <summary>Anzeigename des kombinierten Sticks (z.B. "Linker Stick").</summary>
+    /// <summary>Display name of the combined stick (e.g. "Left stick").</summary>
     public string Name { get; }
 
     public AxisVisualizationViewModel X { get; }
 
     public AxisVisualizationViewModel Y { get; }
 
-    /// <summary>true, sobald X- oder Y-Anteil die jeweils eigene Deadzone verlaesst.</summary>
+    /// <summary>True when either the X or Y value leaves its own deadzone.</summary>
     [ObservableProperty]
     private bool _isOutsideDeadzone;
 
@@ -61,20 +57,20 @@ public sealed partial class Axis2DVisualizationViewModel : ObservableObject, IAx
         }
     }
 
-    /// <summary>Hoehe der obersten Grid-Zeile (oberhalb des Markers) im 2D-Pad, unter Beruecksichtigung
-    /// der API-abhaengigen Y-Vorzeichenkonvention (siehe <see cref="_invertYForDisplay"/>).</summary>
+    /// <summary>Height of the top grid row (above the marker) in the 2D pad, accounting for the API-specific
+    /// Y sign convention (see <see cref="_invertYForDisplay"/>).</summary>
     public double YTopMarkerFraction => _invertYForDisplay ? Y.AfterMarkerFraction : Y.MarkerFraction;
 
-    /// <summary>Hoehe der untersten Grid-Zeile (unterhalb des Markers) im 2D-Pad.</summary>
+    /// <summary>Height of the bottom grid row (below the marker) in the 2D pad.</summary>
     public double YBottomMarkerFraction => _invertYForDisplay ? Y.MarkerFraction : Y.AfterMarkerFraction;
 
-    /// <summary>Hoehe der obersten Grid-Zeile (oberhalb des Deadzone-Bands) im 2D-Pad.</summary>
+    /// <summary>Height of the top grid row (above the deadzone band) in the 2D pad.</summary>
     public double YTopDeadzoneFraction => _invertYForDisplay ? Y.AfterDeadzoneFraction : Y.DeadzoneStartFraction;
 
-    /// <summary>Hoehe der untersten Grid-Zeile (unterhalb des Deadzone-Bands) im 2D-Pad.</summary>
+    /// <summary>Height of the bottom grid row (below the deadzone band) in the 2D pad.</summary>
     public double YBottomDeadzoneFraction => _invertYForDisplay ? Y.DeadzoneStartFraction : Y.AfterDeadzoneFraction;
 
-    /// <summary>Aktualisiert beide Achsenanteile anhand des zuletzt gepollten Geraetezustands.</summary>
+    /// <summary>Updates both axis values from the most recently polled device state.</summary>
     public void UpdateFromState(DeviceState state)
     {
         X.UpdateFromState(state);
@@ -82,7 +78,7 @@ public sealed partial class Axis2DVisualizationViewModel : ObservableObject, IAx
         IsOutsideDeadzone = X.IsOutsideDeadzone || Y.IsOutsideDeadzone;
     }
 
-    /// <summary>Setzt beide Achsenanteile auf den Ruhezustand zurueck.</summary>
+    /// <summary>Resets both axis values to their resting state.</summary>
     public void Reset()
     {
         X.Reset();

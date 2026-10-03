@@ -1,21 +1,20 @@
 namespace VirtualController.App.ViewModels;
 
 /// <summary>
-/// Repraesentiert ein physisches Geraet, das einem virtuellen Controller zugeordnet ist (siehe
-/// <see cref="Core.Mapping.VirtualControllerProfile.AssignedDeviceIds"/>), aber aktuell nicht
-/// angeschlossen ist. Wird in der Liste "Zugewiesene Geräte" unterhalb der "Verfügbaren Geräte"
-/// ausgegraut angezeigt (siehe <see cref="VirtualControllerViewModel.AssignedDisconnectedDeviceSelections"/>),
-/// damit der Nutzer erkennt, dass die Zuweisung weiterhin besteht, auch waehrend das Geraet getrennt
-/// ist - rein informativ, ohne Interaktionsmoeglichkeit (im Gegensatz zu <see cref="DeviceSelectionViewModel"/>,
-/// das nur fuer tatsaechlich angeschlossene Geraete verwendet wird).
+/// Represents a physical device assigned to a virtual controller (see
+/// <see cref="Core.Mapping.VirtualControllerProfile.AssignedDeviceIds"/>) that is currently disconnected.
+/// It appears dimmed below "Available devices" in the "Assigned devices" list (see
+/// <see cref="VirtualControllerViewModel.AssignedDisconnectedDeviceSelections"/>) to show that the assignment
+/// remains in place while the device is disconnected. This entry is informational and not interactive,
+/// unlike <see cref="DeviceSelectionViewModel"/>, which is used only for connected devices.
 /// </summary>
 public sealed class AssignedDisconnectedDeviceViewModel
 {
-    /// <summary>Eindeutige Geraete-Id (siehe <see cref="Core.Devices.PhysicalDeviceInfo.DeviceId"/>).</summary>
+    /// <summary>Unique device ID (see <see cref="Core.Devices.PhysicalDeviceInfo.DeviceId"/>).</summary>
     public string DeviceId { get; }
 
-    /// <summary>Zuletzt bekannter Anzeigename (siehe <see cref="Core.Devices.DeviceSettings.LastKnownDisplayName"/>),
-    /// oder die rohe <see cref="DeviceId"/>, falls noch nie ein Anzeigename erfasst wurde.</summary>
+    /// <summary>Last known display name (see <see cref="Core.Devices.DeviceSettings.LastKnownDisplayName"/>),
+    /// or the raw <see cref="DeviceId"/> if no display name has ever been recorded.</summary>
     public string DisplayName { get; }
 
     public AssignedDisconnectedDeviceViewModel(string deviceId, string displayName)

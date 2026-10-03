@@ -9,13 +9,13 @@ using VirtualController.Core.Logging;
 namespace VirtualController.App.ViewModels;
 
 /// <summary>
-/// Repraesentiert ein komplettes physisches Geraet im Konfigurationsdialog: globaler Enable/Disable-
-/// Schalter (deaktivierte Geraete verschwinden aus der Geraeteauswahl aller virtuellen Controller)
-/// sowie eine aufklappbare Liste aller physischen Eingaben mit Umbenennung und Einzel-Enable/Disable.
+/// Represents a complete physical device in the configuration dialog: a global enable/disable switch
+/// (disabled devices are removed from every virtual controller's device selection) and an expandable
+/// list of physical inputs with rename and per-input enable/disable controls.
 /// </summary>
 public sealed partial class DeviceConfigDeviceViewModel : ObservableObject, IDisposable
 {
-    /// <summary>Aktualisierungsrate der Live-Hervorhebung, identisch zu <see cref="DeviceSelectionViewModel"/>.</summary>
+    /// <summary>Live highlight refresh rate, matching <see cref="DeviceSelectionViewModel"/>.</summary>
     private static readonly TimeSpan LivePollInterval = TimeSpan.FromMilliseconds(33);
 
     public PhysicalDeviceInfo Device { get; private set; }
@@ -32,60 +32,56 @@ public sealed partial class DeviceConfigDeviceViewModel : ObservableObject, IDis
     private DeviceStateLogger? _stateLogger;
     private BenchmarkSession? _benchmarkSession;
 
-    /// <summary>Ob fuer dieses Geraet aktuell eine Zustands-Protokollierung (siehe <see cref="DeviceStateLogger"/>)
-    /// laeuft - steuert den Beschriftungswechsel "Log starten"/"Log stoppen" des zugehoerigen Buttons
-    /// (siehe DeviceConfigTemplates.xaml) und laeuft, anders als das Live-Polling (<see cref="StartLiveMonitoring"/>),
-    /// unabhaengig von Tab-Sichtbarkeit/Auswahl weiter, bis der Nutzer explizit stoppt.</summary>
+    /// <summary>Whether state logging is running for this device (see <see cref="DeviceStateLogger"/>). Controls
+    /// the associated button label ("Start logging" / "Stop logging"; see DeviceConfigTemplates.xaml). Unlike
+    /// live polling (<see cref="StartLiveMonitoring"/>), logging continues regardless of tab visibility or
+    /// selection until the user explicitly stops it.</summary>
     [ObservableProperty]
     private bool _isLogging;
 
-    /// <summary>Pfad der zuletzt geschriebenen bzw. aktuell laufenden Log-Datei, fuer eine Anzeige im UI
-    /// (z.B. Tooltip des Log-Buttons) - null, solange noch nie geloggt wurde.</summary>
+    /// <summary>Path to the most recently written or currently active log file, shown in the UI (e.g. in the
+    /// logging button tooltip); null until logging has run.</summary>
     [ObservableProperty]
     private string? _lastLogFilePath;
 
-    /// <summary>Ob fuer dieses Geraet aktuell eine Hardware-Benchmark-Sitzung (siehe <see cref="BenchmarkSession"/>)
-    /// laeuft - analog zu <see cref="IsLogging"/>, laeuft ebenso unabhaengig von Tab-Sichtbarkeit weiter,
-    /// bis der Nutzer explizit stoppt (dann wird das Ergebnis als JSON exportiert, siehe <see cref="ToggleBenchmark"/>).</summary>
+    /// <summary>Whether a hardware benchmark session is running for this device (see <see cref="BenchmarkSession"/>).
+    /// Like <see cref="IsLogging"/>, it continues regardless of tab visibility until explicitly stopped, when
+    /// the result is exported as JSON (see <see cref="ToggleBenchmark"/>).</summary>
     [ObservableProperty]
     private bool _isBenchmarking;
 
-    /// <summary>Pfad der zuletzt exportierten Benchmark-JSON-Datei, fuer eine Anzeige im UI (z.B. Tooltip
-    /// des Benchmark-Buttons) - null, solange noch nie ein Benchmark abgeschlossen wurde.</summary>
+    /// <summary>Path to the most recently exported benchmark JSON file, shown in the UI (e.g. in the benchmark
+    /// button tooltip); null until a benchmark has completed.</summary>
     [ObservableProperty]
     private string? _lastBenchmarkFilePath;
 
-    /// <summary>Ob der "Gerätekonfiguration"-Tab des Hauptfensters aktuell tatsaechlich sichtbar ist UND
-    /// das Fenster nicht minimiert ist (siehe <see cref="SetScreenActive"/>, gesetzt durch
-    /// <see cref="DeviceConfigViewModel"/> anhand von <see cref="MainViewModel"/>). Nur wenn dies zutrifft
-    /// UND <see cref="IsSelected"/> true ist, wird tatsaechlich live gepollt (siehe
-    /// <see cref="RefreshLiveMonitoringState"/>) - andernfalls waere das Polling reine Verschwendung, da
-    /// die zugehoerige Live-Hervorhebung/Achsen-Vorschau ohnehin nicht sichtbar sein kann.</summary>
+    /// <summary>Whether the main window's Device Configuration tab is visible and the window is not minimized
+    /// (set by <see cref="DeviceConfigViewModel"/> through <see cref="SetScreenActive"/> based on
+    /// <see cref="MainViewModel"/>). Live polling runs only when this is true and <see cref="IsSelected"/> is
+    /// true (see <see cref="RefreshLiveMonitoringState"/>); otherwise the highlight and axis preview are not visible.</summary>
     private bool _isScreenActive;
 
     [ObservableProperty]
     private bool _enabled;
 
-    /// <summary>Ob dieses Geraet aktuell physisch angeschlossen ist. Wird per <see cref="UpdateConnectionState"/>
-    /// bei jedem Geraete-Scan (siehe MainViewModel.RefreshDevices, inkl. periodischem Hotplug-Polling)
-    /// aktualisiert. Getrennte Geraete bleiben in der Liste sichtbar (ausgegraut) und weiterhin
-    /// konfigurierbar (Umbenennung, Kalibrierung), damit deren Einstellungen nicht verloren gehen.</summary>
+    /// <summary>Whether this device is physically connected. Updated by <see cref="UpdateConnectionState"/> on
+    /// each device scan (see MainViewModel.RefreshDevices, including periodic hot-plug polling). Disconnected
+    /// devices remain visible but dimmed and can still be configured (renamed or calibrated) so their settings
+    /// are not lost.</summary>
     [ObservableProperty]
     private bool _isConnected;
 
-    /// <summary>Ob dieses Geraet aktuell als Tab im Konfigurationsdialog ausgewaehlt ist. Ersetzt das
-    /// frueher hier verwendete "IsExpanded" (Expander), seit Geraete als Tabs statt als aufklappbare
-    /// Liste dargestellt werden - die Semantik (Inputs bei Bedarf aufbauen, Live-Ueberwachung nur fuer
-    /// den aktuell sichtbaren Tab starten/stoppen) bleibt unveraendert.</summary>
+    /// <summary>Whether this device is currently selected as a tab in the configuration dialog. Replaces the
+    /// former "IsExpanded" Expander state now that devices are shown as tabs; input creation remains lazy and
+    /// live monitoring still runs only for the visible tab.</summary>
     [ObservableProperty]
     private bool _isSelected;
 
-    /// <summary>Ob der Nutzer dieses Geraet manuell ausgeblendet hat (siehe <see cref="DeviceSettings.Hidden"/>).
-    /// Ausgeblendete Geraete verschwinden aus der Hauptliste dieses Tabs (siehe MainWindow.xaml, separate
-    /// Liste "Ausgeblendete Geräte") und aus der Geraeteauswahl aller virtuellen Controller, bleiben aber
-    /// jederzeit per <see cref="ToggleHiddenCommand"/> wieder einblendbar - gedacht u.a. fuer die eigenen,
-    /// per ViGEmBus emulierten virtuellen Controller dieser Anwendung, die sonst nicht von echter Hardware
-    /// unterscheidbar sind.</summary>
+    /// <summary>Whether the user has manually hidden this device (see <see cref="DeviceSettings.Hidden"/>).
+    /// Hidden devices are removed from this tab's main list (see the separate "Hidden devices" list in
+    /// MainWindow.xaml) and from every virtual controller's device selection. They can be restored at any
+    /// time through <see cref="ToggleHiddenCommand"/>. This is useful for this app's ViGEmBus-emulated virtual
+    /// controllers, which cannot otherwise be distinguished from physical hardware.</summary>
     [ObservableProperty]
     private bool _hidden;
 
@@ -93,10 +89,9 @@ public sealed partial class DeviceConfigDeviceViewModel : ObservableObject, IDis
 
     public string DisplayName => Device.DisplayName;
 
-    /// <summary>Steuert den gruenen/grauen Status-Punkt in der Geraeteliste (siehe MainWindow.xaml,
-    /// "Gerätekonfiguration"-Tab): gruen nur wenn das Geraet sowohl aktiviert als auch aktuell
-    /// angeschlossen ist, ansonsten grau - unabhaengig davon, ob nur eine oder beide Bedingungen
-    /// nicht erfuellt sind (siehe BoolToStatusBrushConverter).</summary>
+    /// <summary>Controls the green/gray status indicator in the device list (see the Device Configuration tab
+    /// in MainWindow.xaml): green only when the device is both enabled and connected, otherwise gray (see
+    /// BoolToStatusBrushConverter).</summary>
     public bool IsActiveIndicator => Enabled && IsConnected;
 
     public DeviceConfigDeviceViewModel(PhysicalDeviceInfo device, DeviceSettings settings, Action notifyAvailabilityChanged, Action notifySettingsChanged, bool isConnected)
@@ -110,14 +105,12 @@ public sealed partial class DeviceConfigDeviceViewModel : ObservableObject, IDis
         _isConnected = isConnected;
     }
 
-    /// <summary>Aktualisiert den Verbindungsstatus dieses bereits vorhandenen Geraete-ViewModels, ohne es
-    /// zu ersetzen (siehe DeviceConfigViewModel.UpdateDevices - wird bei jedem Geraete-Scan aufgerufen,
-    /// inkl. periodischem Hotplug-Polling, und darf daher laufende Bearbeitungen nicht stoeren). Die
-    /// zugrunde liegende <see cref="Device"/>-Beschreibung wird dabei nur aktualisiert, solange die
-    /// Eingabenliste noch nicht aufgebaut wurde (<see cref="EnsureInputsBuilt"/>) - so verwendet der
-    /// erstmalige Aufbau stets die genauesten verfuegbaren Faehigkeiten (live erkannt statt aus
-    /// DeviceSettings.LastKnown* rekonstruiert), waehrend ein bereits ausgewaehltes/aufgebautes Geraet
-    /// unveraendert bleibt.</summary>
+    /// <summary>Updates this existing device view model's connection state without replacing it (see
+    /// DeviceConfigViewModel.UpdateDevices, called on every device scan including periodic hot-plug polling).
+    /// This avoids disrupting active edits. The underlying <see cref="Device"/> description is refreshed only
+    /// until the input list is built (<see cref="EnsureInputsBuilt"/>), so the initial build uses the most
+    /// accurate available capabilities (detected live rather than reconstructed from DeviceSettings.LastKnown*).
+    /// A device that is already selected or built remains unchanged.</summary>
     public void UpdateConnectionState(PhysicalDeviceInfo device, bool isConnected)
     {
         if (!_inputsBuilt)
@@ -141,16 +134,14 @@ public sealed partial class DeviceConfigDeviceViewModel : ObservableObject, IDis
         _notifyAvailabilityChanged();
     }
 
-    /// <summary>Blendet dieses Geraet aus (verschieben in die Liste "Ausgeblendete Geräte") bzw. wieder ein -
-    /// wird sowohl vom "Ausblenden"-Button in der Hauptliste als auch vom "Einblenden"-Button in der Liste
-    /// der ausgeblendeten Geraete aufgerufen (siehe MainWindow.xaml).</summary>
+    /// <summary>Hides or restores this device by moving it to or from the "Hidden devices" list. Called by the
+    /// Hide button in the main list and the Show button in the hidden list (see MainWindow.xaml).</summary>
     [RelayCommand]
     private void ToggleHidden() => Hidden = !Hidden;
 
-    /// <summary>Startet bzw. stoppt die Zustands-Protokollierung dieses Geraets (siehe <see cref="DeviceStateLogger"/>) -
-    /// bewusst unabhaengig von <see cref="IsSelected"/>/Tab-Sichtbarkeit, damit eine einmal gestartete
-    /// Protokollierung auch beim Wechsel zu einem anderen Geraet/Tab weiterlaeuft, bis der Nutzer sie
-    /// hier erneut stoppt.</summary>
+    /// <summary>Starts or stops state logging for this device (see <see cref="DeviceStateLogger"/>). Logging
+    /// intentionally runs independently of <see cref="IsSelected"/> and tab visibility, continuing when the
+    /// user switches devices or tabs until explicitly stopped here.</summary>
     [RelayCommand]
     private void ToggleLogging()
     {
@@ -163,8 +154,8 @@ public sealed partial class DeviceConfigDeviceViewModel : ObservableObject, IDis
         if (!IsConnected)
         {
             System.Windows.MessageBox.Show(
-                $"\"{DisplayName}\" ist aktuell nicht angeschlossen - Protokollierung kann erst nach dem Anschliessen gestartet werden.",
-                "Protokollierung nicht moeglich", System.Windows.MessageBoxButton.OK, System.Windows.MessageBoxImage.Information);
+                $"\"{DisplayName}\" is not connected. Logging can start after the device is connected.",
+                "Logging unavailable", System.Windows.MessageBoxButton.OK, System.Windows.MessageBoxImage.Information);
             return;
         }
 
@@ -178,28 +169,27 @@ public sealed partial class DeviceConfigDeviceViewModel : ObservableObject, IDis
         }
         catch (Exception ex)
         {
-            // Datei-/Ordnerzugriff kann fehlschlagen (z.B. fehlende Berechtigung) - dies darf die
-            // restliche Konfiguration nicht beeintraechtigen, der Nutzer wird lediglich informiert.
+            // File or directory access can fail (e.g. due to missing permissions). This must not affect
+            // the rest of the configuration; just inform the user.
             _stateLogger?.Dispose();
             _stateLogger = null;
             System.Windows.MessageBox.Show(
-                $"Protokollierung fuer \"{DisplayName}\" konnte nicht gestartet werden:\n{ex.Message}",
-                "Protokollierung fehlgeschlagen", System.Windows.MessageBoxButton.OK, System.Windows.MessageBoxImage.Error);
+                $"Could not start logging for \"{DisplayName}\":\n{ex.Message}",
+                "Logging failed", System.Windows.MessageBoxButton.OK, System.Windows.MessageBoxImage.Error);
         }
     }
 
-    /// <summary>Wird auf dem Log-Hintergrund-Thread ausgeloest (siehe <see cref="DeviceStateLogger.LogFailed"/>),
-    /// z.B. wenn das Geraet waehrend einer laufenden Protokollierung getrennt wird - wechselt daher per
-    /// Dispatcher auf den UI-Thread, bevor <see cref="IsLogging"/> (ein gebundenes ViewModel-Property)
-    /// veraendert wird.</summary>
+    /// <summary>Raised on the logging background thread (see <see cref="DeviceStateLogger.LogFailed"/>), for
+    /// example when the device disconnects during logging. Dispatches to the UI thread before changing the
+    /// bound <see cref="IsLogging"/> property.</summary>
     private void OnStateLoggerFailed(Exception ex)
     {
         System.Windows.Application.Current?.Dispatcher.Invoke(() =>
         {
             IsLogging = false;
             System.Windows.MessageBox.Show(
-                $"Protokollierung fuer \"{DisplayName}\" wurde wegen eines Fehlers beendet:\n{ex.Message}",
-                "Protokollierung beendet", System.Windows.MessageBoxButton.OK, System.Windows.MessageBoxImage.Warning);
+                $"Logging for \"{DisplayName}\" stopped because of an error:\n{ex.Message}",
+                "Logging stopped", System.Windows.MessageBoxButton.OK, System.Windows.MessageBoxImage.Warning);
         });
     }
 
@@ -217,25 +207,23 @@ public sealed partial class DeviceConfigDeviceViewModel : ObservableObject, IDis
         IsLogging = false;
     }
 
-    /// <summary>Oeffnet (bzw. aktiviert ein bereits offenes) Echtzeit-Anzeigefenster fuer den Hardware-Benchmark
-    /// dieses Geraets (siehe <see cref="Views.BenchmarkWindow"/>). Das Fenster ist bewusst NICHT modal und
-    /// besitzt keinen eigenen Lebenszyklus fuer die Sitzung selbst: Schliessen des Fensters stoppt einen
-    /// laufenden Benchmark NICHT - die Sitzung laeuft, wie <see cref="IsBenchmarking"/> es bereits fuer den
-    /// Inline-Button dokumentiert, unabhaengig von jeglicher UI-Sichtbarkeit weiter, bis der Nutzer explizit
-    /// stoppt (per Button im Popup oder erneutem Aufruf von <see cref="ToggleBenchmarkCommand"/>).</summary>
+    /// <summary>Opens or activates the real-time hardware benchmark window for this device (see
+    /// <see cref="Views.BenchmarkWindow"/>). The window is non-modal and does not own the session lifecycle:
+    /// closing it does not stop a running benchmark. As documented by <see cref="IsBenchmarking"/>, the
+    /// session continues regardless of UI visibility until explicitly stopped from the window or through
+    /// <see cref="ToggleBenchmarkCommand"/>.</summary>
     [RelayCommand]
     private void OpenBenchmarkWindow()
         => Views.BenchmarkWindow.ShowFor(this, System.Windows.Application.Current?.MainWindow);
 
-    /// <summary>Liefert eine Momentaufnahme des bisherigen Benchmark-Ergebnisses waehrend eine Sitzung noch
-    /// laeuft (siehe <see cref="BenchmarkSession.GetSnapshot"/>) - fuer die Echtzeit-Anzeige im Popup-Fenster
-    /// (<see cref="Views.BenchmarkWindow"/>). Liefert null, solange <see cref="IsBenchmarking"/> false ist.</summary>
+    /// <summary>Returns a snapshot of benchmark results while a session is still running (see
+    /// <see cref="BenchmarkSession.GetSnapshot"/>), for the real-time display in <see cref="Views.BenchmarkWindow"/>.
+    /// Returns null while <see cref="IsBenchmarking"/> is false.</summary>
     public BenchmarkResult? GetLiveBenchmarkSnapshot() => _benchmarkSession?.GetSnapshot();
 
-    /// <summary>Startet bzw. stoppt eine Hardware-Benchmark-Sitzung dieses Geraets (siehe <see cref="BenchmarkSession"/>) -
-    /// analog zu <see cref="ToggleLogging"/> unabhaengig von <see cref="IsSelected"/>/Tab-Sichtbarkeit. Beim
-    /// Stoppen wird das Ergebnis sofort als JSON exportiert (siehe <see cref="BenchmarkJsonExporter"/>), damit
-    /// der Nutzer es nicht separat "speichern" muss.</summary>
+    /// <summary>Starts or stops a hardware benchmark session for this device (see <see cref="BenchmarkSession"/>).
+    /// Like <see cref="ToggleLogging"/>, it runs independently of <see cref="IsSelected"/> and tab visibility.
+    /// When stopped, the result is immediately exported as JSON (see <see cref="BenchmarkJsonExporter"/>).</summary>
     [RelayCommand]
     private void ToggleBenchmark()
     {
@@ -248,8 +236,8 @@ public sealed partial class DeviceConfigDeviceViewModel : ObservableObject, IDis
         if (!IsConnected)
         {
             System.Windows.MessageBox.Show(
-                $"\"{DisplayName}\" ist aktuell nicht angeschlossen - der Benchmark kann erst nach dem Anschliessen gestartet werden.",
-                "Benchmark nicht moeglich", System.Windows.MessageBoxButton.OK, System.Windows.MessageBoxImage.Information);
+                $"\"{DisplayName}\" is not connected. The benchmark can start after the device is connected.",
+                "Benchmark unavailable", System.Windows.MessageBoxButton.OK, System.Windows.MessageBoxImage.Information);
             return;
         }
 
@@ -259,9 +247,9 @@ public sealed partial class DeviceConfigDeviceViewModel : ObservableObject, IDis
             if (_benchmarkSession is null)
             {
                 System.Windows.MessageBox.Show(
-                    $"Fuer \"{DisplayName}\" konnte kein zugehoeriges HID-Geraet ermittelt werden - der Hardware-Benchmark " +
-                    "steht nur fuer Geraete mit erkennbarem HID-Pfad zur Verfuegung (z.B. nicht fuer manche reinen XInput-Geraete).",
-                    "Benchmark nicht moeglich", System.Windows.MessageBoxButton.OK, System.Windows.MessageBoxImage.Information);
+                    $"Could not find an associated HID device for \"{DisplayName}\". The hardware benchmark " +
+                    "requires a device with a detectable HID path and is not available for some XInput-only devices.",
+                    "Benchmark unavailable", System.Windows.MessageBoxButton.OK, System.Windows.MessageBoxImage.Information);
                 return;
             }
 
@@ -271,37 +259,35 @@ public sealed partial class DeviceConfigDeviceViewModel : ObservableObject, IDis
         }
         catch (Exception ex)
         {
-            // Analog zu ToggleLogging: ein Fehlschlag beim Start (z.B. Geraet bereits exklusiv durch eine
-            // andere Anwendung geoeffnet) darf die restliche Konfiguration nicht beeintraechtigen.
+            // As with ToggleLogging, a startup failure (e.g. the device is already open exclusively by
+            // another app) must not affect the rest of the configuration.
             _benchmarkSession?.Dispose();
             _benchmarkSession = null;
             System.Windows.MessageBox.Show(
-                $"Benchmark fuer \"{DisplayName}\" konnte nicht gestartet werden:\n{ex.Message}",
-                "Benchmark fehlgeschlagen", System.Windows.MessageBoxButton.OK, System.Windows.MessageBoxImage.Error);
+                $"Could not start the benchmark for \"{DisplayName}\":\n{ex.Message}",
+                "Benchmark failed", System.Windows.MessageBoxButton.OK, System.Windows.MessageBoxImage.Error);
         }
     }
 
-    /// <summary>Wird auf dem Benchmark-Hintergrund-Thread ausgeloest (siehe <see cref="BenchmarkSession.BenchmarkFailed"/>),
-    /// z.B. wenn das Geraet waehrend einer laufenden Sitzung getrennt wird - wechselt daher per Dispatcher auf
-    /// den UI-Thread, bevor <see cref="IsBenchmarking"/> (ein gebundenes ViewModel-Property) veraendert wird.
-    /// Exportiert das bis dahin gesammelte (Teil-)Ergebnis trotzdem, statt es zu verwerfen.</summary>
+    /// <summary>Raised on the benchmark background thread (see <see cref="BenchmarkSession.BenchmarkFailed"/>),
+    /// for example when the device disconnects during a session. Dispatches to the UI thread before changing
+    /// the bound <see cref="IsBenchmarking"/> property. Exports any partial results collected so far.</summary>
     private void OnBenchmarkFailed(Exception ex)
     {
         System.Windows.Application.Current?.Dispatcher.Invoke(() =>
         {
             FinishBenchmark();
             System.Windows.MessageBox.Show(
-                $"Benchmark fuer \"{DisplayName}\" wurde wegen eines Fehlers beendet:\n{ex.Message}",
-                "Benchmark beendet", System.Windows.MessageBoxButton.OK, System.Windows.MessageBoxImage.Warning);
+                $"Benchmark for \"{DisplayName}\" stopped because of an error:\n{ex.Message}",
+                "Benchmark stopped", System.Windows.MessageBoxButton.OK, System.Windows.MessageBoxImage.Warning);
         });
     }
 
     private void StopBenchmark() => FinishBenchmark();
 
-    /// <summary>Gemeinsame Beendigungslogik fuer regulaeres Stoppen (<see cref="StopBenchmark"/>) und den
-    /// Fehlerfall (<see cref="OnBenchmarkFailed"/>): stoppt die Sitzung, exportiert das Ergebnis als JSON
-    /// und gibt die Sitzung frei. Ein Exportfehler (z.B. fehlende Schreibrechte) wird dem Nutzer gemeldet,
-    /// darf aber den restlichen Aufraeumvorgang nicht verhindern.</summary>
+    /// <summary>Shared cleanup for a normal stop (<see cref="StopBenchmark"/>) and failure
+    /// (<see cref="OnBenchmarkFailed"/>): stops the session, exports its JSON result, and disposes the session.
+    /// An export error (e.g. missing write permissions) is reported but must not prevent cleanup.</summary>
     private void FinishBenchmark()
     {
         if (_benchmarkSession is null)
@@ -322,8 +308,8 @@ public sealed partial class DeviceConfigDeviceViewModel : ObservableObject, IDis
         catch (Exception ex)
         {
             System.Windows.MessageBox.Show(
-                $"Benchmark-Ergebnis fuer \"{DisplayName}\" konnte nicht exportiert werden:\n{ex.Message}",
-                "Export fehlgeschlagen", System.Windows.MessageBoxButton.OK, System.Windows.MessageBoxImage.Error);
+                $"Could not export the benchmark result for \"{DisplayName}\":\n{ex.Message}",
+                "Export failed", System.Windows.MessageBoxButton.OK, System.Windows.MessageBoxImage.Error);
         }
         finally
         {
@@ -345,11 +331,9 @@ public sealed partial class DeviceConfigDeviceViewModel : ObservableObject, IDis
         RefreshLiveMonitoringState();
     }
 
-    /// <summary>Legt fest, ob der "Gerätekonfiguration"-Tab des Hauptfensters aktuell tatsaechlich sichtbar
-    /// ist UND das Fenster nicht minimiert ist - nur dann darf ueberhaupt live gepollt werden (siehe
-    /// <see cref="RefreshLiveMonitoringState"/>). Wird von <see cref="DeviceConfigViewModel.SetScreenActive"/>
-    /// bei jeder relevanten Aenderung (Tab-Wechsel, Minimieren/Wiederherstellen des Fensters) fuer alle
-    /// seine <see cref="DeviceConfigViewModel.Devices"/> neu gesetzt.</summary>
+    /// <summary>Whether the main window's Device Configuration tab is visible and the window is not minimized.
+    /// Live polling is allowed only in that state (see <see cref="RefreshLiveMonitoringState"/>). Updated by
+    /// <see cref="DeviceConfigViewModel.SetScreenActive"/> for every relevant change (tab switch or minimize/restore).</summary>
     public void SetScreenActive(bool value)
     {
         if (_isScreenActive == value)
@@ -361,10 +345,9 @@ public sealed partial class DeviceConfigDeviceViewModel : ObservableObject, IDis
         RefreshLiveMonitoringState();
     }
 
-    /// <summary>Startet bzw. stoppt das Live-Polling dieses Geraets anhand der kombinierten Bedingung
-    /// "Bildschirm aktiv UND als aktuell ausgewaehltes Geraet im Detailbereich dargestellt" - beide
-    /// Bedingungen muessen gleichzeitig erfuellt sein, da eine Live-Hervorhebung/Achsen-Vorschau sonst gar
-    /// nicht sichtbar sein kann.</summary>
+    /// <summary>Starts or stops live polling based on the combined condition that the screen is active and
+    /// this device is selected in the details pane. Both must be true for the live highlight and axis preview
+    /// to be visible.</summary>
     private void RefreshLiveMonitoringState()
     {
         if (_isScreenActive && IsSelected)
@@ -377,17 +360,16 @@ public sealed partial class DeviceConfigDeviceViewModel : ObservableObject, IDis
         }
     }
 
-    /// <summary>Ordnet eine physische Eingabe (Button oder D-Pad-Richtung) einer der Anzeige-Gruppen zu,
-    /// damit der Nutzer bei Geraeten mit vielen Eingaben schneller die gesuchte Kategorie findet, statt
-    /// eine lange, unstrukturierte Liste durchsuchen zu muessen. Achsen werden gesondert behandelt (siehe
-    /// <see cref="EnsureInputsBuilt"/>), da Positiv-/Negativ-Eintraege dort paarweise mit gemeinsamem
-    /// Rahmen dargestellt werden (<see cref="DeviceConfigAxisGroupViewModel"/>).</summary>
+    /// <summary>Assigns a physical input (button or D-pad direction) to a display group so users can find
+    /// categories quickly on devices with many inputs. Axes are handled separately (see
+    /// <see cref="EnsureInputsBuilt"/>) because positive and negative entries are displayed as pairs within
+    /// a shared frame (<see cref="DeviceConfigAxisGroupViewModel"/>).</summary>
     private static string GetGroupName(PhysicalInputKind kind) => kind switch
     {
         PhysicalInputKind.Button => "Buttons",
         PhysicalInputKind.DPad or PhysicalInputKind.DPadUp or PhysicalInputKind.DPadDown
             or PhysicalInputKind.DPadLeft or PhysicalInputKind.DPadRight => "D-Pad",
-        _ => "Sonstige"
+        _ => "Other"
     };
 
     private void EnsureInputsBuilt()
@@ -417,11 +399,10 @@ public sealed partial class DeviceConfigDeviceViewModel : ObservableObject, IDis
 
             if (inputRef.Kind is PhysicalInputKind.AxisPositive or PhysicalInputKind.AxisNegative)
             {
-                // Positiv- und Negativ-Eintrag derselben physischen Achse teilen sich den Index (siehe
-                // PhysicalInputCatalog.AddAxisPair) -> zu einem gemeinsamen Paar mit gemeinsamem Rahmen
-                // zusammenfassen, statt sie als lose, zusammenhanglose Zeilen darzustellen. Ob mehrere
-                // solcher Paare anschliessend noch weiter zu einem kompletten Stick kombiniert werden,
-                // entscheidet BuildAxisGroupItems anhand von GetStickAxisPairs.
+                // The positive and negative entries of one physical axis share an index (see
+                // PhysicalInputCatalog.AddAxisPair). Combine them into a framed pair instead of showing
+                // unrelated rows. BuildAxisGroupItems uses GetStickAxisPairs to decide whether multiple
+                // pairs should then be combined into a complete stick.
                 if (!axisPairsByIndex.TryGetValue(inputRef.Index, out var pair))
                 {
                     pair = new DeviceConfigAxisPairViewModel();
@@ -454,9 +435,9 @@ public sealed partial class DeviceConfigDeviceViewModel : ObservableObject, IDis
 
         foreach (var pair in axisPairsByIndex.Values)
         {
-            // Erst jetzt, nachdem Positiv- und ein etwaiger Negativ-Eintrag beide zugewiesen sind, laesst
-            // sich der korrekte (bidirektionale oder einseitige) Wertebereich der eingebetteten
-            // Live-Visualisierung bestimmen (siehe DeviceConfigAxisPairViewModel.BuildVisualization).
+            // Build the visualization only after both positive and, if present, negative entries have been
+            // assigned so it can determine the correct bidirectional or unidirectional range (see
+            // DeviceConfigAxisPairViewModel.BuildVisualization).
             pair.BuildVisualization();
         }
 
@@ -465,21 +446,20 @@ public sealed partial class DeviceConfigDeviceViewModel : ObservableObject, IDis
 
         if (axisGroup.Items.Count > 0)
         {
-            // Direkt nach der Button-Gruppe einfuegen (bzw. an erster Stelle, falls es keine gibt), damit
-            // die Reihenfolge "Buttons -> Achsen -> D-Pad -> Sonstige" erhalten bleibt.
+            // Insert after the Buttons group, or first if there is no such group, to preserve the order
+            // "Buttons -> Axes -> D-Pad -> Other".
             int insertIndex = groupsByName.TryGetValue("Buttons", out var buttonGroup) ? InputGroups.IndexOf(buttonGroup) + 1 : 0;
             InputGroups.Insert(insertIndex, axisGroup);
         }
     }
 
     /// <summary>
-    /// Kombiniert - analog zur identischen Paarungslogik der Live-Vorschau (<see cref="AxisVisualizationFactory"/>) -
-    /// zwei zusammengehoerige Achsen-Paare (X und Y desselben Sticks) zu einem einzigen
-    /// <see cref="DeviceConfigStickGroupViewModel"/>, damit der Nutzer den kompletten Stick (alle vier
-    /// Positiv-/Negativ-Zeilen) mit einem einzigen Schalter deaktivieren kann. Achsen ohne erkannten
-    /// Stick-Partner (Trigger, Schieberegler, unpartnerte Rotationsachsen) bleiben als eigenstaendiger
-    /// <see cref="DeviceConfigAxisPairViewModel"/> bestehen. Die Reihenfolge in <paramref name="axisGroup"/>
-    /// folgt dabei stets der urspruenglichen Katalog-Reihenfolge (<paramref name="orderedAxisIndices"/>).
+    /// Combines two related axis pairs (X and Y of the same stick) into one
+    /// <see cref="DeviceConfigStickGroupViewModel"/>, using the same pairing logic as the live preview
+    /// (<see cref="AxisVisualizationFactory"/>). This lets users disable all four positive/negative stick rows
+    /// with one switch. Axes without a recognized stick partner (triggers, sliders, or unpaired rotation axes)
+    /// remain individual <see cref="DeviceConfigAxisPairViewModel"/> instances. Items in <paramref name="axisGroup"/>
+    /// retain the original catalog order (<paramref name="orderedAxisIndices"/>).
     /// </summary>
     private void BuildAxisGroupItems(
         DeviceConfigAxisGroupViewModel axisGroup,
@@ -511,31 +491,29 @@ public sealed partial class DeviceConfigDeviceViewModel : ObservableObject, IDis
 
             if (consumedAsStickY.Contains(index))
             {
-                continue; // Bereits oben als Y-Achse eines kombinierten Sticks verarbeitet.
+                continue; // Already processed above as the Y axis of a combined stick.
             }
 
             axisGroup.Items.Add(axisPairsByIndex[index]);
         }
     }
 
-    /// <summary>Bekannte X/Y-Achsenindex-Kombinationen, die gemeinsam einen vollwertigen 2D-Stick
-    /// bilden - identische Zuordnung wie zuvor in <see cref="AxisVisualizationFactory"/> verwendet
-    /// (dort fuer die Live-Vorschau, hier zusaetzlich fuer die gemeinsame Enable/Disable-Gruppierung und
-    /// die eingebettete 2D-Visualisierung). Bei XInput repraesentieren Z/RotationX zusaetzlich den
-    /// rechten Stick; bei DirectInput haben diese Slots keine feste Bedeutung und duerfen deshalb NICHT
-    /// automatisch zu einem Stick kombiniert werden. <c>InvertYForDisplay</c> ist fuer beide APIs stets
-    /// true: der rohe Y-Wert wird bereits in <see cref="DirectInputDeviceReader"/> an der Quelle negiert,
-    /// sodass positiv = vorwaerts/oben einheitlich fuer XInput und DirectInput gilt.</summary>
+    /// <summary>Known X/Y axis index pairs that form a complete 2D stick, using the same mapping as
+    /// <see cref="AxisVisualizationFactory"/> for the live preview and, here, shared enable/disable grouping
+    /// and the embedded 2D visualization. For XInput, Z/RotationX also represent the right stick. DirectInput
+    /// assigns no fixed meaning to those slots, so they must not be combined automatically. For both APIs,
+    /// <c>InvertYForDisplay</c> is always true: <see cref="DirectInputDeviceReader"/> negates the raw Y value at
+    /// the source so positive consistently means forward/up for XInput and DirectInput.</summary>
     private static IEnumerable<(int XIndex, int YIndex, string Name, bool InvertYForDisplay)> GetStickAxisPairs(InputApi api)
     {
         yield return (
             (int)PhysicalAxisId.X, (int)PhysicalAxisId.Y,
-            api == InputApi.XInput ? "Linker Stick" : "Stick (X/Y)",
+            api == InputApi.XInput ? "Left stick" : "Stick (X/Y)",
             true);
 
         if (api == InputApi.XInput)
         {
-            yield return ((int)PhysicalAxisId.Z, (int)PhysicalAxisId.RotationX, "Rechter Stick", true);
+            yield return ((int)PhysicalAxisId.Z, (int)PhysicalAxisId.RotationX, "Right stick", true);
         }
     }
 
@@ -552,7 +530,7 @@ public sealed partial class DeviceConfigDeviceViewModel : ObservableObject, IDis
         }
         catch
         {
-            // Geraet aktuell nicht oeffenbar (z.B. gerade getrennt) -> Live-Hervorhebung einfach ueberspringen.
+            // The device cannot currently be opened (e.g. it was just disconnected); skip live highlighting.
             _liveReader = null;
             return;
         }
@@ -594,7 +572,7 @@ public sealed partial class DeviceConfigDeviceViewModel : ObservableObject, IDis
 
         if (!_liveReader.Poll(out var state))
         {
-            // Geraet wurde getrennt -> Ueberwachung stoppen, bis der Nutzer erneut aufklappt.
+            // The device was disconnected; stop monitoring until the user selects it again.
             StopLiveMonitoring();
             return;
         }

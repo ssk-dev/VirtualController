@@ -4,26 +4,24 @@ using VirtualController.Core.Mapping;
 namespace VirtualController.App.ViewModels;
 
 /// <summary>
-/// Eine einzelne Gruppe der nach Ziel-Typ gruppierten Mapping-Tabelle (siehe
-/// <see cref="ModeViewModel.MappingGroups"/>): fasst alle Mapping-Zeilen desselben
-/// <see cref="MappingTargetKind"/> zusammen und stellt eine Ueberschrift fuer die Anzeige in der UI
-/// bereit. Eine Gruppe existiert in <see cref="ModeViewModel.MappingGroups"/> ausschliesslich, solange
-/// mindestens eine Zeile diesem Ziel-Typ zugeordnet ist (siehe <see cref="ModeViewModel.RebuildMappingGroups"/>) -
-/// leere Gruppen werden nicht angezeigt.
+/// One group in the mapping table grouped by target type (see <see cref="ModeViewModel.MappingGroups"/>).
+/// Contains all mapping rows with the same <see cref="MappingTargetKind"/> and provides a heading for the UI.
+/// A group exists in <see cref="ModeViewModel.MappingGroups"/> only while at least one row uses its target type
+/// (see <see cref="ModeViewModel.RebuildMappingGroups"/>); empty groups are not shown.
 /// </summary>
 public sealed class MappingGroupViewModel
 {
-    /// <summary>Der Ziel-Typ, fuer den diese Gruppe steht - identisch mit <see cref="MappingRowViewModel.SelectedTargetKind"/>
-    /// aller in <see cref="Rows"/> enthaltenen Zeilen.</summary>
+    /// <summary>Target type for this group, matching <see cref="MappingRowViewModel.SelectedTargetKind"/> for
+    /// every row in <see cref="Rows"/>.</summary>
     public MappingTargetKind Kind { get; }
 
-    /// <summary>Anzeigename der Gruppenueberschrift - identisch mit dem Text, den die "Ziel-Typ"-ComboBox
-    /// jeder Zeile fuer denselben Wert anzeigt (reines Enum.ToString(), keine zusaetzliche Uebersetzung),
-    /// damit Gruppenname und Dropdown-Eintrag fuer den Nutzer eindeutig demselben Ziel-Typ zuzuordnen sind.</summary>
+    /// <summary>Group heading, matching the text shown by each row's target-type ComboBox for the same value
+    /// (plain Enum.ToString(), with no additional translation) so the heading and dropdown entry clearly refer
+    /// to the same target type.</summary>
     public string Header { get; }
 
-    /// <summary>Alle Mapping-Zeilen mit <see cref="MappingRowViewModel.SelectedTargetKind"/> == <see cref="Kind"/>,
-    /// in derselben Reihenfolge wie in der zugrunde liegenden <see cref="ModeViewModel.Mappings"/>-Liste.</summary>
+    /// <summary>All mapping rows whose <see cref="MappingRowViewModel.SelectedTargetKind"/> equals
+    /// <see cref="Kind"/>, in the same order as the underlying <see cref="ModeViewModel.Mappings"/> list.</summary>
     public ObservableCollection<MappingRowViewModel> Rows { get; } = new();
 
     public MappingGroupViewModel(MappingTargetKind kind, string header)

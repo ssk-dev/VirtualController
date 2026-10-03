@@ -1,25 +1,25 @@
 namespace VirtualController.Core.Devices;
 
 /// <summary>
-/// Momentaufnahme des Zustands eines physischen Controllers zu einem Abtastzeitpunkt.
-/// Buttons[i] entspricht dem i-ten digitalen Knopf in der Reihenfolge der API (XInput: Bitmaske-Reihenfolge,
-/// DirectInput: Buttons-Array-Index).
+/// Snapshot of a physical controller's state at one polling instant. Buttons[i] is the ith digital button in
+/// API order (XInput bitmask order, DirectInput button-array index).
 /// </summary>
 public sealed class DeviceState
 {
-    /// <summary>Anzahl der generischen Achsen-Slots (siehe <see cref="PhysicalAxisId"/>).</summary>
+    /// <summary>Number of generic axis slots (see <see cref="PhysicalAxisId"/>).</summary>
     public const int AxisSlotCount = 8;
 
     public required bool[] Buttons { get; init; }
 
     /// <summary>
-    /// Generische Achsen-Rohwerte, indiziert per <see cref="PhysicalAxisId"/> (Slots 0-7).
-    /// Stick-artige Achsen liegen normalisiert bei -1.0 .. 1.0, Trigger/Slider bei 0.0 .. 1.0.
-    /// Slots, die das jeweilige Geraet nicht besitzt, bleiben stets 0 (Neutralwert, kein Phantom-Ausschlag).
+    /// Generic axis values indexed by <see cref="PhysicalAxisId"/> (slots 0-7). Stick-like axes are normalized
+    /// to -1.0 .. 1.0, triggers/sliders to 0.0 .. 1.0. Slots not present on the device remain zero (neutral,
+    /// with no phantom deflection).
     /// </summary>
     public required float[] Axes { get; init; }
 
-    /// <summary>DirectInput liefert das D-Pad meist als POV-Winkel (0-35900, -1 = zentriert); XInput als vier Digital-Bits (in Buttons enthalten).</summary>
+    /// <summary>DirectInput usually reports the D-pad as a POV angle (0-35900, -1 = centered); XInput reports
+    /// it as four digital bits included in Buttons.</summary>
     public required int PovDirectionDegrees { get; init; }
 
     public static DeviceState Empty(int buttonCount) => new()

@@ -1,22 +1,20 @@
 namespace VirtualController.Core.Updates;
 
 /// <summary>
-/// Ergebnis von <see cref="UpdateInstaller.PrepareAsync"/>: das ZIP-Archiv der neuen Version wurde
-/// erfolgreich heruntergeladen und in ein temporaeres Staging-Verzeichnis entpackt. Enthaelt alle
-/// Informationen, die der separate Updater-Prozess (siehe <see cref="UpdateInstaller.LaunchUpdaterProcess"/>)
-/// benoetigt, um nach Beenden dieser Anwendung die neuen Dateien an die Installation zu kopieren und die
-/// Anwendung anschliessend neu zu starten.
+/// Result of <see cref="UpdateInstaller.PrepareAsync"/>: the new version's ZIP archive was downloaded and
+/// extracted to a temporary staging directory. Contains everything the separate updater process (see
+/// <see cref="UpdateInstaller.LaunchUpdaterProcess"/>) needs to copy files into the installation after the app
+/// exits and then restart it.
 /// </summary>
-/// <param name="StagingDirectory">Temporaeres Verzeichnis mit den bereits entpackten neuen Dateien.</param>
-/// <param name="InstallDirectory">Zielverzeichnis der laufenden Installation (enthaelt die EXE sowie die
-/// benoetigten nativen WPF-DLLs), in das der Updater-Prozess die neuen Dateien kopiert.</param>
-/// <param name="ExecutableFileName">Dateiname der Haupt-EXE (z.B. "VirtualController.exe"), mit dem der
-/// Updater-Prozess die Anwendung nach dem Kopieren neu startet.</param>
-/// <param name="ProcessId">Prozess-ID dieser noch laufenden Anwendungsinstanz - der Updater-Prozess wartet
-/// auf deren Beendigung, bevor er die Zieldateien ueberschreibt (sie sind waehrend der Laufzeit gesperrt).</param>
-/// <param name="TargetVersion">Versionsnummer der zu installierenden Version (z.B. "1.5.0"), rein
-/// informativ fuer die Anzeige im separaten Updater-Prozess (z.B. "Version 1.5.0 erfolgreich
-/// installiert") - hat keinen Einfluss auf den eigentlichen Installationsvorgang selbst.</param>
+/// <param name="StagingDirectory">Temporary directory containing the extracted update files.</param>
+/// <param name="InstallDirectory">Target installation directory containing the executable and required native
+/// WPF DLLs; the updater copies the new files here.</param>
+/// <param name="ExecutableFileName">Main executable filename (e.g. "VirtualController.exe") used by the updater
+/// to restart the app after copying.</param>
+/// <param name="ProcessId">ID of the still-running app process. The updater waits for it to exit before replacing
+/// target files locked during runtime.</param>
+/// <param name="TargetVersion">Version being installed (e.g. "1.5.0"), for display in the separate updater only;
+/// does not affect installation.</param>
 public sealed record UpdateInstallPreparation(
     string StagingDirectory,
     string InstallDirectory,

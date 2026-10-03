@@ -1,21 +1,21 @@
 <Project Sdk="Microsoft.NET.Sdk">
 
-  <!-- TargetFramework, Nullable, ImplicitUsings, Platforms, PlatformTarget, LangVersion: siehe Directory.Build.props -->
+  <!-- TargetFramework, Nullable, ImplicitUsings, Platforms, PlatformTarget, LangVersion: see Directory.Build.props -->
   <PropertyGroup>
     <OutputType>WinExe</OutputType>
     <UseWPF>true</UseWPF>
-    <!-- Nur fuer das Tray-Icon (System.Windows.Forms.NotifyIcon); WPF selbst bietet kein natives Tray-Icon. -->
+    <!-- Required for the tray icon (System.Windows.Forms.NotifyIcon); WPF has no native tray icon support. -->
     <UseWindowsForms>true</UseWindowsForms>
     <RootNamespace>VirtualController.App</RootNamespace>
     <AssemblyName>VirtualController</AssemblyName>
-    <!-- Programm-Icon fuer die erzeugte EXE (Explorer, Taskleiste, Fenstertitel, Alt+Tab) -->
+    <!-- Application icon for the generated executable (File Explorer, taskbar, window title, Alt+Tab). -->
     <ApplicationIcon>..\..\assets\VirtualController.ico</ApplicationIcon>
   </PropertyGroup>
 
   <!--
-    Publish-Einstellungen: erzeugt bei "dotnet publish" immer eine eigenstaendige
-    Single-File-EXE (kein separates .NET muss auf dem Zielrechner installiert sein).
-    Das ist die Variante, die anschliessend automatisch ins Repo-Root kopiert wird.
+    Publish settings: always produce a self-contained single-file executable with "dotnet publish",
+    so the target machine does not need a separate .NET installation. This executable is then copied
+    automatically to the repository root.
   -->
   <PropertyGroup>
     <RuntimeIdentifier>win-x64</RuntimeIdentifier>
@@ -29,10 +29,9 @@
     <ProjectReference Include="..\VirtualController.Core\VirtualController.Core.csproj" />
   </ItemGroup>
 
-  <!-- Icon zusaetzlich als eingebettete WPF-Resource verfuegbar machen, damit einzelne Fenster (siehe
-       Window.Icon-Bindungen in den .xaml-Dateien) es per pack://application:,,,/ referenzieren koennen -
-       die ApplicationIcon-Eigenschaft oben setzt nur das Icon-Resource der EXE-Datei selbst (Explorer/
-       Taskleiste), nicht zwangslaeufig das Titelleisten-Icon jedes einzelnen WPF-Fensters. -->
+    <!-- Also embed the icon as a WPF resource so individual windows can reference it through
+      pack://application:,,,/ (see Window.Icon bindings in the XAML files). ApplicationIcon above sets
+      the executable's icon for File Explorer/taskbar, but not necessarily each WPF window's title bar icon. -->
   <ItemGroup>
     <Resource Include="..\..\assets\VirtualController.ico" Link="Icons\VirtualController.ico" />
     <Resource Include="..\..\assets\logo.png" Link="Icons\logo.png" />
@@ -43,10 +42,15 @@
     <PackageReference Include="CommunityToolkit.Mvvm" Version="8.3.2" />
   </ItemGroup>
 
+  <ItemGroup>
+    <None Update="translations\*.json">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </None>
+  </ItemGroup>
+
   <!--
-    Kopiert nach jedem "dotnet publish" die frisch erzeugte, self-contained EXE (und PDB)
-    ins Repo-Root und ueberschreibt dabei die dort liegende aeltere Version.
-    So ist die EXE im Root immer der aktuellste Stand.
+    After each "dotnet publish", copies the new self-contained executable (and PDB) to the repository root,
+    replacing the older version so the root executable always matches the latest build.
   -->
   <Target Name="CopyPublishedExeToRepoRoot" AfterTargets="Publish">
     <PropertyGroup>
@@ -56,7 +60,7 @@
       <PublishedExeFiles Include="$(PublishDir)VirtualController.exe;$(PublishDir)VirtualController.pdb;$(PublishDir)VirtualController.Core.pdb" />
     </ItemGroup>
     <Copy SourceFiles="@(PublishedExeFiles)" DestinationFolder="$(RepoRootDir)" SkipUnchangedFiles="false" OverwriteReadOnlyFiles="true" />
-    <Message Importance="high" Text="VirtualController.exe wurde nach '$(RepoRootDir)' kopiert (ueberschrieben)." />
+    <Message Importance="high" Text="VirtualController.exe copied to '$(RepoRootDir)' (overwritten)." />
   </Target>
 
 </Project>

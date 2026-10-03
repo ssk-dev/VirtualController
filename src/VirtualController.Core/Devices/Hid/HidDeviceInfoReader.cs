@@ -3,32 +3,28 @@ using HidSharp;
 namespace VirtualController.Core.Devices.Hid;
 
 /// <summary>
-/// Loest Vendor-/Product-ID (siehe <see cref="PhysicalDeviceInfo.VendorId"/>/<see cref="PhysicalDeviceInfo.ProductId"/>)
-/// auf konkrete HID-Kenndaten (<see cref="HidDeviceInfo"/>) auf und oeffnet daraus bei Bedarf eine rohe
-/// Report-Quelle (<see cref="IHidReportSource"/>) - die einzige Stelle in diesem Projekt, an der der Typ
-/// <see cref="HidSharp.HidDevice"/> direkt verwendet wird (siehe Kapselungs-Hinweis in
-/// <see cref="IHidReportSource"/>).
+/// Resolves vendor/product IDs (see <see cref="PhysicalDeviceInfo.VendorId"/> and
+/// <see cref="PhysicalDeviceInfo.ProductId"/>) to HID metadata (<see cref="HidDeviceInfo"/>) and optionally
+/// opens a raw report source (<see cref="IHidReportSource"/>). This is the only place in the project that
+/// directly uses <see cref="HidSharp.HidDevice"/> (see the encapsulation note in <see cref="IHidReportSource"/>).
 ///
-/// WICHTIGE EINSCHRAENKUNG (siehe auch <see cref="HidDeviceInfo.ReleaseNumberBcd"/>): HID selbst kennt
-/// keinen eigenen "Firmware-Version"-String-Deskriptor. <see cref="HidDeviceInfo.ReleaseNumberBcd"/>
-/// (HidD_GetAttributes -> <c>VersionNumber</c>) ist lediglich eine vom Hersteller frei vergebene,
-/// BCD-codierte Zahl, die üblicherweise, aber nicht garantiert, die Firmware-/Hardware-Revision
-/// widerspiegelt - manche Geraete melden hier durchgehend 0x0100 oder 0x0000, unabhaengig von der
-/// tatsaechlichen Firmware. Diese Zahl darf im Benchmark-Ergebnis daher nur als Naeherung
-/// ("Firmware-Version (laut Geraet, ungeprueft)"), nicht als verlaessliche Angabe dargestellt werden.
+/// Important limitation (see also <see cref="HidDeviceInfo.ReleaseNumberBcd"/>): HID has no dedicated
+/// firmware-version string descriptor. <see cref="HidDeviceInfo.ReleaseNumberBcd"/> (HidD_GetAttributes ->
+/// <c>VersionNumber</c>) is an arbitrary BCD-encoded number assigned by the manufacturer. It often reflects
+/// firmware/hardware revision but is not guaranteed to; some devices always report 0x0100 or 0x0000 regardless
+/// of actual firmware. Benchmark results must label it as an estimate ("device-reported firmware version,
+/// unverified"), not a reliable value.
 ///
-/// Ebenso liefert HidSharp bei mehreren gleichzeitig angeschlossenen, identischen Geraeten (gleiche
-/// VID/PID) mehrere Treffer - <see cref="TryResolve"/> waehlt in diesem Fall bewusst KEINEN automatisch
-/// aus, sondern erwartet den bereits per Seriennummer oder Geraetepfad disambiguierten Aufruf, sofern
-/// mehrere Kandidaten vorliegen (siehe <see cref="TryResolveAll"/>).
+/// HidSharp also returns multiple matches when identical devices (same VID/PID) are connected at once.
+/// In that case, <see cref="TryResolve"/> deliberately does not choose one automatically; callers should
+/// disambiguate using serial number or device path when multiple candidates exist (see <see cref="TryResolveAll"/>).
 /// </summary>
 public static class HidDeviceInfoReader
 {
     /// <summary>
-    /// Liefert alle aktuell angeschlossenen HID-Geraete mit passender Vendor-/Product-ID. Kann mehr als
-    /// ein Ergebnis liefern (siehe Klassendokumentation) - der Aufrufer (z.B. das Benchmark-Feature)
-    /// muss bei mehreren Ergebnissen selbst entscheiden, welches Geraet gemeint ist (z.B. ueber
-    /// Seriennummer, falls vorhanden, oder Nutzer-Rueckfrage).
+    /// Returns all currently connected HID devices with matching vendor/product IDs. May return multiple
+    /// results (see class documentation); callers such as the benchmark must determine which device is meant,
+    /// e.g. by serial number or asking the user.
     /// </summary>
     public static IReadOnlyList<HidDeviceInfo> TryResolveAll(ushort vendorId, ushort productId)
     {
@@ -41,8 +37,8 @@ public static class HidDeviceInfoReader
         }
         catch
         {
-            // HidSharp/Betriebssystem-Zugriff auf die Geraeteliste kann fehlschlagen (z.B. fehlende
-            // Berechtigung) - in diesem Fall gilt schlicht "kein Geraet gefunden" statt Absturz.
+            // HidSharp/OS access to the device list can fail (e.g. due to missing permissions). Treat that as
+            // no devices found rather than crashing.
             return result;
         }
 
@@ -58,19 +54,17 @@ public static class HidDeviceInfoReader
         return result;
     }
 
-    /// <summary>Bequemlichkeitsmethode fuer den (haeufigen) Fall genau eines passenden Geraets - siehe
-    /// <see cref="TryResolveAll"/> fuer den Umgang mit mehreren gleichzeitig angeschlossenen, identischen
-    /// Geraeten.</summary>
+    /// <summary>Convenience method for the common case of one matching device. See <see cref="TryResolveAll"/>
+    /// for handling multiple identical devices connected at once.</summary>
     public static HidDeviceInfo? TryResolve(ushort vendorId, ushort productId)
     {
         var all = TryResolveAll(vendorId, productId);
         return all.Count > 0 ? all[0] : null;
     }
 
-    /// <summary>Oeffnet eine rohe Report-Quelle fuer das Geraet am angegebenen Betriebssystem-Geraetepfad
-    /// (siehe <see cref="HidDeviceInfo.DevicePath"/>). Gibt null zurueck, falls das Geraet nicht (mehr)
-    /// gefunden wird oder das Oeffnen fehlschlaegt (z.B. weil es bereits exklusiv von einer anderen
-    /// Anwendung geoeffnet ist).</summary>
+    /// <summary>Opens a raw report source for the device at the given OS device path (see
+    /// <see cref="HidDeviceInfo.DevicePath"/>). Returns null if the device cannot be found or opening it fails,
+    /// e.g. because another app already has it open exclusively.</summary>
     public static IHidReportSource? TryOpenReportSource(string devicePath)
     {
         HidDevice? device;
@@ -99,9 +93,8 @@ public static class HidDeviceInfoReader
         }
         catch
         {
-            // Geraet ggf. waehrend des Oeffnens getrennt worden, oder exklusiv durch eine andere
-            // Anwendung gesperrt (z.B. ein laufendes Spiel) - beides ist ein normaler, erwartbarer
-            // Fall und darf nicht zum Absturz der Anwendung fuehren.
+            // The device may have disconnected while opening, or another app (e.g. a running game) may hold
+            // it exclusively. Both are expected cases and must not crash the app.
             return null;
         }
     }
@@ -123,8 +116,8 @@ public static class HidDeviceInfoReader
             }
             catch
             {
-                // USB-Topologie-Information ist ein "Nice to have" (siehe UsbTopologyResolver) -
-                // ihr Fehlen darf die restlichen, bereits erfolgreich gelesenen Kenndaten nicht verwerfen.
+                // USB topology information is optional (see UsbTopologyResolver); its absence must not discard
+                // the other metadata that was read successfully.
             }
 
             return new HidDeviceInfo(
@@ -143,16 +136,15 @@ public static class HidDeviceInfoReader
         }
         catch
         {
-            // Ein einzelnes, nicht (mehr) lesbares Geraet (z.B. gerade getrennt) darf die Ermittlung
-            // der uebrigen, weiterhin gueltigen Kandidaten nicht verhindern (siehe TryResolveAll).
+            // One unreadable device (e.g. recently disconnected) must not prevent resolving the remaining valid
+            // candidates (see TryResolveAll).
             return null;
         }
     }
 
-    /// <summary>Viele der optionalen HID-String-Deskriptoren (Manufacturer/Product/SerialNumber) werfen
-    /// bei fehlendem Deskriptor oder Zugriffsproblemen eine Ausnahme statt null zurueckzugeben - dieser
-    /// Wrapper vereinheitlicht das auf "null bei jeglichem Fehler", da das Fehlen eines einzelnen
-    /// optionalen Strings kein Grund ist, die gesamte Geraete-Auskunft zu verwerfen.</summary>
+    /// <summary>Optional HID string descriptors (manufacturer/product/serial number) often throw rather than
+    /// return null when missing or inaccessible. This wrapper converts all failures to null because a missing
+    /// optional string should not invalidate the entire device record.</summary>
     private static string? TryReadOptionalString(Func<string> read)
     {
         try

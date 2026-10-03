@@ -4,11 +4,10 @@ using System.Text.Json;
 namespace VirtualController.Core.Updates;
 
 /// <summary>
-/// Fuehrt eine Update-Pruefung durch: fragt die konfigurierte <see cref="IUpdateSource"/> nach der
-/// aktuell verfuegbaren Version und vergleicht sie semantisch (siehe <see cref="SemanticVersion"/>) mit
-/// der aktuell installierten Version (<see cref="AppVersionProvider.CurrentVersion"/>). Bewusst von der
-/// konkreten Update-Quelle entkoppelt (Konstruktor-Injection von <see cref="IUpdateSource"/>), damit
-/// diese spaeter ausgetauscht werden kann, ohne die Vergleichslogik hier anzufassen.
+/// Checks for updates by requesting the currently available version from the configured
+/// <see cref="IUpdateSource"/> and comparing it semantically (see <see cref="SemanticVersion"/>) with the
+/// installed version (<see cref="AppVersionProvider.CurrentVersion"/>). Decoupled from the specific update
+/// source through constructor injection so the source can be replaced without changing comparison logic.
 /// </summary>
 public sealed class UpdateChecker
 {
@@ -20,14 +19,13 @@ public sealed class UpdateChecker
     }
 
     /// <summary>
-    /// Ermittelt, ob eine neuere Version als die installierte verfuegbar ist.
+    /// Determines whether a newer version than the installed one is available.
     /// </summary>
-    /// <param name="includePreReleases">Ob auch als "Pre-release" markierte Versionen beruecksichtigt
-    /// werden sollen (siehe <see cref="UpdateSettings.IncludePreReleases"/>), statt ausschliesslich
-    /// vollwertige, stabile Releases.</param>
+    /// <param name="includePreReleases">Whether to include versions marked as prereleases (see
+    /// <see cref="UpdateSettings.IncludePreReleases"/>) instead of offering stable releases only.</param>
     /// <exception cref="UpdateCheckException">
-    /// Die Pruefung ist fehlgeschlagen (Verbindungsfehler oder ungueltige Antwort der Update-Quelle).
-    /// Enthaelt eine fuer die Anzeige an den Nutzer geeignete <see cref="Exception.Message"/>.
+    /// The check failed because of a connection error or invalid update source response. Contains a user-facing
+    /// <see cref="Exception.Message"/>.
     /// </exception>
     public async Task<UpdateCheckResult> CheckAsync(bool includePreReleases = false, CancellationToken cancellationToken = default)
     {
@@ -40,11 +38,9 @@ public sealed class UpdateChecker
         }
         catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
         {
-            // Nur echte, vom Aufrufer ausgeloeste Abbrueche werden unveraendert weitergereicht - eine
-            // TaskCanceledException, die HttpClient intern durch sein eigenes Anfrage-Timeout auswirft,
-            // ist ebenfalls eine OperationCanceledException, wurde aber NICHT vom uebergebenen
-            // cancellationToken verursacht und soll stattdessen unten als praezise Zeitueberschreitung
-            // klassifiziert werden (siehe DescribeSourceFailure).
+            // Pass through only cancellations requested by the caller. HttpClient may also throw
+            // TaskCanceledException for its own request timeout; that is not caused by the supplied token and
+            // should instead be classified below as a timeout (see DescribeSourceFailure).
             throw;
         }
         catch (Exception ex)
@@ -55,9 +51,8 @@ public sealed class UpdateChecker
         if (latest is null)
         {
             throw new UpdateCheckException(
-                "Die Update-Quelle hat keine gültige Versionsinformation zurückgegeben. Möglicherweise " +
-                "enthält das GitHub-Repository kein passendes Release oder keines der Releases besitzt das " +
-                "erwartete Installationspaket als Anhang.");
+                "The update source returned no valid version information. The GitHub repository may have no " +
+                "eligible release, or none of its releases may contain the expected installation package.");
         }
 
         bool isUpdateAvailable = latest.Version > installed;
@@ -65,15 +60,14 @@ public sealed class UpdateChecker
     }
 
     /// <summary>
-    /// Ermittelt ALLE aktuell an der Update-Quelle verfuegbaren Versionen (nicht nur die neueste) - wird
-    /// vom "Version wechseln"-Dialog (Rollback-Funktion, siehe <see cref="UpdateCoordinator.GetAllVersionsAsync"/>)
-    /// benoetigt, damit der Nutzer explizit auch zu einer aelteren als der aktuell installierten Version
-    /// zurueckwechseln kann.
+    /// Returns all versions currently available from the update source, not only the latest. Used by the
+    /// Change Version/rollback dialog (see <see cref="UpdateCoordinator.GetAllVersionsAsync"/>) so users can
+    /// explicitly switch to a version older than the one installed.
     /// </summary>
     /// <param name="includePreReleases">Siehe <see cref="CheckAsync"/>.</param>
     /// <exception cref="UpdateCheckException">
-    /// Die Abfrage ist fehlgeschlagen (Verbindungsfehler oder ungueltige Antwort der Update-Quelle).
-    /// Enthaelt eine fuer die Anzeige an den Nutzer geeignete <see cref="Exception.Message"/>.
+    /// The request failed because of a connection error or invalid update source response. Contains a
+    /// user-facing <see cref="Exception.Message"/>.
     /// </exception>
     public async Task<IReadOnlyList<UpdateInfo>> GetAllAvailableAsync(bool includePreReleases, CancellationToken cancellationToken = default)
     {
@@ -83,7 +77,7 @@ public sealed class UpdateChecker
         }
         catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
         {
-            // Siehe CheckAsync fuer die Begruendung dieser Bedingung.
+            // See CheckAsync for the reason for this condition.
             throw;
         }
         catch (Exception ex)
@@ -93,45 +87,37 @@ public sealed class UpdateChecker
     }
 
     /// <summary>
-    /// Erstellt eine praezise, fuer die Anzeige an den Nutzer geeignete Fehlerbeschreibung anhand der Art
-    /// der zugrundeliegenden Ausnahme - unterscheidet dabei bewusst zwischen einem tatsaechlichen
-    /// Verbindungsproblem (z.B. keine Internetverbindung, DNS-Fehler, Timeout) und einem Problem, das von
-    /// der Update-Quelle selbst verursacht wurde (z.B. das GitHub-Repository oder das angefragte Release
-    /// existiert nicht (mehr) -&gt; HTTP 404, das Anfragelimit der GitHub-API wurde erreicht -&gt; HTTP 403,
-    /// oder die Antwort war kein gueltiges JSON). Ohne diese Unterscheidung wuerde z.B. ein umbenanntes
-    /// oder geloeschtes GitHub-Repository dem Nutzer faelschlich als "keine Internetverbindung"
-    /// angezeigt, obwohl die eigene Internetverbindung einwandfrei funktioniert.
+    /// Creates a precise, user-facing error description based on the underlying exception. Distinguishes actual
+    /// connection problems (e.g. no internet, DNS failure, timeout) from update-source problems (e.g. the GitHub
+    /// repository/release no longer exists -> HTTP 404, API rate limit reached -> HTTP 403, or invalid JSON).
+    /// Without this distinction, a renamed/deleted repository could be reported as "no internet connection"
+    /// even when the user's connection is working.
     /// </summary>
     private static string DescribeSourceFailure(Exception ex) => ex switch
     {
         HttpRequestException { StatusCode: HttpStatusCode.NotFound } =>
-            "Die Update-Quelle wurde nicht gefunden (HTTP 404). Möglicherweise wurde das GitHub-Repository " +
-            "umbenannt, verschoben oder ist nicht (mehr) öffentlich zugänglich. Bitte die Konfiguration der " +
-            "Update-Quelle prüfen.",
+            "The update source was not found (HTTP 404). The GitHub repository may have been renamed, moved, " +
+            "or made private. Check the update source configuration.",
 
         HttpRequestException { StatusCode: HttpStatusCode.Forbidden } =>
-            "Der Zugriff auf die Update-Quelle wurde verweigert (HTTP 403). Dies ist meist auf das " +
-            "Anfragelimit der GitHub-API zurückzuführen (z.B. bei häufigen Prüfungen ohne Authentifizierung) " +
-            "- bitte später erneut versuchen.",
+            "Access to the update source was denied (HTTP 403), usually because the GitHub API rate limit was " +
+            "reached (e.g. from frequent unauthenticated checks). Try again later.",
 
         HttpRequestException { StatusCode: not null } httpEx =>
-            $"Die Update-Quelle hat einen Fehler zurückgegeben (HTTP {(int)httpEx.StatusCode!.Value} {httpEx.StatusCode}). " +
-            "Bitte später erneut versuchen.",
+            $"The update source returned an error (HTTP {(int)httpEx.StatusCode!.Value} {httpEx.StatusCode}). Try again later.",
 
         HttpRequestException httpEx =>
-            $"Die Update-Quelle konnte nicht erreicht werden. Bitte Internetverbindung prüfen und später " +
-            $"erneut versuchen. (Ursache: {httpEx.Message})",
+            $"Could not reach the update source. Check your internet connection and try again later. (Cause: {httpEx.Message})",
 
         TaskCanceledException =>
-            "Die Anfrage an die Update-Quelle hat zu lange gedauert (Zeitüberschreitung). Bitte " +
-            "Internetverbindung prüfen und später erneut versuchen.",
+            "The request to the update source timed out. Check your internet connection and try again later.",
 
         JsonException =>
-            "Die Update-Quelle hat eine ungültige oder unerwartete Antwort geliefert (kein gültiges JSON). " +
-            "Dies deutet auf ein Problem der Update-Quelle selbst hin, nicht auf die eigene Internetverbindung.",
+            "The update source returned an invalid or unexpected response (not valid JSON). This indicates a " +
+            "problem with the update source, not your internet connection.",
 
         _ =>
-            $"Die verfügbare(n) Version(en) konnten nicht ermittelt werden. Bitte Internetverbindung prüfen " +
-            $"und später erneut versuchen. (Ursache: {ex.Message})",
+            $"Could not determine the available version(s). Check your internet connection and try again later. " +
+            $"(Cause: {ex.Message})",
     };
 }

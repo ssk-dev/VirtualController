@@ -6,9 +6,8 @@
         ShowInTaskbar="False" Topmost="True" ResizeMode="NoResize"
         WindowStartupLocation="Manual" Focusable="False">
 
-    <!-- Reines Anzeige-Popup ohne Nutzerinteraktion (siehe ModeChangeToast.xaml.cs): erscheint kurz
-         unten links auf dem Hauptbildschirm, immer im Vordergrund (Topmost), und schliesst sich nach
-         Ablauf der Anzeigedauer automatisch wieder selbst. -->
+        <!-- Display-only popup with no user interaction (see ModeChangeToast.xaml.cs). Appears briefly in the
+            bottom-left corner, stays on top, and closes automatically when its display duration expires. -->
     <Border Background="#E6222222" CornerRadius="6" Padding="14,10">
         <StackPanel>
             <TextBlock x:Name="ControllerNameText" Foreground="#CCCCCC" FontSize="11" />

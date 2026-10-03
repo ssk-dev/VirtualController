@@ -3,12 +3,11 @@ using VirtualController.Core.Devices;
 namespace VirtualController.App.ViewModels;
 
 /// <summary>
-/// Baut einen menschenlesbaren Anzeigenamen fuer eine physische Eingabe ("Geraetename - Eingabename")
-/// anhand von DeviceId/Kind/Index, unter Beruecksichtigung eines vom Nutzer vergebenen individuellen
-/// Namens (siehe <see cref="DeviceSettings"/>) sowie des zuletzt bekannten Geraetenamens, falls das
-/// Geraet aktuell nicht angeschlossen ist. Zentrale Stelle fuer diese Logik, damit Mapping-Zeilen
-/// (<see cref="MappingRowViewModel"/>) und Modus-Umschalt-Ausloeser (<see cref="ModeViewModel"/>,
-/// <see cref="VirtualControllerViewModel"/>) sie nicht jeweils eigenstaendig duplizieren.
+/// Builds a human-readable name for a physical input ("device name - input name") from its device ID, kind,
+/// and index. Uses a user-provided custom name (see <see cref="DeviceSettings"/>) and the last known device
+/// name when the device is disconnected. Centralizes this logic for mapping rows
+/// (<see cref="MappingRowViewModel"/>) and mode-switch triggers (<see cref="ModeViewModel"/> and
+/// <see cref="VirtualControllerViewModel"/>).
 /// </summary>
 public static class PhysicalInputDisplayNameHelper
 {
@@ -20,11 +19,9 @@ public static class PhysicalInputDisplayNameHelper
         IReadOnlyDictionary<string, DeviceSettings> deviceSettings,
         out bool isConnected)
     {
-        // Noch keine physische Quelle zugewiesen (frisch angelegte Mapping-Zeile, bevor "Erfassen"
-        // oder "Zuweisen" benutzt wurde): weder ein sinnvoller Anzeigename noch ein "nicht verbunden"-
-        // Hinweis sind hier zutreffend - es handelt sich nicht um ein getrenntes Geraet, sondern schlicht
-        // um eine noch offene Auswahl. isConnected wird bewusst auf true gesetzt, damit der rote
-        // "(nicht verbunden)"-Hinweis in der View (an IsSourceConnected gebunden) nicht angezeigt wird.
+        // No physical source is assigned yet (a new mapping row before Capture or Assign). There is no useful
+        // display name and the device is not disconnected; the source selection is simply pending. Set
+        // isConnected to true so the view does not show its red "(disconnected)" indicator.
         if (string.IsNullOrEmpty(deviceId))
         {
             isConnected = true;

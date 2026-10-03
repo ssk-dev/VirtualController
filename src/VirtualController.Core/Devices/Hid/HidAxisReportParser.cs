@@ -5,32 +5,28 @@ using HidSharp.Reports.Input;
 namespace VirtualController.Core.Devices.Hid;
 
 /// <summary>
-/// Statische Kenndaten eines einzelnen, im HID-Report-Deskriptor gefundenen Achsen-Feldes - die
-/// Grundlage fuer die geplante "Resolution"-Kennzahl (<c>SignalMetrics</c>): <see cref="ElementBits"/>
-/// gibt die vom Geraet deklarierte Bit-Tiefe an, <see cref="LogicalMinimum"/>/<see cref="LogicalMaximum"/>
-/// den vom Geraet deklarierten Rohwertbereich. Ob tatsaechlich alle dadurch theoretisch moeglichen
-/// Werte auch wirklich vom Geraet geliefert werden (echte Aufloesung vs. deklarierte Aufloesung), muss
-/// separat durch Beobachtung der tatsaechlich beobachteten unterschiedlichen Rohwerte ermittelt werden.
+/// Static metadata for one axis field in the HID report descriptor, used by the SignalMetrics resolution
+/// metric. <see cref="ElementBits"/> is the bit depth declared by the device; <see cref="LogicalMinimum"/>/
+/// <see cref="LogicalMaximum"/> define its declared raw value range. Whether the device actually reports all
+/// theoretically possible values (effective vs. declared resolution) must be measured separately by observing
+/// distinct raw values.
 /// </summary>
 public sealed record HidAxisFieldInfo(HidAxisUsage Axis, int LogicalMinimum, int LogicalMaximum, int ElementBits, byte ReportId);
 
 /// <summary>
-/// Loest die im HID-Report-Deskriptor deklarierten "Generic Desktop"-Achsen-Usages (siehe
-/// <see cref="HidAxisUsage"/>) auf und liefert daraus fuer eintreffende rohe <see cref="HidReport"/>s die
-/// jeweiligen rohen logischen Achsenwerte - bewusst auf Basis der HidSharp-eigenen Report-Parsing-Klassen
-/// (<see cref="HidSharp.Reports.Input.DeviceItemInputParser"/>) statt eigener Bit-Arithmetik, da HidSharp
-/// bereits die (nicht-triviale) Zuordnung von Bit-Offsets innerhalb eines Reports zu einzelnen Datenfeldern
-/// korrekt beherrscht.
+/// Resolves the Generic Desktop axis usages declared by the HID report descriptor (see <see cref="HidAxisUsage"/>),
+/// then extracts their raw logical values from incoming <see cref="HidReport"/>s. Uses HidSharp's report parsing
+/// classes (<see cref="HidSharp.Reports.Input.DeviceItemInputParser"/>) instead of custom bit arithmetic because
+/// HidSharp correctly maps bit offsets within reports to individual data fields.
 ///
-/// Diese Klasse ist - wie <see cref="HidDeviceInfoReader"/> - eine der wenigen Stellen, die HidSharp-Typen
-/// direkt verwendet; nach aussen (insbesondere Richtung <c>Benchmark/Metrics</c>) werden ausschliesslich
-/// <see cref="HidAxisUsage"/>, <see cref="HidAxisFieldInfo"/> und rohe <see langword="int"/>-Werte
-/// sichtbar (siehe Kapselungs-Hinweis in <see cref="IHidReportSource"/>).
+/// Like <see cref="HidDeviceInfoReader"/>, this is one of the few places that directly uses HidSharp types.
+/// Only <see cref="HidAxisUsage"/>, <see cref="HidAxisFieldInfo"/>, and raw <see langword="int"/> values are
+/// exposed to callers, especially <c>Benchmark/Metrics</c> (see the encapsulation note in <see cref="IHidReportSource"/>).
 ///
-/// WICHTIGE EINSCHRAENKUNG: Enthaelt ein Report-Deskriptor mehr als eine Slider-Usage (0x36), wird - analog
-/// zur bestehenden Behandlung in <c>DeviceEnumerator.DetectAvailableAxes</c> - die erste gefundene auf
-/// <see cref="HidAxisUsage.Slider0"/>, jede weitere auf <see cref="HidAxisUsage.Slider1"/> abgebildet
-/// (dritte und weitere Slider-Usages werden mangels weiterer Slot-Namen ignoriert).
+/// Important limitation: if a report descriptor contains multiple Slider usages (0x36), the first maps to
+/// <see cref="HidAxisUsage.Slider0"/> and each subsequent one maps to <see cref="HidAxisUsage.Slider1"/>,
+/// matching <c>DeviceEnumerator.DetectAvailableAxes</c>. Third and later Slider usages are ignored because no
+/// additional slots are defined.
 /// </summary>
 public sealed class HidAxisReportParser
 {
@@ -63,15 +59,14 @@ public sealed class HidAxisReportParser
         _availableAxes = availableAxes;
     }
 
-    /// <summary>Alle im Report-Deskriptor gefundenen Achsen-Felder (Kenndaten, siehe <see cref="HidAxisFieldInfo"/>).
-    /// Kann leer sein, wenn das Geraet keine Generic-Desktop-Achsen-Usages deklariert (z.B. ein reines
-    /// Tastatur-/Button-Geraet).</summary>
+    /// <summary>Axis fields found in the report descriptor (metadata in <see cref="HidAxisFieldInfo"/>). May be
+    /// empty if the device declares no Generic Desktop axis usages, e.g. a keyboard/button-only device.</summary>
     public IReadOnlyList<HidAxisFieldInfo> AvailableAxes => _availableAxes;
 
-    /// <summary>Oeffnet den Report-Deskriptor des Geraets am angegebenen Betriebssystem-Geraetepfad (siehe
-    /// <see cref="HidDeviceInfo.DevicePath"/>) und ermittelt daraus die verfuegbaren Achsen-Felder. Gibt
-    /// null zurueck, falls das Geraet nicht gefunden wird oder der Deskriptor nicht gelesen werden kann -
-    /// beides erwartbare, nicht-fatale Faelle (analog zu <see cref="HidDeviceInfoReader.TryOpenReportSource"/>).</summary>
+    /// <summary>Opens the report descriptor for the device at the specified OS device path (see
+    /// <see cref="HidDeviceInfo.DevicePath"/>) and discovers its axis fields. Returns null if the device cannot
+    /// be found or its descriptor cannot be read; both are expected, non-fatal cases (like
+    /// <see cref="HidDeviceInfoReader.TryOpenReportSource"/>).</summary>
     public static HidAxisReportParser? TryCreate(string devicePath)
     {
         try
@@ -132,20 +127,17 @@ public sealed class HidAxisReportParser
         }
         catch
         {
-            // Geraet ggf. waehrend des Zugriffs getrennt worden, oder Deskriptor aus sonstigen Gruenden
-            // nicht lesbar - beides darf nicht zum Absturz der Anwendung fuehren (analog zu allen anderen
-            // Hid-Zugriffsstellen in diesem Projekt).
+            // The device may have disconnected during access, or the descriptor may be unreadable for another
+            // reason. Neither case should crash the app, matching other HID access points in this project.
             return null;
         }
     }
 
     /// <summary>
-    /// Parst einen zuvor per <see cref="IHidReportSource.ReadReport"/> gelesenen rohen Report und liefert
-    /// die darin enthaltenen rohen logischen Achsenwerte (siehe <see cref="HidSharp.Reports.DataItem.LogicalMinimum"/>/
-    /// <see cref="HidSharp.Reports.DataItem.LogicalMaximum"/> fuer den jeweils gueltigen Wertebereich).
-    /// Liefert <see langword="false"/>, wenn der Report keinem bekannten Input-Report dieses Geraets
-    /// entspricht (z.B. veraltete Report-ID nach Geraete-Wechsel) - in diesem Fall ist
-    /// <paramref name="rawAxisValues"/> leer, aber nicht null.
+    /// Parses a raw report read by <see cref="IHidReportSource.ReadReport"/> and returns its raw logical axis
+    /// values (see <see cref="HidSharp.Reports.DataItem.LogicalMinimum"/>/<see cref="HidSharp.Reports.DataItem.LogicalMaximum"/>
+    /// for the valid range). Returns false if the report does not match a known input report for this device,
+    /// e.g. a stale report ID after a device change; in that case, <paramref name="rawAxisValues"/> is empty but non-null.
     /// </summary>
     public bool TryParse(HidReport report, out IReadOnlyDictionary<HidAxisUsage, int> rawAxisValues)
     {
@@ -186,9 +178,9 @@ public sealed class HidAxisReportParser
         }
         catch
         {
-            // Ein einzelner, unerwartet fehlerhafter Report (z.B. Laenge passt nicht mehr zum zuvor
-            // gelesenen Deskriptor nach einer Geraete-Neuverbindung) darf einen laufenden Benchmark/Log
-            // nicht abbrechen - siehe analoge Fehlerbehandlung in HidSharpReportSource/RawHidReportReader.
+            // One unexpectedly malformed report (e.g. its length no longer matches the descriptor after a
+            // reconnect) must not abort a running benchmark/log; see similar handling in
+            // HidSharpReportSource/RawHidReportReader.
             return false;
         }
     }

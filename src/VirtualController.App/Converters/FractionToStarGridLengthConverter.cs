@@ -5,13 +5,12 @@ using System.Windows.Data;
 namespace VirtualController.App.Converters;
 
 /// <summary>
-/// Wandelt einen Bruchwert (0.0 .. 1.0, z.B. die Marker-/Deadzone-Anteile aus
-/// <see cref="ViewModels.AxisVisualizationViewModel"/>) in eine mit diesem Anteil gewichtete
-/// <see cref="GridLength"/> (Star) um. Damit lassen sich die drei Spalten/Zeilen eines Grids
-/// ("davor" / Marker bzw. Deadzone-Band / "danach") stets proportional zur tatsaechlichen Breite
-/// bzw. Hoehe des umgebenden Steuerelements aufteilen, unabhaengig von dessen konkreter Pixelgroesse -
-/// die eigentliche Positionierung von Marker und Deadzone-Rahmen in der generischen Achsenvisualisierung
-/// verlaesst sich also ausschliesslich auf das WPF-Grid-Layoutsystem statt auf eigene Pixel-Berechnungen.
+/// Converts a fraction (0.0 .. 1.0, e.g. marker/deadzone fractions from
+/// <see cref="ViewModels.AxisVisualizationViewModel"/>) into a proportionally weighted
+/// <see cref="GridLength"/> (Star). This keeps the three grid columns/rows
+/// ("before" / marker or deadzone band / "after") proportional to the actual width
+/// or height of the parent control, regardless of its pixel size. The generic axis visualization
+/// therefore relies exclusively on WPF Grid layout for marker and deadzone positioning instead of custom pixel calculations.
 /// </summary>
 public sealed class FractionToStarGridLengthConverter : IValueConverter
 {

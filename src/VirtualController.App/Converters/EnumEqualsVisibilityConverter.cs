@@ -5,10 +5,10 @@ using System.Windows.Data;
 namespace VirtualController.App.Converters;
 
 /// <summary>
-/// Vergleicht den Enum-Wert einer Binding-Quelle (z.B. <see cref="Mapping.MappingTargetKind"/>)
-/// gegen den als <see cref="ConverterParameter"/> uebergebenen Namen und liefert Visible/Collapsed.
-/// Wird genutzt, um in der Mapping-Tabelle je nach gewaehltem Ziel-Typ die passende ComboBox
-/// (Button/Achse/Trigger/DPad) einzublenden.
+/// Compares the enum value of a binding source (e.g. <see cref="Mapping.MappingTargetKind"/>)
+/// with the name passed through <see cref="ConverterParameter"/> and returns Visible or Collapsed.
+/// Used to show the matching ComboBox (button/axis/trigger/D-pad) in the mapping table
+/// based on the selected target type.
 /// </summary>
 public sealed class EnumEqualsVisibilityConverter : IValueConverter
 {

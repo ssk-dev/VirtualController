@@ -1,16 +1,16 @@
 name: Release
 
-# Loest den Workflow aus, sobald ein Git-Tag im Format "v1.0.0" (SemVer mit "v"-Praefix) gepusht wird,
-# z.B. per: git tag v1.0.0 && git push origin v1.0.0
-# Alternativ manuell ueber die GitHub-UI ("Run workflow") auf einem beliebigen Branch startbar,
-# z.B. zum Testen, ohne dafuer extra einen Tag anlegen zu muessen.
+# Triggers the workflow when a Git tag in the format "v1.0.0" (SemVer with a "v" prefix) is pushed,
+# e.g. with: git tag v1.0.0 && git push origin v1.0.0
+# It can also be started manually via the GitHub UI ("Run workflow") on any branch,
+# e.g. for testing without creating a tag.
 on:
   push:
     tags:
       - "v*.*.*"
   workflow_dispatch:
 
-# Erforderlich, damit der Workflow ein GitHub Release anlegen und Dateien daran anhaengen darf.
+# Required to allow the workflow to create a GitHub release and attach files.
 permissions:
   contents: write
 
@@ -19,36 +19,33 @@ jobs:
     runs-on: windows-latest
 
     steps:
-      - name: Repository auschecken
+      - name: Check out repository
         uses: actions/checkout@v4
         with:
-          # Voller Verlauf inkl. aller Tags statt des Standard-Shallow-Checkouts (fetch-depth: 1) - stellt
-          # sicher, dass "git describe --tags --exact-match" (siehe Directory.Build.targets) beim Build
-          # zuverlaessig den auslösenden Tag findet, unabhaengig vom genauen Checkout-Verhalten von
-          # actions/checkout fuer Tag-Pushes.
+          # Fetch full history including all tags instead of the default shallow checkout (fetch-depth: 1).
+          # This ensures "git describe --tags --exact-match" (see Directory.Build.targets) reliably finds
+          # the triggering tag during the build, regardless of how actions/checkout handles tag pushes.
           fetch-depth: 0
 
-      - name: .NET 8 SDK einrichten
+      - name: Set up .NET 8 SDK
         uses: actions/setup-dotnet@v4
         with:
           dotnet-version: "8.0.x"
 
-      - name: Abhaengigkeiten wiederherstellen
+      - name: Restore dependencies
         run: dotnet restore
 
-      # Erzeugt die self-contained Single-File-EXE (siehe VirtualController.App.csproj:
-      # RuntimeIdentifier=win-x64, SelfContained=true, PublishSingleFile=true). Das dortige
-      # "CopyPublishedExeToRepoRoot"-Target kopiert das Ergebnis zusaetzlich ins Repo-Root -
-      # fuer den Workflow selbst massgeblich ist aber der PublishDir-Pfad unten.
-      - name: Release-Build veroeffentlichen (self-contained win-x64 EXE)
+      # Creates the self-contained single-file executable (see VirtualController.App.csproj:
+      # RuntimeIdentifier=win-x64, SelfContained=true, PublishSingleFile=true). The
+      # "CopyPublishedExeToRepoRoot" target also copies the result to the repository root, but this workflow
+      # uses the PublishDir path below.
+      - name: Publish release build (self-contained win-x64 executable)
         run: dotnet publish src/VirtualController.App/VirtualController.App.csproj -c Release -r win-x64 --self-contained true
 
-      # Die WPF-nativen Interop-DLLs (D3DCompiler_47_cor3.dll, PenImc_cor3.dll, PresentationNative_cor3.dll,
-      # vcruntime140_cor3.dll, wpfgfx_cor3.dll) koennen bei PublishSingleFile nicht ins Bundle eingebettet
-      # werden und muessen als separate Dateien neben der EXE liegen (siehe README.md) - werden daher
-      # zusammen mit der EXE in ein eigenes Verzeichnis kopiert, aus dem anschliessend das Release-Archiv
-      # gepackt wird.
-      - name: Release-Ordner zusammenstellen
+      # WPF native interop DLLs (D3DCompiler_47_cor3.dll, PenImc_cor3.dll, PresentationNative_cor3.dll,
+      # vcruntime140_cor3.dll, wpfgfx_cor3.dll) cannot be bundled with PublishSingleFile and must sit next
+      # to the executable (see README.md). Copy them together into a directory used to create the archive.
+      - name: Assemble release directory
         shell: pwsh
         run: |
           $publishDir = "src/VirtualController.App/bin/Release/net8.0-windows/win-x64/publish"
@@ -62,11 +59,10 @@ jobs:
           Copy-Item "wpfgfx_cor3.dll" -Destination $stagingDir
           Compress-Archive -Path "$stagingDir/*" -DestinationPath "VirtualController-win-x64.zip"
 
-      # Ermittelt, ob der gepushte Tag einen SemVer-PreRelease-Suffix enthaelt (z.B. "v1.2.0-alpha",
-      # "v1.2.0-beta", "v1.2.0-nightly") - solche Releases werden weiter unten automatisch mit dem
-      # GitHub-Label "Pre-release" statt "Latest" versehen (siehe naechster Schritt), damit Nutzer klar
-      # erkennen koennen, dass es sich nicht um eine vollwertige, stabile Version handelt.
-      - name: Pre-Release-Status ermitteln
+      # Checks whether the pushed tag has a SemVer prerelease suffix (e.g. "v1.2.0-alpha",
+      # "v1.2.0-beta", "v1.2.0-nightly"). Such releases are labeled "Pre-release" instead of "Latest"
+      # below so users can distinguish them from stable versions.
+      - name: Determine prerelease status
         id: prerelease_check
         shell: pwsh
         run: |
@@ -74,9 +70,9 @@ jobs:
           $isPrerelease = if ($tag -match '^v\d+\.\d+\.\d+-.+$') { 'true' } else { 'false' }
           "is_prerelease=$isPrerelease" | Out-File -FilePath $env:GITHUB_OUTPUT -Append -Encoding utf8
 
-      # Fasst alle Commit-Nachrichten seit dem vorherigen Tag (bzw. der gesamten Historie, falls es noch
-      # keinen vorherigen Tag gibt) zu gruppierten Release Notes zusammen. Erwartet Commit-Nachrichten in
-      # folgendem Format (mehrere solcher Bloecke pro Commit sind moeglich):
+      # Groups all commit messages since the previous tag (or the entire history if there is no previous tag)
+      # into release notes. Commit messages are expected in the following format (multiple blocks per commit
+      # are supported):
       #
       #   feature:
       #   - add versioncheck for version suffix e.g. alpha
@@ -85,22 +81,19 @@ jobs:
       #   fix:
       #   - errorhandling
       #
-      # Als Kopfzeile werden "feature:"/"features:"/"feat:" (-> "## Features") sowie "fix:"/"fixes:"
-      # (-> "## Fixes") gleichbedeutend akzeptiert (case-insensitive), damit unterschiedliche im Team
-      # verwendete Schreibweisen (z.B. "feat:" statt "features:") nicht zu uebersehenen Aufzaehlungspunkten
-      # fuehren. Alle "-"-Aufzaehlungspunkte unterhalb einer solchen Kopfzeile werden ueber ALLE Commits im
-      # Bereich hinweg gesammelt und zu genau einem "## Features"- bzw. "## Fixes"-Block zusammengefuehrt,
-      # statt (wie bei generate_release_notes) einer reinen Commit-Liste. Commits ohne ein solches Format
-      # tragen einfach nichts zu den Release Notes bei.
-      - name: Release Notes aus Commit-Nachrichten gruppieren
+      # Headers "feature:"/"features:"/"feat:" (-> "## Features") and "fix:"/"fixes:" (-> "## Fixes") are
+      # accepted as equivalents, case-insensitively, to support different team conventions without dropping
+      # entries. All bullet points under these headers are collected across all commits and combined into one
+      # "## Features" or "## Fixes" block, rather than a plain commit list as with generate_release_notes.
+      # Commits that do not use this format do not contribute to the release notes.
+      - name: Group release notes from commit messages
         id: release_notes
         shell: pwsh
         run: |
           $ErrorActionPreference = 'Stop'
 
-          # Ermittelt den naechstgelegenen Tag VOR dem aktuellen Commit (falls vorhanden) - der aktuelle,
-          # gerade erst gepushte Tag selbst wird dabei bewusst ausgeschlossen (HEAD^ statt HEAD), damit
-          # nur Commits SEIT dem vorherigen Release beruecksichtigt werden.
+          # Finds the nearest tag before the current commit, if one exists. The just-pushed tag is intentionally
+          # excluded (HEAD^ instead of HEAD) so only commits since the previous release are included.
           git describe --tags --abbrev=0 "HEAD^" 2>$null | Out-Null
           if ($LASTEXITCODE -eq 0) {
               $previousTag = git describe --tags --abbrev=0 "HEAD^" 2>$null
@@ -110,14 +103,11 @@ jobs:
 
           $logRange = if ($previousTag) { "$previousTag..HEAD" } else { "HEAD" }
 
-          # Ein fuehrendes NUL-Byte ("%x00") VOR jeder Commit-Nachricht (statt eines nachgestellten
-          # Trennzeichens) markiert eindeutig den BEGINN jedes einzelnen Commits, unabhaengig davon, ob/wo
-          # git selbst zusaetzliche Zeilenumbrueche zwischen den einzelnen Log-Eintraegen einfuegt - eine
-          # rein nachgestellte Trennung hatte sich in der Praxis als zu fragil erwiesen und fuehrte dazu,
-          # dass zuverlaessig nur der erste Commit im Bereich beruecksichtigt wurde. "Out-String" fasst die
-          # von PowerShell automatisch in ein Zeilen-Array zerlegte Ausgabe wieder zu einem einzigen,
-          # zusammenhaengenden Text zusammen, damit beim anschliessenden Aufteilen keine Zeilenumbrueche
-          # verloren gehen oder versehentlich verschoben werden.
+          # A leading NUL byte ("%x00") before each commit message marks the start of every commit, regardless
+          # of whether or where Git inserts extra line breaks between log entries. A trailing separator proved
+          # too fragile and caused only the first commit in the range to be processed reliably. Out-String
+          # combines PowerShell's line-array output into one continuous string so splitting it later does not
+          # lose or accidentally shift line breaks.
           $rawLog = (git log $logRange --pretty=format:"%x00%B" | Out-String)
           $commitBodies = $rawLog -split [char]0 | Where-Object { $_.Trim() -ne '' }
 
@@ -129,14 +119,11 @@ jobs:
               foreach ($line in ($commitBody -split "`n")) {
                   $trimmed = $line.Trim()
 
-                  # Kopfzeilen werden bewusst NICHT nur dann erkannt, wenn nach dem Doppelpunkt nichts
-                  # weiter folgt (reines "feature:" auf einer eigenen Zeile) - in der Praxis vorkommende
-                  # Commit-Nachrichten haben den ersten Punkt teils direkt in derselben Zeile wie die
-                  # Kopfzeile (z.B. "feature: - add gamecontroller cpl") oder sogar ganz ohne
-                  # "-"-Aufzaehlungszeichen (z.B. "fix: add missing slider axis"). Beide Formen werden hier
-                  # gleichbedeutend behandelt: der Text nach dem Doppelpunkt wird - nach Entfernen eines
-                  # optionalen fuehrenden "-" - direkt als erster Punkt des jeweiligen Abschnitts erfasst,
-                  # $currentSection bleibt zusaetzlich fuer etwaige nachfolgende eigene "- ..."-Zeilen offen.
+                  # Headers are not restricted to a bare "feature:" on its own line. In practice, commit
+                  # messages may put the first item on the same line (e.g. "feature: - add gamecontroller cpl")
+                  # or omit the bullet marker (e.g. "fix: add missing slider axis"). Both forms are accepted:
+                  # text after the colon becomes the first item after removing an optional leading "-", and
+                  # $currentSection remains open for subsequent "- ..." lines.
                   if ($trimmed -match '^(?i)(?:feature|features|feat)\s*:\s*(.*)$') {
                       $currentSection = 'feature'
                       $rest = ($Matches[1] -replace '^-\s*', '').Trim()
@@ -150,13 +137,11 @@ jobs:
                       continue
                   }
                   if ($trimmed -eq '') {
-                      # Bewusst NICHT den aktuellen Abschnitt zuruecksetzen: bei Commits mit mehreren
-                      # "-m"-Flags (z.B. "git commit -m 'feature: - ...' -m '- ...' -m '- ...'") fuegt Git
-                      # zwischen jedem "-m"-Absatz automatisch eine Leerzeile ein - ein reines
-                      # Formatierungsartefakt, kein bewusster Abschnittswechsel. Ein tatsaechlicher
-                      # Abschnittswechsel wird bereits explizit ueber die feature:/fix:-Kopfzeilen-Erkennung
-                      # oben erfasst; wuerde die Leerzeile hier den Abschnitt zuruecksetzen, gingen alle
-                      # nachfolgenden "-"-Aufzaehlungspunkte (aus weiteren "-m"-Absaetzen) verloren.
+                      # Do not reset the current section here: for commits with multiple "-m" flags (e.g.
+                      # "git commit -m 'feature: - ...' -m '- ...' -m '- ...'"), Git inserts a blank line
+                      # between paragraphs. This is formatting, not an intentional section change. Actual
+                      # section changes are detected by the feature:/fix: headers above; resetting here would
+                      # discard later bullet points from additional "-m" paragraphs.
                       continue
                   }
 
@@ -165,9 +150,8 @@ jobs:
                       if ($currentSection -eq 'feature') { $features.Add($item) }
                       elseif ($currentSection -eq 'fix') { $fixes.Add($item) }
                   } else {
-                      # Eine Zeile, die weder eine Kopfzeile noch ein Aufzaehlungspunkt ist, beendet den
-                      # aktuellen Abschnitt - verhindert, dass unstrukturierter Freitext faelschlich als
-                      # Aufzaehlungspunkt interpretiert wird.
+                      # A line that is neither a header nor a bullet ends the current section, preventing
+                      # unstructured free text from being misinterpreted as a list item.
                       $currentSection = $null
                   }
               }
@@ -185,22 +169,22 @@ jobs:
               $bodyLines.Add('')
           }
           if ($bodyLines.Count -eq 0) {
-              $bodyLines.Add('Keine kategorisierten Änderungen (feature:/feat:/fix: fehlen) in diesem Release.')
+              $bodyLines.Add('No categorized changes (feature:/feat:/fix: headers) in this release.')
           }
 
           $bodyLines -join "`n" | Out-File -FilePath 'release-notes.md' -Encoding utf8
 
-      - name: GitHub Release erstellen und Dateien anhaengen
+      - name: Create GitHub release and attach files
         uses: softprops/action-gh-release@v2
         with:
-          # Bewusst NUR das ZIP (EXE + alle benoetigten nativen DLLs, siehe README.md "Voraussetzungen")
-          # als Anhang - nicht zusaetzlich die rohe EXE alleine, da die App ohne die DLLs nicht startet
-          # und ein separater EXE-Download Nutzer sonst zu einer nicht lauffaehigen Datei verleiten wuerde.
+          # Attach only the ZIP (executable + required native DLLs; see README.md "Requirements"), not the
+          # executable alone. The app cannot start without the DLLs, and a separate executable download
+          # could mislead users into downloading a file that will not run.
           files: VirtualController-win-x64.zip
-          # Der Tag-Name (z.B. "v1.0.0") wird automatisch als Release-Titel/-Version verwendet.
-          # Verwendet die im vorherigen Schritt aus den Commit-Nachrichten gruppierten Release Notes
-          # ("## Features" / "## Fixes") statt der von GitHub automatisch generierten reinen Commit-Liste.
+          # The tag name (e.g. "v1.0.0") is used automatically as the release title/version.
+          # Use the release notes grouped from commit messages above ("## Features" / "## Fixes") instead of
+          # GitHub's automatically generated plain commit list.
           body_path: release-notes.md
-          # Markiert Tags mit PreRelease-Suffix (z.B. "-alpha") automatisch als "Pre-release" statt
-          # "Latest" (siehe Schritt "Pre-Release-Status ermitteln" oben).
+          # Automatically marks tags with a prerelease suffix (e.g. "-alpha") as "Pre-release" instead of
+          # "Latest" (see the "Determine prerelease status" step above).
           prerelease: ${{ steps.prerelease_check.outputs.is_prerelease }}

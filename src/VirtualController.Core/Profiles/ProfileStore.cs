@@ -5,27 +5,24 @@ using VirtualController.Core.Mapping;
 namespace VirtualController.Core.Profiles;
 
 /// <summary>
-/// Speichert und laedt die komplette Konfiguration (alle virtuellen Controller + Mapping-Tabellen +
-/// Geraete-Einstellungen), aufgeteilt in mehrere, sprechend benannte Dateien statt einer einzigen
-/// profiles.json:
+/// Saves and loads the complete configuration (virtual controllers, mapping tables, and device settings) as
+/// several descriptively named files instead of one profiles.json:
 /// <list type="bullet">
-/// <item><description>Ein virtueller Controller je Datei: "Controllers\controller-{name}.json"
-/// (siehe <see cref="ControllerStore"/>).</description></item>
-/// <item><description>Ein physisches Geraet je Datei: "Devices\device-{marke}-{name}.json"
-/// (siehe <see cref="DeviceSettingsStore"/>).</description></item>
-/// <item><description>Allgemeine Einstellungen in einer einzigen kleinen "settings.json"
-/// (siehe <see cref="SettingsStore"/>).</description></item>
+/// <item><description>One virtual controller per file: "Controllers\controller-{name}.json"
+/// (see <see cref="ControllerStore"/>).</description></item>
+/// <item><description>One physical device per file: "Devices\device-{brand}-{name}.json"
+/// (see <see cref="DeviceSettingsStore"/>).</description></item>
+/// <item><description>General settings in one small "settings.json" file (see <see cref="SettingsStore"/>).</description></item>
 /// </list>
-/// Jede Einzeldatei wird von ihrem jeweiligen Teilspeicher weiterhin atomar geschrieben (siehe
-/// <see cref="AtomicJsonWriter"/>), damit ein Absturz oder Stromausfall waehrend des Schreibens niemals
-/// eine bereits vorhandene, gueltige Datei beschaedigt. Existiert noch eine alte, kombinierte
-/// profiles.json aus einer fruehen Version dieser App, wird sie beim ersten <see cref="Load"/> einmalig
-/// automatisch in dieses neue Format aufgeteilt (siehe <see cref="LoadLegacyAndMigrate"/>).
+/// Each file is still written atomically by its store (see <see cref="AtomicJsonWriter"/>), so a crash or
+/// power loss cannot corrupt an existing valid file. If a combined profiles.json from an older app version
+/// still exists, the first <see cref="Load"/> automatically migrates it to this format
+/// (see <see cref="LoadLegacyAndMigrate"/>).
 /// </summary>
 public static class ProfileStore
 {
-    /// <summary>Basisordner aller Profildateien, standardmaessig %AppData%\VirtualController. Ueber den
-    /// optionalen Parameter von <see cref="Load"/>/<see cref="Save"/> ueberschreibbar, z.B. fuer Tests.</summary>
+    /// <summary>Base directory for all profile files, defaulting to %AppData%\VirtualController. Can be
+    /// overridden through the optional <see cref="Load"/>/<see cref="Save"/> parameter, e.g. in tests.</summary>
     public static string BaseDirectory =>
         Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData), "VirtualController");
 
@@ -35,9 +32,8 @@ public static class ProfileStore
 
     private static string SettingsFilePath(string baseDirectory) => Path.Combine(baseDirectory, "settings.json");
 
-    /// <summary>Pfad der alten, kombinierten Profildatei aus fruehen Versionen dieser App - wird nur noch
-    /// fuer die einmalige Migration nach dem Aufteilen in mehrere Dateien benoetigt (siehe
-    /// <see cref="LoadLegacyAndMigrate"/>).</summary>
+    /// <summary>Path to the combined profile file used by older app versions, retained only for one-time
+    /// migration to split files (see <see cref="LoadLegacyAndMigrate"/>).</summary>
     private static string LegacyFilePath(string baseDirectory) => Path.Combine(baseDirectory, "profiles.json");
 
     public static AppProfile Load(string? baseDirectory = null)
@@ -61,6 +57,7 @@ public static class ProfileStore
         profile.StartWithWindows = settings.StartWithWindows;
         profile.StartMinimized = settings.StartMinimized;
         profile.AlwaysOnTop = settings.AlwaysOnTop;
+        profile.UiLanguage = settings.UiLanguage;
         profile.CustomInputNames = settings.CustomInputNames;
 
         MigrateLegacyCustomInputNames(profile);
@@ -68,10 +65,8 @@ public static class ProfileStore
         return profile;
     }
 
-    /// <summary>Ob bereits mindestens eine der neuen, aufgeteilten Dateien existiert - dann gilt diese
-    /// Installation als bereits migriert und eine evtl. noch vorhandene alte profiles.json wird
-    /// ignoriert (verhindert, dass laengst geloeschte Controller/Geraete durch eine erneute Migration
-    /// wieder auftauchen).</summary>
+    /// <summary>Whether any new split files exist. If so, the installation is considered migrated and any
+    /// remaining legacy profiles.json is ignored, preventing deleted controllers/devices from reappearing.</summary>
     private static bool HasAnySplitFiles(string baseDirectory)
     {
         var controllersDir = ControllersDirectory(baseDirectory);
@@ -89,19 +84,17 @@ public static class ProfileStore
         return File.Exists(SettingsFilePath(baseDirectory));
     }
 
-    /// <summary>Liest eine alte, kombinierte profiles.json (inkl. aller bisherigen Legacy-Migrationen),
-    /// speichert das Ergebnis einmalig im neuen, aufgeteilten Format und benennt die alte Datei zu
-    /// "profiles.json.migrated" um (statt sie zu loeschen, als Sicherheitsnetz), damit sie beim naechsten
-    /// <see cref="Load"/> nicht erneut als Migrationsquelle erkannt wird.</summary>
+    /// <summary>Reads a legacy combined profiles.json (including existing legacy migrations), saves its contents
+    /// once in the new split format, and renames the old file to "profiles.json.migrated" rather than deleting
+    /// it. This prevents it from being treated as a migration source on the next <see cref="Load"/>.</summary>
     private static AppProfile LoadLegacyAndMigrate(string legacyPath, string baseDirectory)
     {
         var jsonBytes = File.ReadAllBytes(legacyPath);
         var legacyOptions = ProfileJsonOptions.Create();
 
-        // Muss vor der typisierten Deserialisierung ausgewertet werden: aeltere Profile speicherten die
-        // Mapping-Tabelle als flaches "Mappings"-Array direkt am Controller-Objekt - diese Eigenschaft
-        // existiert seit Einfuehrung der Modi nicht mehr auf VirtualControllerProfile, wuerde also von
-        // JsonSerializer.Deserialize<AppProfile> stillschweigend verworfen (unbekannte Property).
+        // Extract this before typed deserialization: older profiles stored the mapping table as a flat
+        // "Mappings" array directly on the controller object. VirtualControllerProfile no longer has that
+        // property since modes were introduced, so JsonSerializer would silently discard it as unknown.
         var legacyMappingsByControllerId = ExtractLegacyMappingsByControllerId(jsonBytes, legacyOptions);
 
         var loaded = JsonSerializer.Deserialize<AppProfile>(jsonBytes, legacyOptions);
@@ -116,23 +109,22 @@ public static class ProfileStore
         var migratedPath = legacyPath + ".migrated";
         try
         {
-            File.Delete(migratedPath); // Falls von einem vorherigen, abgebrochenen Migrationsversuch uebrig.
+            File.Delete(migratedPath); // Remove a leftover from a previously interrupted migration attempt.
             File.Move(legacyPath, migratedPath);
         }
         catch (IOException)
         {
-            // Umbenennen fehlgeschlagen (z.B. Datei gesperrt) -> unkritisch, HasAnySplitFiles verhindert
-            // beim naechsten Load ohnehin eine erneute Migration.
+            // Rename failure (e.g. file locked) is harmless; HasAnySplitFiles prevents another migration on
+            // the next load.
         }
 
         return profile;
     }
 
     /// <summary>
-    /// Liest aus dem rohen JSON die veraltete, flache "Mappings"-Liste jedes Controllers aus (Key = dessen
-    /// <see cref="VirtualControllerProfile.Id"/>), bevor diese durch die typisierte Deserialisierung
-    /// verloren geht. Liefert nur Eintraege fuer Controller, die tatsaechlich ein solches Legacy-Array
-    /// besitzen (neuere Profile ohne dieses Feld liefern hier nichts).
+    /// Reads each controller's legacy flat "Mappings" list (keyed by <see cref="VirtualControllerProfile.Id"/>)
+    /// from raw JSON before typed deserialization discards it. Returns entries only for controllers that have
+    /// this legacy array; newer profiles without the field produce no entries.
     /// </summary>
     private static Dictionary<Guid, List<MappingEntry>> ExtractLegacyMappingsByControllerId(
         byte[] jsonBytes, JsonSerializerOptions options)
@@ -167,10 +159,9 @@ public static class ProfileStore
     }
 
     /// <summary>
-    /// Ueberfuehrt fuer jeden Controller, der noch keine Modi besitzt, aber ueber
-    /// <paramref name="legacyMappingsByControllerId"/> eine alte, flache Mapping-Liste mitbringt, diese in
-    /// einen einzigen, automatisch angelegten "Standard"-Modus - so bleiben bereits vorhandene Zuordnungen
-    /// nach dem Umstieg auf mehrere Modi pro Controller erhalten und sind sofort aktiv.
+    /// For each controller without modes that has a legacy flat mapping list in
+    /// <paramref name="legacyMappingsByControllerId"/>, creates one "Default" mode containing those mappings.
+    /// Existing mappings are preserved and active after migration to multiple modes per controller.
     /// </summary>
     private static void MigrateLegacyModes(AppProfile profile, Dictionary<Guid, List<MappingEntry>> legacyMappingsByControllerId)
     {
@@ -178,7 +169,7 @@ public static class ProfileStore
         {
             if (controller.Modes.Count > 0)
             {
-                continue; // Bereits im neuen Format gespeichert -> nichts zu tun.
+                continue; // Already saved in the new format; nothing to migrate.
             }
 
             legacyMappingsByControllerId.TryGetValue(controller.Id, out var legacyMappings);
@@ -186,7 +177,7 @@ public static class ProfileStore
             var standardMode = new ControllerMode
             {
                 Id = Guid.NewGuid(),
-                Name = "Standard",
+                Name = "Default",
                 Mappings = legacyMappings ?? new List<MappingEntry>()
             };
 
@@ -196,13 +187,11 @@ public static class ProfileStore
     }
 
     /// <summary>
-    /// Wandelt Mapping-Eintraege mit dem veralteten, kombinierten <see cref="PhysicalInputKind.DPad"/>
-    /// (aus Profilen, die vor der Aufteilung des D-Pads in ein echtes 4-Wege-Kreuz gespeichert wurden)
-    /// in vier gleichwertige Eintraege um - je einen pro Richtung (Hoch/Runter/Links/Rechts). Das
-    /// entspricht exakt dem alten Laufzeitverhalten: die alte Logik reagierte bei Button-/Trigger-Zielen
-    /// auf jede POV-Bewegung und gab bei DPad-Zielen die kombinierte Richtung direkt weiter - vier
-    /// unabhaengige Digital-Eintraege mit demselben Ziel bilden das 1:1 nach, auch bei Diagonalen
-    /// (dort werden einfach zwei der vier Eintraege gleichzeitig aktiv).
+    /// Converts legacy mappings with the combined <see cref="PhysicalInputKind.DPad"/> source (from profiles
+    /// saved before D-pad was split into four directions) into four equivalent entries, one per direction.
+    /// This exactly preserves the old behavior: button/trigger targets reacted to any POV movement, while
+    /// D-pad targets passed through the combined direction. Four independent digital entries with the same
+    /// target reproduce that behavior, including diagonals where two entries are active at once.
     /// </summary>
     private static void MigrateLegacyDPadMappings(Dictionary<Guid, List<MappingEntry>> legacyMappingsByControllerId)
     {
@@ -255,11 +244,10 @@ public static class ProfileStore
     }
 
     /// <summary>
-    /// Ueberfuehrt die veraltete, flache <see cref="AppProfile.CustomInputNames"/>-Liste (vor der
-    /// Einfuehrung von <see cref="Devices.DeviceSettings"/> die einzige Persistenz fuer benutzerdefinierte
-    /// Eingabenamen) in die neue, reichhaltigere Struktur, damit bereits vergebene Namen nach dem Umstieg
-    /// erhalten bleiben. Bereits in <see cref="AppProfile.DeviceSettings"/> vorhandene Namen haben Vorrang
-    /// vor der Legacy-Liste, falls beide (theoretisch) denselben Eintrag beschreiben.
+    /// Migrates the legacy flat <see cref="AppProfile.CustomInputNames"/> list (the only storage for custom
+    /// input names before <see cref="Devices.DeviceSettings"/> was introduced) into the richer structure so
+    /// existing names are preserved. Names already present in <see cref="AppProfile.DeviceSettings"/> take
+    /// precedence if both sources describe the same entry.
     /// </summary>
     private static void MigrateLegacyCustomInputNames(AppProfile profile)
     {
@@ -267,7 +255,7 @@ public static class ProfileStore
         {
             if (!PhysicalInputCatalog.TryParseStorageKey(key, out var deviceId, out _, out _))
             {
-                continue; // Unerwartetes/fehlerhaftes Key-Format -> Eintrag einfach ignorieren statt zu werfen.
+                continue; // Ignore unexpected/malformed key formats instead of throwing.
             }
 
             if (!profile.DeviceSettings.TryGetValue(deviceId, out var deviceSettings))
@@ -299,6 +287,7 @@ public static class ProfileStore
                 StartWithWindows = profile.StartWithWindows,
                 StartMinimized = profile.StartMinimized,
                 AlwaysOnTop = profile.AlwaysOnTop,
+                UiLanguage = profile.UiLanguage,
                 CustomInputNames = profile.CustomInputNames
             },
             SettingsFilePath(baseDir));

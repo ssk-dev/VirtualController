@@ -8,12 +8,11 @@
              d:DataContext="{d:DesignInstance Type=vm:Axis2DVisualizationViewModel, IsDesignTimeCreatable=False}"
              d:DesignWidth="120" d:DesignHeight="150">
     <!--
-        Generische, nicht editierbare Live-Anzeige eines kombinierten X/Y-Sticks als quadratisches
-        Koordinatenfeld (siehe Anforderung "Grafische Darstellung der Controller-Eingaben"). Der
-        DataContext ist stets ein Axis2DVisualizationViewModel; Marker- und Deadzone-Position werden
-        ausschliesslich ueber Grid-Star-Zeilen/-Spalten (FractionToStarGridLengthConverter) relativ zur
-        tatsaechlichen Groesse berechnet - es findet keine eigene Pixel-Arithmetik oder Wertelogik statt.
-        Die Y-Achse wird gespiegelt dargestellt (oben = positiv), wie bei einem Joystick ueblich.
+        Generic, read-only live display of a combined X/Y stick as a square coordinate field. The DataContext
+        is always an Axis2DVisualizationViewModel. Marker and deadzone positions are calculated relative to
+        the actual size only through Grid star rows/columns (FractionToStarGridLengthConverter); there is no
+        custom pixel arithmetic or value logic. The Y axis is inverted for display (positive is up), as is
+        conventional for a joystick.
     -->
     <Viewbox Stretch="Uniform" StretchDirection="Both">
     <StackPanel Width="120" Margin="0,2,0,4">
@@ -35,8 +34,8 @@
 
         <Border Width="120" Height="120" CornerRadius="3" Background="Transparent" BorderBrush="{StaticResource PanelBorderBrush}" BorderThickness="1" ClipToBounds="True">
             <Grid>
-                <!-- Deadzone-Bereich: quadratischer Rahmen um den Mittelpunkt, dessen Groesse proportional
-                     zur konfigurierten (jeweils groesseren) X-/Y-Deadzone waechst. -->
+                 <!-- Deadzone area: a square around the center whose size is proportional to the larger of the
+                     configured X/Y deadzones. -->
                 <Grid>
                     <Grid.ColumnDefinitions>
                         <ColumnDefinition Width="{Binding X.DeadzoneStartFraction, Converter={StaticResource FractionToStarGridLengthConverter}}" />
@@ -54,8 +53,8 @@
                         <Border.Style>
                             <Style TargetType="Border">
                                 <Style.Triggers>
-                                    <!-- Feuert nur beim UEBERGANG von "innerhalb" nach "ausserhalb" (EnterActions),
-                                         nicht dauerhaft solange der Zustand bestehen bleibt -> kein Flackern. -->
+                                     <!-- Fires only on the transition from inside to outside (EnterActions), not
+                                         continuously while the state persists, avoiding flicker. -->
                                     <DataTrigger Binding="{Binding IsOutsideDeadzone}" Value="True">
                                         <DataTrigger.EnterActions>
                                             <BeginStoryboard>
@@ -74,11 +73,11 @@
                     </Border>
                 </Grid>
 
-                <!-- Faden-Kreuz durch den Mittelpunkt (Neutralpunkt 0,0). -->
+                <!-- Crosshair through the center (neutral point 0,0). -->
                 <Rectangle Height="1" Fill="{StaticResource MutedTextBrush}" VerticalAlignment="Center" />
                 <Rectangle Width="1" Fill="{StaticResource MutedTextBrush}" HorizontalAlignment="Center" />
 
-                <!-- Aktuelle Position als gut sichtbarer Punkt/Marker. Y invertiert (oben = positiv). -->
+                <!-- Current position as a visible dot/marker. Y is inverted for display (positive is up). -->
                 <Grid>
                     <Grid.ColumnDefinitions>
                         <ColumnDefinition Width="{Binding X.MarkerFraction, Converter={StaticResource FractionToStarGridLengthConverter}}" />

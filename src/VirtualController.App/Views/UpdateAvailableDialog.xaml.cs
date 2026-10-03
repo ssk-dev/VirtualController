@@ -4,21 +4,20 @@ using VirtualController.App.ViewModels;
 namespace VirtualController.App.Views;
 
 /// <summary>
-/// Code-Behind des modalen Update-Popups. Enthaelt bewusst keine Geschaeftslogik - diese lebt komplett
-/// im <see cref="UpdateAvailableDialogViewModel"/>. Hier wird lediglich das ViewModel per
-/// <see cref="UpdateAvailableDialogViewModel.RequestClose"/>-Ereignis an <see cref="Window.Close"/>
-/// gekoppelt und - falls die Installation erfolgreich gestartet wurde - der Anwendung ueber
-/// <see cref="InstallationStarted"/> signalisiert, dass sie sich beenden soll (damit der separate
-/// Updater-Prozess die aktuell gesperrten Installationsdateien ueberschreiben kann).
+/// Code-behind for the modal update dialog. Business logic lives in
+/// <see cref="UpdateAvailableDialogViewModel"/>. This class connects
+/// <see cref="UpdateAvailableDialogViewModel.RequestClose"/> to <see cref="Window.Close"/> and signals through
+/// <see cref="InstallationStarted"/> when the app should shut down after installation starts successfully,
+/// allowing the separate updater to replace locked files.
 /// </summary>
 public partial class UpdateAvailableDialog : Window
 {
     private readonly UpdateAvailableDialogViewModel _viewModel;
     private bool _installationStarted;
 
-    /// <summary>Wird ausgeloest, wenn der Nutzer erfolgreich eine Installation gestartet hat (nicht bei
-    /// "Update ueberspringen" oder einfachem Schliessen) - der Aufrufer (<see cref="MainWindow"/>) beendet
-    /// die Anwendung daraufhin, damit der separate Updater-Prozess die Dateien austauschen kann.</summary>
+    /// <summary>Raised when the user successfully starts an installation, but not when skipping the update or
+    /// closing normally. The caller (<see cref="MainWindow"/>) then shuts down the app so the separate updater
+    /// can replace files.</summary>
     public event Action? InstallationStarted;
 
     public UpdateAvailableDialog(UpdateAvailableDialogViewModel viewModel)
@@ -32,10 +31,9 @@ public partial class UpdateAvailableDialog : Window
 
     private void OnRequestClose()
     {
-        // IsInstalling bleibt ab dem erfolgreichen Start des Updater-Prozesses dauerhaft true (siehe
-        // UpdateAvailableDialogViewModel.InstallAsync) - das unterscheidet diesen Fall zuverlaessig von
-        // "Update ueberspringen" (dort wird RequestClose ausgeloest, OHNE dass zuvor IsInstalling gesetzt
-        // wurde).
+        // IsInstalling remains true after the updater process starts successfully (see
+        // UpdateAvailableDialogViewModel.InstallAsync), distinguishing installation from skipping, which
+        // raises RequestClose without setting IsInstalling.
         _installationStarted = _viewModel.IsInstalling;
         Close();
     }

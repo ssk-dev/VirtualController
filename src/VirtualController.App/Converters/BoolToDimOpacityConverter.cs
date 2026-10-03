@@ -3,8 +3,8 @@ using System.Windows.Data;
 
 namespace VirtualController.App.Converters;
 
-/// <summary>Wandelt bool in eine Opacity (true = 1.0 voll sichtbar, false = 0.4 ausgegraut).
-/// Wird genutzt, um im Hauptfenster deaktivierte physische Eingaben (siehe
+/// <summary>Converts a boolean to an opacity value (true = 1.0 fully visible, false = 0.4 dimmed).
+/// Used to visually distinguish disabled physical inputs in the main window (see
 /// <see cref="ViewModels.PhysicalInputRowViewModel.IsEnabled"/>) visuell hervorzuheben.</summary>
 public sealed class BoolToDimOpacityConverter : IValueConverter
 {

@@ -5,9 +5,8 @@ using Vortice.DirectInput;
 namespace VirtualController.Core.Devices;
 
 /// <summary>
-/// Liest einen physischen Controller ueber DirectInput aus. Wird fuer alle Geraete genutzt,
-/// die nicht ueber XInput erreichbar sind (z.B. reine DirectInput-Gamepads, viele PlayStation-
-/// Controller im generischen HID-Modus, alte Joysticks).
+/// Reads a physical controller through DirectInput. Used for devices unavailable through XInput, such as
+/// DirectInput-only gamepads, many PlayStation controllers in generic HID mode, and older joysticks.
 /// </summary>
 public sealed class DirectInputDeviceReader : IDeviceReader
 {
@@ -25,21 +24,19 @@ public sealed class DirectInputDeviceReader : IDeviceReader
         Info = info;
         _buttonCount = buttonCount;
 
-        // Achsen-Bereich vereinheitlichen, damit Normalisierung unten immer 0..65535 annehmen kann.
+        // Normalize axis ranges so the conversion below can always assume 0..65535.
         foreach (var objectInfo in _device.GetObjects(DeviceObjectTypeFlags.Axis))
         {
             var properties = _device.GetObjectPropertiesById(objectInfo.ObjectId);
             properties.Range = new InputRange(0, 65535);
         }
 
-        // DirectInput verlangt ein gueltiges Top-Level-Fensterhandle (IntPtr.Zero fuehrt zu
-        // E_INVALIDARG und wirft eine Exception). Da diese App keine eigenes Fenster-Handle an
-        // dieser Stelle zur Verfuegung hat und ausschliesslich lesenden Hintergrundzugriff
-        // benoetigt, wird das Desktop-Fenster als gueltiges Handle verwendet.
-        // WICHTIG: SetDataFormat MUSS vor Acquire() gesetzt werden - ohne dieses Datenformat
-        // kennt das COM-Geraet das gewuenschte Zustands-Layout nicht, wodurch
-        // GetCurrentJoystickState() undefinierte/falsche Rohwerte fuer Buttons, Achsen,
-        // Slider und POV liefert (Ursache fuer falsche Anzeige und fehlendes Live-Highlight).
+        // DirectInput requires a valid top-level window handle; IntPtr.Zero returns E_INVALIDARG. This app
+        // does not have a window handle available here and only needs background read access, so use the
+        // desktop window as a valid handle.
+        // IMPORTANT: SetDataFormat must be called before Acquire(). Without it, the COM device does not know
+        // the requested state layout, and GetCurrentJoystickState() returns undefined/incorrect raw values for
+        // buttons, axes, sliders, and POV (causing incorrect display and missing live highlights).
         _device.SetDataFormat<RawJoystickState>();
         _device.SetCooperativeLevel(GetDesktopWindow(), CooperativeLevel.NonExclusive | CooperativeLevel.Background);
         _device.Acquire();
@@ -68,12 +65,10 @@ public sealed class DirectInputDeviceReader : IDeviceReader
                 axes[(int)axisId] = axisId switch
                 {
                     PhysicalAxisId.X => NormalizeBidirectional(joyState.X),
-                    // DirectInput liefert fuer die Y-Achse einen positiven Rohwert beim Zurueckziehen/
-                    // Abwaertsbewegen des Sticks - das Gegenteil der XInput-Konvention (positiv =
-                    // vorwaerts/oben), der die virtuellen Controller (Xbox360VirtualPad/DualShock4VirtualPad)
-                    // sowie die gesamte Mapping-Auswertung (MappingEngine) folgen. Durch die Negierung hier,
-                    // direkt an der Quelle, muss diese Umrechnung nicht mehr an jeder einzelnen Verwendungsstelle
-                    // (Live-Vorschau, Mapping-Engine) separat beruecksichtigt werden.
+                    // DirectInput reports positive raw Y when pulling the stick down, opposite to XInput
+                    // (positive = forward/up), which virtual controllers (Xbox360VirtualPad/DualShock4VirtualPad)
+                    // and mapping evaluation follow. Negate Y here at the source so the live preview and
+                    // mapping engine do not each need a separate conversion.
                     PhysicalAxisId.Y => -NormalizeBidirectional(joyState.Y),
                     PhysicalAxisId.Z => NormalizeBidirectional(joyState.Z),
                     PhysicalAxisId.RotationX => NormalizeBidirectional(joyState.RotationX),
@@ -95,8 +90,8 @@ public sealed class DirectInputDeviceReader : IDeviceReader
         }
         catch (SharpGenException)
         {
-            // Geraet wurde getrennt oder Fokus/Zugriff verloren -> erneutes Acquire versuchen.
-            try { _device.Acquire(); } catch { /* Geraet weiterhin nicht verfuegbar */ }
+            // The device disconnected or access/focus was lost; try to acquire it again.
+            try { _device.Acquire(); } catch { /* Device is still unavailable. */ }
             state = DeviceState.Empty(_buttonCount);
             return false;
         }
@@ -105,10 +100,10 @@ public sealed class DirectInputDeviceReader : IDeviceReader
     private static int GetSlider(Vortice.DirectInput.JoystickState joyState, int index)
         => joyState.Sliders is { } sliders && index < sliders.Length ? sliders[index] : 0;
 
-    /// <summary>Fuer Stick-artige Achsen (X, Y, Z, Rotationen): Rohbereich 0..65535 auf -1.0 .. 1.0 normalisieren.</summary>
+    /// <summary>Normalizes stick-like axes (X, Y, Z, rotations) from 0..65535 to -1.0 .. 1.0.</summary>
     private static float NormalizeBidirectional(int raw) => (raw - 32767) / 32767f;
 
-    /// <summary>Fuer Slider (typischerweise physisch einseitig, z.B. Schubregler): Rohbereich 0..65535 auf 0.0 .. 1.0 normalisieren.</summary>
+    /// <summary>Normalizes sliders (typically physically unidirectional, e.g. a throttle) from 0..65535 to 0.0 .. 1.0.</summary>
     private static float NormalizeUnidirectional(int raw) => Math.Clamp(raw / 65535f, 0f, 1f);
 
     public void Dispose()

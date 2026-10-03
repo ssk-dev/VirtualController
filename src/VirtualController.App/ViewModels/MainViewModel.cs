@@ -14,58 +14,54 @@ using VirtualController.Core.Virtual;
 namespace VirtualController.App.ViewModels;
 
 /// <summary>
-/// Wurzel-ViewModel des Hauptfensters: verwaltet den <see cref="ControllerManager"/> (ViGEmBus-
-/// Verbindung + laufende Sessions), die Liste der konfigurierten virtuellen Controller sowie
-/// das Laden/Speichern des gesamten Profils. Jede Aenderung an einem virtuellen Controller wird
-/// automatisch an die zugehoerige, ggf. laufende <see cref="ControllerSession"/> weitergereicht.
+/// Root view model for the main window. Manages the <see cref="ControllerManager"/> (ViGEmBus connection
+/// and running sessions), the configured virtual controllers, and loading/saving the complete profile.
+/// Changes to a virtual controller are automatically forwarded to its associated, possibly running
+/// <see cref="ControllerSession"/>.
 /// </summary>
 public sealed partial class MainViewModel : ObservableObject, IDisposable
 {
     private readonly ControllerManager _manager = new();
 
-    /// <summary>Geraeteweite Einstellungen (Enable/Disable, Umbenennung, Kalibrierung, Deadzone, Kurve je
-    /// physischer Eingabe), Key = <see cref="PhysicalDeviceInfo.DeviceId"/>. Wird zusammen mit den
-    /// Controller-Profilen in <see cref="AppProfile"/> gespeichert/geladen.</summary>
+    /// <summary>Device-wide settings (enabled state, rename, calibration, deadzone, and curve per physical
+    /// input), keyed by <see cref="PhysicalDeviceInfo.DeviceId"/>. Saved and loaded with the controller
+    /// profiles in <see cref="AppProfile"/>.</summary>
     private Dictionary<string, DeviceSettings> _deviceSettings = new();
 
-    /// <summary>Intervall des periodischen Hotplug-Scans (siehe <see cref="StartHotplugPolling"/>) - ein
-    /// Kompromiss zwischen zuegiger Erkennung neu angeschlossener/getrennter Geraete und unnoetiger
-    /// Hintergrundlast durch zu haeufiges Neu-Enumerieren aller Eingabegeraete.</summary>
+    /// <summary>Periodic hot-plug scan interval (see <see cref="StartHotplugPolling"/>), balancing prompt
+    /// detection of connected/disconnected devices against background work from repeatedly enumerating
+    /// every input device.</summary>
     private static readonly TimeSpan HotplugPollInterval = TimeSpan.FromSeconds(2);
 
-    /// <summary>Intervall des periodischen Scans nach Zielprozessen fuer "Controller automatisch starten"
-    /// (siehe <see cref="StartAutoStartPolling"/>) - bewusst derselbe Kompromiss wie beim Hotplug-Scan
-    /// (<see cref="HotplugPollInterval"/>) zwischen zuegiger Erkennung und unnoetiger Hintergrundlast durch
-    /// zu haeufiges Enumerieren aller laufenden Prozesse.</summary>
+    /// <summary>Interval for scanning target processes used by "Start controller automatically"
+    /// (see <see cref="StartAutoStartPolling"/>). Uses the same balance as the hot-plug scan
+    /// (<see cref="HotplugPollInterval"/>) between prompt detection and unnecessary background work
+    /// from repeatedly enumerating all running processes.</summary>
     private static readonly TimeSpan AutoStartPollInterval = TimeSpan.FromSeconds(2);
 
-    /// <summary>Index des "Mapping"-Tabs im Haupt-TabControl (siehe MainWindow.xaml, erstes TabItem) -
-    /// verwendet von <see cref="RefreshScreenActiveStates"/>, um Live-Polling physischer Geraete fuer die
-    /// Mapping-Tabellen-Hervorhebung nur dann zu aktivieren, wenn dieser Tab tatsaechlich sichtbar ist.</summary>
+    /// <summary>Index of the Mapping tab in the main TabControl (the first TabItem in MainWindow.xaml).
+    /// Used by <see cref="RefreshScreenActiveStates"/> to enable live polling for mapping table highlights
+    /// only while this tab is visible.</summary>
     public const int MappingTabIndex = 0;
 
-    /// <summary>Index des "Gerätekonfiguration"-Tabs im Haupt-TabControl (siehe MainWindow.xaml, zweites
-    /// TabItem) - verwendet von <see cref="RefreshScreenActiveStates"/>, um Live-Polling physischer
-    /// Geraete fuer die Achsen-Live-Vorschau nur dann zu aktivieren, wenn dieser Tab tatsaechlich sichtbar
-    /// ist.</summary>
+    /// <summary>Index of the Device Configuration tab in the main TabControl (the second TabItem in
+    /// MainWindow.xaml). Used by <see cref="RefreshScreenActiveStates"/> to enable live polling for the
+    /// axis preview only while this tab is visible.</summary>
     public const int DeviceConfigTabIndex = 1;
 
     private DispatcherTimer? _hotplugTimer;
 
-    /// <summary>Pollt periodisch, ob fuer irgendeinen Controller mit aktiviertem
-    /// <see cref="VirtualControllerViewModel.AutoStartEnabled"/> das hinterlegte Zielprogramm laeuft bzw.
-    /// nicht mehr laeuft, und startet/stoppt den betroffenen Controller entsprechend automatisch (siehe
-    /// <see cref="OnAutoStartTimerTick"/>). Im Gegensatz zum Hotplug-Timer laeuft dieser Timer immer
-    /// (kein globaler Ein-/Ausschalter), da jeder Controller die Funktion einzeln ueber seine eigene
-    /// Checkbox aktiviert/deaktiviert - ohne aktivierte Controller ist der periodische Scan sehr
-    /// kostenguenstig (reines Enumerieren, kein Geraete-/Treiberzugriff).</summary>
+    /// <summary>Periodically checks whether the target program for any controller with
+    /// <see cref="VirtualControllerViewModel.AutoStartEnabled"/> is running, then starts or stops that
+    /// controller accordingly (see <see cref="OnAutoStartTimerTick"/>). Unlike hot-plug polling, this timer
+    /// always runs because each controller has its own checkbox. With no controllers enabled, the scan is
+    /// inexpensive: it only enumerates processes and does not access devices or drivers.</summary>
     private DispatcherTimer? _autoStartTimer;
 
-    /// <summary>Ob neu angeschlossene/getrennte physische Geraete automatisch per Hintergrund-Polling
-    /// erkannt werden, ohne dass die App neu gestartet oder "Geraete aktualisieren" manuell geklickt
-    /// werden muss (siehe <see cref="Views.MainWindow"/>, "Einstellungen"-Tab). Deaktivieren stoppt den
-    /// Timer vollstaendig (<see cref="StopHotplugPolling"/>), sodass keine zusaetzliche Hintergrundlast
-    /// mehr entsteht.</summary>
+    /// <summary>Whether connected or disconnected physical devices are detected automatically through
+    /// background polling, without restarting the app or manually clicking "Refresh devices" (see the
+    /// Settings tab in <see cref="Views.MainWindow"/>). Disabling this stops the timer entirely
+    /// (<see cref="StopHotplugPolling"/>).</summary>
     [ObservableProperty]
     private bool _autoDeviceDetectionEnabled = true;
 
@@ -78,29 +74,46 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
     [ObservableProperty]
     private bool _alwaysOnTop = true;
 
+    [ObservableProperty]
+    private string _selectedUiLanguage = "system";
+
+    public ObservableCollection<UiLanguageOption> UiLanguageOptions { get; } = new(TranslationService.Instance.GetAvailableLanguages());
+
+    public string SettingsTabHeaderText => TranslationService.Instance.GetText("settings.tab");
+    public string SettingsLanguageLabelText => TranslationService.Instance.GetText("settings.language.label");
+    public string SettingsAutoDeviceDetectionText => TranslationService.Instance.GetText("settings.auto_device_detection");
+    public string SettingsAutoDeviceDetectionHelpText => TranslationService.Instance.GetText("settings.auto_device_detection_help");
+    public string SettingsStartWithWindowsText => TranslationService.Instance.GetText("settings.start_with_windows");
+    public string SettingsStartWithWindowsHelpText => TranslationService.Instance.GetText("settings.start_with_windows_help");
+    public string SettingsStartMinimizedText => TranslationService.Instance.GetText("settings.start_minimized");
+    public string SettingsStartMinimizedHelpText => TranslationService.Instance.GetText("settings.start_minimized_help");
+    public string SettingsAlwaysOnTopText => TranslationService.Instance.GetText("settings.always_on_top");
+    public string SettingsAlwaysOnTopHelpText => TranslationService.Instance.GetText("settings.always_on_top_help");
+
     public ObservableCollection<VirtualControllerViewModel> Controllers { get; } = new();
 
-    /// <summary>Wurzel-ViewModel des "Gerätekonfiguration"-Tabs (siehe <see cref="Views.MainWindow"/>).
-    /// Ersetzt den frueheren separaten "Geraete konfigurieren"-Dialog: lebt nun dauerhaft ueber die
-    /// gesamte Laufzeit des Hauptfensters und wird bei jedem Geraete-Scan (manuell, durch eine
-    /// Einstellungs-Aenderung oder periodisch per Hotplug-Polling) inkrementell abgeglichen, statt
-    /// zerstoert und neu aufgebaut zu werden (siehe <see cref="RefreshDevices"/> und
-    /// <see cref="DeviceConfigViewModel.UpdateDevices"/>).</summary>
+    /// <summary>Root view model for the Device Configuration tab (see <see cref="Views.MainWindow"/>).
+    /// Replaces the former separate device configuration dialog. It lives for the lifetime of the main
+    /// window and incrementally reconciles devices on each scan (manual, triggered by a settings change,
+    /// or periodic hot-plug polling) instead of being destroyed and rebuilt (see
+    /// <see cref="RefreshDevices"/> and <see cref="DeviceConfigViewModel.UpdateDevices"/>).</summary>
     [ObservableProperty]
     private DeviceConfigViewModel _deviceConfig = null!;
 
     [ObservableProperty]
     private IReadOnlyList<PhysicalDeviceInfo> _availableDevices = Array.Empty<PhysicalDeviceInfo>();
 
-    [ObservableProperty]
-    private string _driverStatusText = "Nicht verbunden";
+    /// <summary>Main text of the ViGEmBus status pill in the header. Computed from <see cref="DriverReady"/>
+    /// through <see cref="TranslationService"/> so it switches language together with the rest of the UI;
+    /// change notifications are raised by <see cref="OnDriverReadyChanged"/> and after language changes.</summary>
+    public string DriverStatusText => TranslationService.Instance.GetText(DriverReady ? "driver.status_connected" : "driver.status_unavailable");
 
     [ObservableProperty]
     private bool _driverReady;
 
-    /// <summary>Ob der HidHide-Treiber installiert und betriebsbereit ist (siehe <see cref="ControllerManager.IsHidHideAvailable"/>).
-    /// Fuer die HidHide-Checkbox neben dem Start/Stop-Button jedes virtuellen Controllers: wird diese
-    /// Checkbox ausgegraut, falls HidHide nicht verfuegbar ist (siehe <see cref="Views.MainWindow"/>).</summary>
+    /// <summary>Whether the HidHide driver is installed and ready (see <see cref="ControllerManager.IsHidHideAvailable"/>).
+    /// Controls the HidHide checkbox beside each virtual controller's start/stop button, which is disabled
+    /// when HidHide is unavailable (see <see cref="Views.MainWindow"/>).</summary>
     public bool IsHidHideAvailable => _manager.IsHidHideAvailable;
 
     [ObservableProperty]
@@ -109,59 +122,54 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
     [ObservableProperty]
     private VirtualControllerViewModel? _selectedController;
 
-    /// <summary>Index des aktuell sichtbaren Tabs im Haupt-TabControl (siehe MainWindow.xaml), zwei-Wege
-    /// gebunden an <c>TabControl.SelectedIndex</c>. Wird zusammen mit <see cref="SelectedController"/> und
-    /// <see cref="IsWindowMinimized"/> genutzt, um teures Live-Polling physischer Geraete (Mapping-Tabellen-
-    /// Hervorhebung, Achsen-Live-Vorschau der Geraetekonfiguration) auf genau die Faelle zu beschraenken,
-    /// in denen die zugehoerige visuelle Rueckmeldung ueberhaupt sichtbar sein kann (siehe
-    /// <see cref="RefreshScreenActiveStates"/>). Die Werte 0 ("Mapping") und 1 ("Gerätekonfiguration")
-    /// entsprechen der Reihenfolge der TabItems in MainWindow.xaml (siehe <see cref="MappingTabIndex"/>/
-    /// <see cref="DeviceConfigTabIndex"/>).</summary>
+    /// <summary>Index of the currently visible tab in the main TabControl (MainWindow.xaml), two-way bound
+    /// to <c>TabControl.SelectedIndex</c>. Used with <see cref="SelectedController"/> and
+    /// <see cref="IsWindowMinimized"/> to restrict expensive physical device polling (mapping highlights and
+    /// the device configuration axis preview) to cases where the visual feedback can be seen (see
+    /// <see cref="RefreshScreenActiveStates"/>). Values 0 ("Mapping") and 1 ("Device Configuration") match
+    /// the TabItem order in MainWindow.xaml (see <see cref="MappingTabIndex"/> and <see cref="DeviceConfigTabIndex"/>).</summary>
     [ObservableProperty]
     private int _selectedTabIndex;
 
-    /// <summary>Ob das Hauptfenster aktuell minimiert ist. Wird von <see cref="Views.MainWindow"/> ueber
-    /// dessen <c>StateChanged</c>-Ereignis aktuell gehalten (kein direktes XAML-Binding an
-    /// <c>Window.WindowState</c> moeglich, da dieses kein <c>bool</c> ist). Waehrend das Fenster minimiert
-    /// ist, kann keine Live-Hervorhebung sichtbar sein - das gesamte Live-Polling wird daher fuer diese
-    /// Zeit komplett angehalten (siehe <see cref="RefreshScreenActiveStates"/>).</summary>
+    /// <summary>Whether the main window is minimized. Kept up to date by the <c>StateChanged</c> event in
+    /// <see cref="Views.MainWindow"/> because <c>Window.WindowState</c> cannot be bound directly as a
+    /// <c>bool</c>. Live polling is paused while the window is minimized because no highlight can be seen
+    /// (see <see cref="RefreshScreenActiveStates"/>).</summary>
     [ObservableProperty]
     private bool _isWindowMinimized;
 
-    /// <summary>Ob seit dem letzten erfolgreichen Speichern/Laden ungespeicherte Aenderungen vorliegen
-    /// (Mapping-Tabelle, Controller-Eigenschaften, Geraete-Ein-/Ausgabeeinstellungen). Wird in der UI
-    /// genutzt, um den Speichern-Button rot einzufaerben und einen Hinweistext anzuzeigen.</summary>
+    /// <summary>Whether there are unsaved changes since the last successful load or save (mapping table,
+    /// controller properties, or device input/output settings). Used to color the save button red and show
+    /// a warning in the UI.</summary>
     [ObservableProperty]
     private bool _hasUnsavedChanges;
 
-    /// <summary>Wird ausgeloest, wenn sich der aktive Modus irgendeines verwalteten Controllers
-    /// tatsaechlich geaendert hat und dieser Controller Benachrichtigungen aktiviert hat (siehe
-    /// <see cref="VirtualControllerViewModel.ModeActivated"/>) - <see cref="Views.MainWindow"/> nutzt
-    /// dies, um eine kurze Bildschirmbenachrichtigung anzuzeigen.</summary>
+    /// <summary>Raised when a managed controller's active mode changes and that controller has notifications
+    /// enabled (see <see cref="VirtualControllerViewModel.ModeActivated"/>). <see cref="Views.MainWindow"/>
+    /// uses this to show a brief on-screen notification.</summary>
     public event Action<VirtualControllerViewModel, ModeViewModel>? ModeActivated;
 
-    /// <summary>Verwaltet die Update-Pruefung (automatisch beim Start und manuell ueber den
-    /// "Einstellungen"-Tab) sowie die Einstellung "Automatisch auf Updates pruefen" - siehe
-    /// <see cref="Views.MainWindow"/>, "Einstellungen"-Tab. <see cref="Views.MainWindow"/> abonniert
-    /// <see cref="UpdateViewModel.UpdateAvailable"/>, um bei einer neu verfuegbaren Version das
-    /// Update-Popup anzuzeigen (siehe <see cref="Views.UpdateAvailableDialog"/>).</summary>
+    /// <summary>Manages automatic startup and manual update checks from the Settings tab, including the
+    /// "Check for updates automatically" setting (see <see cref="Views.MainWindow"/>). The main window
+    /// subscribes to <see cref="UpdateViewModel.UpdateAvailable"/> to show the update dialog when a newer
+    /// version is available (see <see cref="Views.UpdateAvailableDialog"/>).</summary>
     public UpdateViewModel Update { get; } = new();
 
-    /// <summary>Fenstertitel inkl. der zur Build-Zeit aus dem Git-Tag ermittelten App-Version (siehe
-    /// <see cref="AppVersionProvider"/>), z.B. "Virtual Controller - Version 1.4.2" - direkt an
-    /// <c>Window.Title</c> gebunden (siehe MainWindow.xaml).</summary>
+    /// <summary>Window title including the app version derived from the Git tag at build time (see
+    /// <see cref="AppVersionProvider"/>), e.g. "Virtual Controller - Version 1.4.2". Bound directly to
+    /// <c>Window.Title</c> (see MainWindow.xaml).</summary>
     public string WindowTitle => $"Virtual Controller - Version {AppVersionProvider.RawVersion}";
 
     public MainViewModel()
     {
-        // Fruehzeitig abonnieren: ConnectDriverCommand (ruft Initialize() auf, das verwaiste HidHide-Sperren
-        // eines vorherigen Absturzes erkennen/entfernen kann) sowie ein spaeteres Controller-Start/Update
-        // (das melden kann, dass HidHide fuer ein Profil aktiviert, der Treiber aber nicht verfuegbar ist)
-        // koennen dieses Event bereits ausloesen, bevor der Konstruktor fertig durchlaufen ist.
+        // Subscribe early: ConnectDriverCommand calls Initialize(), which can find and remove stale HidHide
+        // blocks from a previous crash. A later controller start/update can also report that HidHide is
+        // enabled in a profile but the driver is unavailable. Either event can fire before construction ends.
         _manager.HidHideWarning += message => LastErrorMessage = message;
 
         RefreshDevices();
         LoadProfiles();
+        RefreshTranslatableTexts();
 
         if (AutoDeviceDetectionEnabled)
         {
@@ -170,17 +178,17 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
 
         StartAutoStartPolling();
 
-        // Explizit statt sich allein auf die Change-Notification von SelectedController zu verlassen:
-        // falls kein Profil geladen wurde (Controllers bleibt leer, SelectedController bleibt null), wuerde
-        // OnSelectedControllerChanged sonst gar nicht feuern und der initiale Bildschirm-Status (z.B. fuer
-        // DeviceConfig) bliebe implizit auf dem Default-Wert stehen, statt explizit korrekt berechnet zu sein.
+        // Update explicitly instead of relying only on SelectedController change notifications. If no profile
+        // is loaded, Controllers remains empty and SelectedController remains null, so
+        // OnSelectedControllerChanged would not fire and the initial screen-active state (e.g. for DeviceConfig)
+        // would remain at its default instead of being calculated correctly.
         RefreshScreenActiveStates();
     }
 
     /// <summary>
-    /// Verbindet zum ViGEmBus-Treiber. Muss vor dem Start eines virtuellen Controllers erfolgreich
-    /// gewesen sein. Faengt <see cref="Nefarius.ViGEm.Client.Exceptions.VigemBusNotFoundException"/>
-    /// ab, falls der Treiber (noch) nicht installiert ist, und zeigt das als Statustext an.
+    /// Connects to the ViGEmBus driver. Must succeed before a virtual controller can start. Catches
+    /// <see cref="Nefarius.ViGEm.Client.Exceptions.VigemBusNotFoundException"/> if the driver is not yet
+    /// installed and displays the error as status text.
     /// </summary>
     [RelayCommand]
     private void ConnectDriver()
@@ -189,16 +197,16 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
         {
             _manager.Initialize();
             DriverReady = true;
-            DriverStatusText = "ViGEmBus verbunden";
             LastErrorMessage = null;
         }
         catch (Exception ex)
         {
             DriverReady = false;
-            DriverStatusText = "ViGEmBus nicht verfuegbar";
             LastErrorMessage = ex.Message;
         }
     }
+
+    partial void OnDriverReadyChanged(bool value) => OnPropertyChanged(nameof(DriverStatusText));
 
     partial void OnAutoDeviceDetectionEnabledChanged(bool value)
     {
@@ -231,6 +239,28 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
 
     partial void OnAlwaysOnTopChanged(bool value) => HasUnsavedChanges = true;
 
+    partial void OnSelectedUiLanguageChanged(string value)
+    {
+        HasUnsavedChanges = true;
+        TranslationService.Instance.ApplyLanguage(value);
+        RefreshTranslatableTexts();
+    }
+
+    private void RefreshTranslatableTexts()
+    {
+        OnPropertyChanged(nameof(SettingsTabHeaderText));
+        OnPropertyChanged(nameof(SettingsLanguageLabelText));
+        OnPropertyChanged(nameof(SettingsAutoDeviceDetectionText));
+        OnPropertyChanged(nameof(SettingsAutoDeviceDetectionHelpText));
+        OnPropertyChanged(nameof(SettingsStartWithWindowsText));
+        OnPropertyChanged(nameof(SettingsStartWithWindowsHelpText));
+        OnPropertyChanged(nameof(SettingsStartMinimizedText));
+        OnPropertyChanged(nameof(SettingsStartMinimizedHelpText));
+        OnPropertyChanged(nameof(SettingsAlwaysOnTopText));
+        OnPropertyChanged(nameof(SettingsAlwaysOnTopHelpText));
+        OnPropertyChanged(nameof(DriverStatusText));
+    }
+
     private void UpdateWindowsStartup()
     {
         try
@@ -240,7 +270,7 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
         }
         catch (Exception ex)
         {
-            LastErrorMessage = $"Windows-Autostart konnte nicht geändert werden: {ex.Message}";
+            LastErrorMessage = $"Could not update Windows startup settings: {ex.Message}";
         }
     }
 
@@ -250,14 +280,11 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
 
     partial void OnIsWindowMinimizedChanged(bool value) => RefreshScreenActiveStates();
 
-    /// <summary>Zentrale Stelle, die anhand von <see cref="SelectedTabIndex"/>, <see cref="SelectedController"/>
-    /// und <see cref="IsWindowMinimized"/> entscheidet, fuer welchen virtuellen Controller (Mapping-Tab)
-    /// bzw. ob fuer den "Gerätekonfiguration"-Tab ueberhaupt Live-Polling physischer Geraete laufen darf -
-    /// naemlich nur dann, wenn die zugehoerige visuelle Rueckmeldung (Mapping-Tabellen-Hervorhebung bzw.
-    /// Achsen-Live-Vorschau) tatsaechlich sichtbar sein kann: der jeweilige Tab ist aktiv sichtbar, im Fall
-    /// des Mapping-Tabs zusaetzlich genau der betroffene Controller ist ausgewaehlt, und das Fenster ist
-    /// nicht minimiert. Wird bei jeder relevanten Aenderung (Tab-Wechsel, Controller-Auswahl, Minimieren/
-    /// Wiederherstellen) sowie initial nach dem Laden/Aufbau der Controller-Liste aufgerufen.</summary>
+    /// <summary>Central decision point for whether physical devices may be polled for each virtual controller
+    /// on the Mapping tab or for the Device Configuration tab. Poll only when the corresponding visual
+    /// feedback (mapping highlight or axis preview) can be seen: the tab is visible, the relevant controller
+    /// is selected for Mapping, and the window is not minimized. Called after relevant changes (tab switch,
+    /// controller selection, minimize/restore) and after the controller list is first loaded.</summary>
     private void RefreshScreenActiveStates()
     {
         bool mappingTabVisible = !IsWindowMinimized && SelectedTabIndex == MappingTabIndex;
@@ -271,11 +298,10 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
         DeviceConfig?.SetScreenActive(deviceConfigTabVisible);
     }
 
-    /// <summary>Startet den periodischen Hotplug-Scan (siehe <see cref="HotplugPollInterval"/>), damit
-    /// neu angeschlossene/getrennte physische Geraete ohne App-Neustart oder manuellen Klick auf
-    /// "Geraete aktualisieren" erkannt werden. Wird nur aufgerufen, wenn <see cref="AutoDeviceDetectionEnabled"/>
-    /// aktiv ist; bei deaktivierter Erkennung bleibt der Timer ungestartet, sodass keinerlei zusaetzliche
-    /// Hintergrundlast durch periodisches Neu-Enumerieren aller Eingabegeraete entsteht.</summary>
+    /// <summary>Starts the periodic hot-plug scan (see <see cref="HotplugPollInterval"/>) so newly connected
+    /// or disconnected devices are detected without restarting the app or clicking "Refresh devices".
+    /// Called only when <see cref="AutoDeviceDetectionEnabled"/> is enabled; otherwise the timer remains
+    /// stopped and no background work is spent re-enumerating input devices.</summary>
     private void StartHotplugPolling()
     {
         if (_hotplugTimer is not null)
@@ -302,9 +328,9 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
 
     private void OnHotplugTimerTick(object? sender, EventArgs e) => RefreshDevices();
 
-    /// <summary>Startet den periodischen Scan nach Zielprozessen fuer "Controller automatisch starten"
-    /// (siehe <see cref="AutoStartPollInterval"/>). Laeuft unconditional ab dem Start der Anwendung, da die
-    /// Funktion pro Controller einzeln (nicht global) aktiviert wird.</summary>
+    /// <summary>Starts the periodic process scan for "Start controller automatically" (see
+    /// <see cref="AutoStartPollInterval"/>). Runs from app startup because the feature is enabled per
+    /// controller rather than globally.</summary>
     private void StartAutoStartPolling()
     {
         if (_autoStartTimer is not null)
@@ -329,14 +355,13 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
         _autoStartTimer = null;
     }
 
-    /// <summary>Prueft fuer jeden Controller mit aktiviertem <see cref="VirtualControllerViewModel.AutoStartEnabled"/>,
-    /// ob das unter <see cref="VirtualControllerViewModel.AutoStartExecutablePath"/> hinterlegte Programm
-    /// aktuell laeuft (Abgleich ueber den vollstaendigen Pfad, siehe <see cref="Core.Mapping.VirtualControllerProfile.AutoStartExecutablePath"/>),
-    /// und startet bzw. stoppt den betroffenen Controller entsprechend automatisch - laeuft das Programm und
-    /// der Controller ist noch nicht aktiv, wird er gestartet (<see cref="OnStartRequested"/>); laeuft es nicht
-    /// (mehr) und der Controller ist noch aktiv, wird er gestoppt (<see cref="OnStopRequested"/>). Ein manueller
-    /// Stop/Start durch den Nutzer waehrend das Zielprogramm laeuft wird beim naechsten Tick wieder ueberschrieben -
-    /// das ist bewusst so (die Checkbox ist eine dauerhafte Kopplung, kein einmaliger Ausloeser).</summary>
+    /// <summary>For each controller with <see cref="VirtualControllerViewModel.AutoStartEnabled"/> enabled,
+    /// checks whether the program at <see cref="VirtualControllerViewModel.AutoStartExecutablePath"/> is running
+    /// by comparing its full path (see <see cref="Core.Mapping.VirtualControllerProfile.AutoStartExecutablePath"/>).
+    /// Starts an inactive controller when the program starts and stops an active controller when it exits
+    /// (see <see cref="OnStartRequested"/> and <see cref="OnStopRequested"/>). A manual start or stop while the
+    /// target program is running is overridden on the next tick because the checkbox creates a persistent link,
+    /// not a one-time trigger.</summary>
     private void OnAutoStartTimerTick(object? sender, EventArgs e)
     {
         var candidates = Controllers.Where(c => c.AutoStartEnabled && !string.IsNullOrWhiteSpace(c.AutoStartExecutablePath)).ToList();
@@ -359,9 +384,8 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
                 }
                 catch
                 {
-                    // Manche Prozesse (System-/erhoehte Prozesse, bereits beendete Prozesse) verweigern den
-                    // Zugriff auf MainModule - ein einzelner nicht abfragbarer Prozess darf den gesamten Scan
-                    // nicht abbrechen, daher hier bewusst ignoriert.
+                    // Some processes (system/elevated processes or processes that have already exited) deny
+                    // access to MainModule. Ignore an inaccessible process so it cannot abort the entire scan.
                 }
             }
         }
@@ -386,10 +410,8 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
     {
         var allDevices = _manager.GetAvailablePhysicalDevices();
 
-        // Zuletzt bekannte Anzeigename + Faehigkeiten je Geraet merken, damit sowohl die Mapping-Tabelle
-        // (Anzeigename) als auch der "Gerätekonfiguration"-Tab (komplette Faehigkeiten, um das Geraet bei
-        // Bedarf als getrennt/synthetisch weiterhin darstellen zu koennen) auch nach dem Trennen noch
-        // sinnvolle Informationen anzeigen koennen, statt der rohen DeviceId bzw. gar nichts.
+        // Cache each device's last known name and capabilities so the mapping table and Device Configuration
+        // tab can still show useful information after disconnection, rather than a raw device ID or nothing.
         foreach (var device in allDevices)
         {
             var settings = GetOrCreateDeviceSettings(device.DeviceId);
@@ -419,28 +441,24 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
             DeviceConfig.UpdateDevices();
         }
 
-        // Explizit statt sich allein auf Change-Notifications (z.B. von SelectedController) zu verlassen:
-        // ein hier frisch angelegtes DeviceConfigViewModel bzw. neu hinzugekommene DeviceSelectionViewModel-
-        // Instanzen (siehe VirtualControllerViewModel.RefreshDeviceSelections) starten sonst mit dem
-        // Default-Wert false fuer ihr Bildschirm-Aktiv-Flag, bis irgendeine andere Aenderung zufaellig
-        // RefreshScreenActiveStates auslöst - das kann insbesondere dann ausbleiben, wenn SelectedController
-        // sich dabei gar nicht tatsaechlich aendert (z.B. bleibt null, da kein Profil geladen ist).
-        // IsHidHideAvailable ist eine berechnete (nicht observable) Property, deren zugrunde liegender
-        // Installationsstatus sich waehrend der Laufzeit aendern kann (Nutzer installiert HidHide
-        // nachtraeglich) - RefreshDevices laeuft bereits periodisch per Hotplug-Timer, daher hier
-        // mitgenommen, damit die zugehoerige Checkbox in der View sich automatisch entsperrt.
+        // Update explicitly rather than relying only on change notifications such as SelectedController.
+        // Newly created DeviceConfigViewModel or DeviceSelectionViewModel instances would otherwise retain
+        // the default false screen-active flag until another change happens to call RefreshScreenActiveStates.
+        // That may never happen when SelectedController does not actually change (e.g. it remains null because
+        // no profile is loaded). IsHidHideAvailable is computed rather than observable, and driver installation
+        // can change at runtime. RefreshDevices already runs on the hot-plug timer, so update it here to
+        // automatically re-enable the associated checkbox after HidHide is installed.
         OnPropertyChanged(nameof(IsHidHideAvailable));
 
         RefreshScreenActiveStates();
     }
 
-    /// <summary>Liefert saemtliche dem <see cref="MainViewModel"/> bekannten physischen Geraete fuer den
-    /// "Gerätekonfiguration"-Tab: sowohl aktuell tatsaechlich angeschlossene (unabhaengig davon, ob sie
-    /// per <see cref="DeviceSettings.Enabled"/> deaktiviert wurden - im Gegensatz zu <see cref="AvailableDevices"/>,
-    /// die fuer die Mapping-Auswahl bereits gefiltert ist) als auch zuvor bereits erkannte, aber aktuell
-    /// getrennte Geraete, rekonstruiert aus deren zuletzt bekannten Faehigkeiten (<see cref="DeviceSettings.LastKnownButtonCount"/>
-    /// etc.) - so bleiben deren Einstellungen (Name, Kalibrierung, Enable/Disable) im Konfigurationsdialog
-    /// weiterhin sichtbar und bearbeitbar, auch waehrend das Geraet nicht angeschlossen ist.</summary>
+    /// <summary>Returns every physical device known to <see cref="MainViewModel"/> for the Device Configuration
+    /// tab: currently connected devices, even if disabled through <see cref="DeviceSettings.Enabled"/>, and
+    /// previously detected but now disconnected devices reconstructed from their last known capabilities
+    /// (see <see cref="DeviceSettings.LastKnownButtonCount"/>). Their settings (name, calibration, and enabled
+    /// state) remain visible and editable while disconnected, unlike <see cref="AvailableDevices"/>, which is
+    /// filtered for mapping selection.</summary>
     public IReadOnlyList<KnownDeviceInfo> GetAllKnownDevices()
     {
         var connectedDevices = _manager.GetAvailablePhysicalDevices();
@@ -452,7 +470,7 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
         {
             if (connectedIds.Contains(deviceId) || settings.LastKnownButtonCount is not { } buttonCount)
             {
-                continue; // Aktuell angeschlossen (bereits oben erfasst) oder noch nie vollstaendig erkannt.
+                continue; // Already connected and added above, or never fully detected.
             }
 
             var offlineDevice = new PhysicalDeviceInfo(
@@ -497,7 +515,8 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
                 AutoDeviceDetectionEnabled = AutoDeviceDetectionEnabled,
                 StartWithWindows = StartWithWindows,
                 StartMinimized = StartMinimized,
-                AlwaysOnTop = AlwaysOnTop
+                AlwaysOnTop = AlwaysOnTop,
+                UiLanguage = SelectedUiLanguage
             };
             ProfileStore.Save(appProfile);
             LastErrorMessage = null;
@@ -505,13 +524,13 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
         }
         catch (Exception ex)
         {
-            LastErrorMessage = $"Speichern fehlgeschlagen: {ex.Message}";
+            LastErrorMessage = $"Save failed: {ex.Message}";
         }
     }
 
-    /// <summary>Oeffnet die native Windows-Systemsteuerung fuer Gamecontroller ("joy.cpl"), damit der
-    /// Nutzer zum Vergleich/zur Fehlersuche schnell die von Windows selbst erkannten Achsen/Buttons eines
-    /// Geraets pruefen kann, ohne diese App zu verlassen und den Dialog manuell suchen zu muessen.</summary>
+    /// <summary>Opens the native Windows Game Controllers control panel ("joy.cpl") so users can quickly
+    /// inspect the axes and buttons detected by Windows for comparison or troubleshooting without leaving
+    /// the app to find the dialog manually.</summary>
     [RelayCommand]
     private void OpenWindowsGameControllers()
     {
@@ -527,7 +546,7 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
         }
         catch (Exception ex)
         {
-            LastErrorMessage = $"Windows-Gamecontroller-Einstellungen konnten nicht geoeffnet werden: {ex.Message}";
+            LastErrorMessage = $"Could not open Windows Game Controllers settings: {ex.Message}";
         }
     }
 
@@ -552,11 +571,11 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
             StartWithWindows = appProfile.StartWithWindows;
             StartMinimized = appProfile.StartMinimized;
             AlwaysOnTop = appProfile.AlwaysOnTop;
+            SelectedUiLanguage = appProfile.UiLanguage;
 
-            // DeviceConfig muss hier komplett neu aufgebaut werden (statt inkrementell abgeglichen zu
-            // werden, wie es RefreshDevices/UpdateDevices sonst tun): _deviceSettings wurde eben komplett
-            // durch neu geladene Instanzen ersetzt, ein bereits vorhandenes DeviceConfigDeviceViewModel
-            // wuerde sonst weiterhin auf die verworfenen, alten DeviceSettings-Objekte zeigen.
+            // Rebuild DeviceConfig here instead of incrementally reconciling it as RefreshDevices/UpdateDevices
+            // normally do. _deviceSettings was just replaced with new instances, so an existing
+            // DeviceConfigDeviceViewModel would otherwise keep referencing discarded DeviceSettings objects.
             DeviceConfig?.Dispose();
             DeviceConfig = null!;
 
@@ -567,7 +586,7 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
         }
         catch (Exception ex)
         {
-            LastErrorMessage = $"Laden fehlgeschlagen: {ex.Message}";
+            LastErrorMessage = $"Load failed: {ex.Message}";
         }
     }
 
@@ -606,9 +625,9 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
         HasUnsavedChanges = true;
     }
 
-    /// <summary>Liefert die Einstellungen eines physischen Geraets, legt bei Bedarf einen neuen, leeren
-    /// Eintrag an. Wird vom Konfigurationsdialog genutzt, um Enable/Disable, Kalibrierung, Deadzone und
-    /// Antwortkurve je Eingabe zu lesen und zu aendern.</summary>
+    /// <summary>Returns the settings for a physical device, creating an empty entry if needed. Used by the
+    /// configuration dialog to read and update enabled state, calibration, deadzone, and response curve
+    /// for each input.</summary>
     public DeviceSettings GetOrCreateDeviceSettings(string deviceId)
     {
         if (!_deviceSettings.TryGetValue(deviceId, out var settings))
@@ -620,17 +639,14 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
         return settings;
     }
 
-    /// <summary>Wird vom Konfigurationsdialog aufgerufen, nachdem der Nutzer die Verfuegbarkeit eines
-    /// gesamten Geraets geaendert hat (Enable/Disable oder Ausblenden/Einblenden): filtert die
-    /// Geraeteliste neu (deaktivierte/ausgeblendete Geraete verschwinden sofort aus der Auswahl fuer
-    /// virtuelle Controller) und verteilt die Aenderung an alle laufenden Sessions. <see cref="RefreshDevices"/>
-    /// fuehrt dabei eine vollstaendige Hardware-Neuerkennung (XInput/DirectInput-Enumeration) durch - diese
-    /// Methode darf deshalb NICHT fuer reine Einstellungsaenderungen (Umbenennung, Kalibrierung, Deadzone,
-    /// Kurve, Enable/Disable einzelner Eingaben) verwendet werden, da die zugehoerigen Steuerelemente per
-    /// UpdateSourceTrigger=PropertyChanged bei jedem Tastendruck/jeder Wertaenderung binden - eine dabei
-    /// jedesmal synchron auf dem UI-Thread ausgefuehrte Hardware-Enumeration wuerde zu spuerbaren
-    /// Verzoegerungen fuehren (siehe <see cref="NotifyDeviceSettingsChanged"/> fuer den dafuer vorgesehenen,
-    /// leichtgewichtigen Pfad).</summary>
+    /// <summary>Called by the configuration dialog after the user changes a device's overall availability
+    /// (enable/disable or hide/show). Refreshes the device list so disabled or hidden devices immediately
+    /// disappear from virtual controller selections, then broadcasts the change to running sessions.
+    /// <see cref="RefreshDevices"/> performs full hardware detection (XInput/DirectInput enumeration), so do
+    /// not use this for settings-only changes (rename, calibration, deadzone, curve, or per-input enabled state).
+    /// Those controls update on every keystroke/value change through UpdateSourceTrigger=PropertyChanged;
+    /// synchronously enumerating hardware each time would cause noticeable delays. Use the lightweight
+    /// <see cref="NotifyDeviceSettingsChanged"/> path for those changes.</summary>
     public void NotifyDeviceAvailabilityChanged()
     {
         RefreshDevices();
@@ -638,15 +654,12 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
         HasUnsavedChanges = true;
     }
 
-    /// <summary>Wird vom Konfigurationsdialog aufgerufen, nachdem der Nutzer eine reine Einstellung
-    /// geaendert hat, die weder die Verfuegbarkeit eines Geraets noch dessen Faehigkeiten beeinflusst
-    /// (z.B. Umbenennung einer Eingabe/eines Sticks, Kalibrierung, Deadzone, Kurve, Enable/Disable einer
-    /// einzelnen Eingabe statt des gesamten Geraets): verteilt die Aenderung sofort an alle laufenden
-    /// Sessions, OHNE die teure Hardware-Neuerkennung aus <see cref="NotifyDeviceAvailabilityChanged"/>
-    /// auszufuehren. Bewusst getrennt, da die zugehoerigen Steuerelemente ueblicherweise per
-    /// UpdateSourceTrigger=PropertyChanged binden (z.B. das Umbenennungs-Textfeld) und daher bei jedem
-    /// Tastendruck aufgerufen werden - eine dabei staendig wiederholte Geraete-Enumeration wuerde
-    /// spuerbare Eingabeverzoegerungen verursachen.</summary>
+    /// <summary>Called by the configuration dialog after a settings-only change that does not affect device
+    /// availability or capabilities (e.g. renaming an input/stick, calibration, deadzone, curve, or changing
+    /// one input's enabled state). Immediately broadcasts the change to running sessions without performing
+    /// the expensive hardware detection in <see cref="NotifyDeviceAvailabilityChanged"/>. Kept separate because
+    /// these controls commonly use UpdateSourceTrigger=PropertyChanged and invoke this on every keystroke;
+    /// repeatedly enumerating devices would cause noticeable input delays.</summary>
     public void NotifyDeviceSettingsChanged()
     {
         _manager.BroadcastDeviceSettings(_deviceSettings);
@@ -657,7 +670,7 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
     {
         if (!DriverReady)
         {
-            vm.SetRunningState(false, "Treiber nicht verbunden");
+            vm.SetRunningState(false, "Driver not connected");
             return;
         }
 
@@ -668,7 +681,7 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
         }
         catch (Exception ex)
         {
-            vm.SetRunningState(false, "Fehler beim Start");
+            vm.SetRunningState(false, "Start failed");
             LastErrorMessage = ex.Message;
         }
     }

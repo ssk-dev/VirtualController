@@ -6,10 +6,9 @@ using VirtualController.Core.Virtual;
 namespace VirtualController.Core.Engine;
 
 /// <summary>
-/// Verbindet alle Bausteine fuer genau einen virtuellen Controller: haelt die benoetigten
-/// physischen Device-Reader offen, pollt sie in einem eigenen Hochfrequenz-Loop, wendet die
-/// Mapping-Tabelle des Profils an und uebertraegt das Ergebnis an den virtuellen Controller.
-/// Eine Instanz entspricht exakt einem Eintrag in der Controller-Liste der UI.
+/// Coordinates one virtual controller: keeps required physical device readers open, polls them in a dedicated
+/// high-frequency loop, applies the profile's mapping table, and sends the result to the virtual controller.
+/// One instance corresponds to one entry in the UI controller list.
 /// </summary>
 public sealed class ControllerSession : IDisposable
 {
@@ -21,15 +20,14 @@ public sealed class ControllerSession : IDisposable
     private readonly object _profileLock = new();
     private IReadOnlyDictionary<string, DeviceSettings> _deviceSettings;
 
-    /// <summary>Zustand der letzten Auswertung je Umschalt-Ausloeser (Toggle-Trigger des Controllers sowie
-    /// Switch-Trigger jedes Modus), fuer die Erkennung einer steigenden Flanke (Uebergang false -&gt; true)
-    /// zwischen zwei aufeinanderfolgenden Ticks - <see cref="Mapping.MappingEngine.IsPhysicalInputActive"/>
-    /// selbst ist zustandslos und liefert nur den aktuellen Momentanwert. Key = (DeviceId, Kind, Index).</summary>
+    /// <summary>Last evaluated state for each switch trigger (controller toggle trigger and per-mode switch
+    /// triggers), used to detect a rising edge (false -> true) between ticks. The stateless
+    /// <see cref="Mapping.MappingEngine.IsPhysicalInputActive"/> provides only the current value. Key = (DeviceId, Kind, Index).</summary>
     private readonly Dictionary<(string DeviceId, PhysicalInputKind Kind, int Index), bool> _triggerWasActive = new();
 
     public VirtualControllerProfile Profile { get; private set; }
 
-    /// <summary>Letzter Fehler aus dem Loop-Thread (z.B. Treiber nicht installiert), fuer Anzeige in der UI.</summary>
+    /// <summary>Most recent loop-thread error (e.g. driver not installed), shown in the UI.</summary>
     public Exception? LastError { get; private set; }
 
     public event Action<Exception>? Faulted;
@@ -60,7 +58,7 @@ public sealed class ControllerSession : IDisposable
         _pad.Disconnect();
     }
 
-    /// <summary>Ersetzt das Profil (z.B. nach Aenderung der Mapping-Tabelle in der UI) thread-sicher.</summary>
+    /// <summary>Thread-safely replaces the profile, e.g. after a mapping table change in the UI.</summary>
     public void UpdateProfile(VirtualControllerProfile profile, IReadOnlyList<PhysicalDeviceInfo> availableDevices)
     {
         lock (_profileLock)
@@ -70,8 +68,8 @@ public sealed class ControllerSession : IDisposable
         }
     }
 
-    /// <summary>Aktualisiert die geraeteweiten Einstellungen (u.a. deaktivierte einzelne Eingaben), ohne dass
-    /// sich das Mapping-Profil selbst geaendert haben muss (z.B. nach einer Aenderung im Konfigurationsdialog).</summary>
+    /// <summary>Updates device-wide settings (including individually disabled inputs) without requiring a
+    /// mapping profile change, e.g. after a change in the configuration dialog.</summary>
     public void UpdateDeviceSettings(IReadOnlyDictionary<string, DeviceSettings> deviceSettings)
     {
         lock (_profileLock)
@@ -80,17 +78,15 @@ public sealed class ControllerSession : IDisposable
         }
     }
 
-    /// <summary>Physische Geraete (per <see cref="PhysicalDeviceInfo.DeviceId"/>), die diese Session aktuell
-    /// tatsaechlich benoetigt - dieselbe Menge, die <see cref="OpenRequiredReaders"/> intern verwendet, um zu
-    /// entscheiden, welche Reader offen bleiben muessen. Wird von <see cref="ControllerManager"/> genutzt, um
-    /// die zugehoerigen physischen Geraete waehrend der Laufzeit dieser Session per HidHide zu sperren (siehe
-    /// <see cref="Devices.HidHideController"/>).</summary>
+    /// <summary>Physical devices (by <see cref="PhysicalDeviceInfo.DeviceId"/>) actually needed by this session,
+    /// matching the set used internally by <see cref="OpenRequiredReaders"/> to determine which readers stay
+    /// open. <see cref="ControllerManager"/> uses this to block those devices through HidHide while the session
+    /// runs (see <see cref="Devices.HidHideController"/>).</summary>
     public IReadOnlyCollection<string> NeededDeviceIds => ComputeNeededDeviceIds();
 
-    /// <summary>Ermittelt, welche physischen Geraete in IRGENDEINEM Modus (nicht nur dem aktuell aktiven) als
-    /// Mapping-Quelle referenziert werden, sowie die Geraete hinter den Umschalt-Ausloesern (Toggle-/Switch-
-    /// Trigger) - unabhaengig vom aktuell aktiven Modus, da ein Moduswechsel zur Laufzeit sonst ein erneutes
-    /// Oeffnen der Reader bzw. erneutes Sperren/Entsperren via HidHide erfordern wuerde.</summary>
+    /// <summary>Finds physical devices referenced as mapping sources in any mode, not only the active one, plus
+    /// devices used by toggle/switch triggers. Keeping readers open independently of the active mode avoids
+    /// reopening readers and changing HidHide locks on every mode switch.</summary>
     private HashSet<string> ComputeNeededDeviceIds()
     {
         return Profile.Modes
@@ -108,14 +104,13 @@ public sealed class ControllerSession : IDisposable
 
     private void OpenRequiredReaders(IReadOnlyList<PhysicalDeviceInfo> availableDevices)
     {
-        // Reader muessen fuer Geraete offen bleiben, die in IRGENDEINEM Modus benoetigt werden (nicht nur
-        // im aktuell aktiven), da ein Moduswechsel zur Laufzeit sonst ein erneutes Oeffnen erfordern wuerde.
-        // Ebenso muessen die Geraete hinter den Umschalt-Ausloesern (Toggle-/Switch-Trigger) offen sein,
-        // damit deren Flankenerkennung unabhaengig vom aktuell aktiven Modus funktioniert.
+        // Keep readers open for devices needed by any mode, not just the active one, to avoid reopening them
+        // on each runtime mode switch. Also keep devices used by toggle/switch triggers open so edge detection
+        // works independently of the active mode.
         var neededDeviceIds = ComputeNeededDeviceIds();
         var byId = availableDevices.ToDictionary(d => d.DeviceId);
 
-        // Nicht mehr benoetigte Reader schliessen.
+        // Close readers that are no longer needed.
         foreach (var existingId in _readers.Keys.Where(id => !neededDeviceIds.Contains(id)).ToList())
         {
             _readers[existingId].Dispose();
@@ -123,7 +118,7 @@ public sealed class ControllerSession : IDisposable
             _latestStates.Remove(existingId);
         }
 
-        // Fehlende Reader fuer neu gemappte Geraete oeffnen.
+        // Open readers for newly mapped devices.
         foreach (var deviceId in neededDeviceIds)
         {
             if (_readers.ContainsKey(deviceId) || !byId.TryGetValue(deviceId, out var info))
@@ -137,11 +132,11 @@ public sealed class ControllerSession : IDisposable
     }
 
     /// <summary>
-    /// Wertet den aktuell konfigurierten Moduswechsel-Mechanismus (<see cref="VirtualControllerProfile.ModeSwitchMechanism"/>)
-    /// anhand der zuletzt gepollten Device-States aus und aktualisiert bei Bedarf <see cref="VirtualControllerProfile.ActiveModeId"/>.
-    /// Reine Flankenerkennung (steigende Flanke = ausgeloest) mittels <see cref="_triggerWasActive"/>, da
-    /// <see cref="MappingEngine.IsPhysicalInputActive"/> selbst zustandslos ist und bei dauerhaft gedrueckter
-    /// Eingabe sonst bei jedem Tick erneut (bzw. im Toggle-Fall staendig weiter) umschalten wuerde.
+    /// Evaluates the configured mode switch mechanism (<see cref="VirtualControllerProfile.ModeSwitchMechanism"/>)
+    /// using the latest device states and updates <see cref="VirtualControllerProfile.ActiveModeId"/> as needed.
+    /// Uses rising-edge detection through <see cref="_triggerWasActive"/> because
+    /// <see cref="MappingEngine.IsPhysicalInputActive"/> is stateless; otherwise a held input would switch modes
+    /// on every tick (or continuously advance in toggle mode).
     /// </summary>
     private void EvaluateModeSwitching()
     {
@@ -166,9 +161,8 @@ public sealed class ControllerSession : IDisposable
         }
     }
 
-    /// <summary>Schaltet <see cref="VirtualControllerProfile.ActiveModeId"/> zyklisch (mit Umlauf) zum
-    /// naechsten aktivierten Modus weiter, ausgehend von der Reihenfolge in <see cref="VirtualControllerProfile.Modes"/>.
-    /// Tut nichts, falls kein Modus aktiviert ist.</summary>
+    /// <summary>Advances <see cref="VirtualControllerProfile.ActiveModeId"/> cyclically to the next enabled mode
+    /// in <see cref="VirtualControllerProfile.Modes"/> order. Does nothing if no mode is enabled.</summary>
     private void AdvanceToNextEnabledMode()
     {
         var enabledModes = Profile.Modes.Where(m => m.Enabled).ToList();

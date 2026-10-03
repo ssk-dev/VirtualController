@@ -4,10 +4,9 @@ using VirtualController.Core.Mapping;
 namespace VirtualController.Core.Profiles;
 
 /// <summary>
-/// Speichert jeden virtuellen Controller (<see cref="VirtualControllerProfile"/>) in einer eigenen,
-/// nach seinem Namen benannten Datei (controller-{name}.json) unterhalb eines "Controllers"-Ordners,
-/// statt gesammelt in einer einzigen Profildatei. Macht einzelne Controller-Konfigurationen
-/// uebersichtlicher und erlaubt es, sie unabhaengig voneinander zu sichern, zu teilen oder zu loeschen.
+/// Stores each virtual controller (<see cref="VirtualControllerProfile"/>) in its own name-based file
+/// (controller-{name}.json) under a Controllers directory instead of combining them in one profile file.
+/// This makes controller configurations easier to inspect and lets users back up, share, or delete them independently.
 /// </summary>
 internal static class ControllerStore
 {
@@ -51,8 +50,7 @@ internal static class ControllerStore
             AtomicJsonWriter.Write(fullPath, controller, SerializerOptions);
         }
 
-        // Dateien entfernter Controller wieder loeschen, damit alte Stand-Dateien nicht dauerhaft liegen
-        // bleiben und beim naechsten Laden faelschlich wieder auftauchen.
+        // Delete files for removed controllers so stale files do not remain and reappear on the next load.
         foreach (var existing in Directory.EnumerateFiles(controllersDirectory, "controller-*.json"))
         {
             if (!expectedFiles.Contains(existing))
@@ -71,8 +69,7 @@ internal static class ControllerStore
         }
         catch (JsonException)
         {
-            // Beschaedigte Einzeldatei -> dieser eine Controller wird beim Laden uebersprungen statt die
-            // gesamte Konfiguration unbrauchbar zu machen.
+            // Skip this controller's corrupted file rather than making the entire configuration unusable.
             return null;
         }
     }
@@ -94,11 +91,9 @@ internal static class ControllerStore
         return candidate;
     }
 
-    /// <summary>Zwei unterschiedliche Controller koennen denselben Namen (und damit denselben
-    /// abgeleiteten Dateinamen) tragen. Bevor ein Dateiname vergeben wird, muss daher geprueft werden,
-    /// ob eine bereits existierende Datei mit diesem Namen tatsaechlich zu einem ANDEREN Controller
-    /// (per Id) gehoert (dann muss ausgewichen werden) oder ohnehin schon zu diesem Controller gehoert
-    /// (dann wird sie regulaer ueberschrieben).</summary>
+    /// <summary>Different controllers can have the same name and derived filename. Before assigning a filename,
+    /// check whether an existing file belongs to another controller (by ID; choose another name) or to this
+    /// controller (overwrite it normally).</summary>
     private static bool BelongsToDifferentController(string controllersDirectory, string fileName, Guid controllerId)
     {
         var path = Path.Combine(controllersDirectory, fileName);

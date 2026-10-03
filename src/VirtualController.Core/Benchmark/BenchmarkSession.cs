@@ -7,23 +7,22 @@ using VirtualController.Core.Devices.Usb;
 namespace VirtualController.Core.Benchmark;
 
 /// <summary>
-/// Orchestriert eine einzelne Benchmark-Sitzung eines physischen HID-Geraets: oeffnet die rohe
-/// Report-Quelle (<see cref="HidDeviceInfoReader"/>/<see cref="RawHidReportReader"/>, Phase 2/3), fuettert
-/// jeden eintreffenden Report an alle Metrics-Klassen (<see cref="PollingRateMetrics"/>/<see cref="LatencyMetrics"/>/
-/// <see cref="ReliabilityMetrics"/>/<see cref="SignalMetrics"/>) und liefert am Ende ein vollstaendiges
-/// <see cref="BenchmarkResult"/> zum Export (siehe <see cref="BenchmarkJsonExporter"/>).
+/// Orchestrates one benchmark session for a physical HID device: opens its raw report source
+/// (<see cref="HidDeviceInfoReader"/>/<see cref="RawHidReportReader"/>, phases 2/3), feeds each report to all
+/// metric classes (<see cref="PollingRateMetrics"/>, <see cref="LatencyMetrics"/>,
+/// <see cref="ReliabilityMetrics"/>, <see cref="SignalMetrics"/>), and returns a complete
+/// <see cref="BenchmarkResult"/> for export (see <see cref="BenchmarkJsonExporter"/>).
 ///
-/// Laeuft, wie <see cref="Logging.DeviceStateLogger"/>, bis <see cref="Stop"/> aufgerufen wird oder das
-/// Geraet die Verbindung verliert - unabhaengig von jeglicher UI-Sichtbarkeit.
+/// Like <see cref="Logging.DeviceStateLogger"/>, runs until <see cref="Stop"/> is called or the device disconnects,
+/// independently of UI visibility.
 ///
-/// WICHTIGE EINSCHRAENKUNG: Dieses Feature ist bewusst NUR fuer HID-Geraete verfuegbar (nicht fuer reine
-/// XInput-Geraete ohne zugehoerigen HID-Pfad), da die Timing-/Latenz-/Reliability-/Signal-Kennzahlen alle
-/// auf rohen HID-Reports beruhen (siehe <see cref="RawHidReportReader"/>) - dies unterscheidet den
-/// Benchmark bewusst von <see cref="Logging.DeviceStateLogger"/>, der auf der API-unabhaengigen
-/// <see cref="IDeviceReader"/>/<see cref="DeviceState"/>-Ebene arbeitet. <see cref="TryCreate"/> gibt daher
-/// null zurueck, wenn sich kein passendes HID-Geraet zum uebergebenen <see cref="PhysicalDeviceInfo"/>
-/// aufloesen laesst (z.B. weil <see cref="PhysicalDeviceInfo.VendorId"/>/<see cref="PhysicalDeviceInfo.ProductId"/>
-/// nicht ermittelbar waren, siehe <see cref="PhysicalDeviceInfo.VendorId"/>-Dokumentation).
+/// Important limitation: this feature is available only for HID devices, not XInput-only devices without an
+/// associated HID path, because all timing/latency/reliability/signal metrics rely on raw HID reports (see
+/// <see cref="RawHidReportReader"/>). This differs from <see cref="Logging.DeviceStateLogger"/>, which works
+/// at the API-independent <see cref="IDeviceReader"/>/<see cref="DeviceState"/> level. Therefore,
+/// <see cref="TryCreate"/> returns null when no matching HID device can be resolved for the supplied
+/// <see cref="PhysicalDeviceInfo"/>, e.g. when its <see cref="PhysicalDeviceInfo.VendorId"/> or
+/// <see cref="PhysicalDeviceInfo.ProductId"/> is unavailable.
 /// </summary>
 public sealed class BenchmarkSession : IDisposable
 {
@@ -42,21 +41,18 @@ public sealed class BenchmarkSession : IDisposable
     private readonly System.Diagnostics.Stopwatch _durationStopwatch = new();
     private bool _disposed;
 
-    /// <summary>Schuetzt alle Metrics-Zugriffe (siehe <see cref="OnSampleReceived"/> und <see cref="BuildResult"/>)
-    /// gegen gleichzeitigen Zugriff: <see cref="OnSampleReceived"/> laeuft auf dem internen Lese-Thread des
-    /// <see cref="RawHidReportReader"/>, waehrend <see cref="GetSnapshot"/> (Echtzeit-Anzeige, z.B. aus einem
-    /// UI-Timer) und <see cref="Stop"/> vom UI-Thread aus aufgerufen werden koennen, waehrend die Sitzung noch
-    /// laeuft - ohne diese Sperre koennte z.B. das interne Histogramm von <see cref="SignalMetrics"/> waehrend
-    /// einer gleichzeitigen Aufzaehlung (<c>ComputeResult</c>) veraendert werden und eine
-    /// <see cref="InvalidOperationException"/> ("Collection was modified") auslösen.</summary>
+    /// <summary>Protects metric access in <see cref="OnSampleReceived"/> and <see cref="BuildResult"/> from
+    /// concurrent modification. OnSampleReceived runs on <see cref="RawHidReportReader"/>'s reader thread,
+    /// while <see cref="GetSnapshot"/> (e.g. from a UI timer) and <see cref="Stop"/> may run on the UI thread.
+    /// Without this lock, <see cref="SignalMetrics"/>' internal histogram could change while
+    /// <c>ComputeResult</c> enumerates it, causing an <see cref="InvalidOperationException"/>.</summary>
     private readonly object _metricsLock = new();
 
-    /// <summary>Wird auf dem internen Lese-Thread ausgeloest (siehe <see cref="RawHidReportReader.ReadFailed"/>),
-    /// z.B. wenn das Geraet waehrend einer laufenden Sitzung getrennt wird - NICHT bei regulaerem
-    /// <see cref="Stop"/>-Aufruf.</summary>
+    /// <summary>Raised on the internal reader thread (see <see cref="RawHidReportReader.ReadFailed"/>), e.g. if
+    /// the device disconnects during a session. Not raised during a normal <see cref="Stop"/> call.</summary>
     public event Action<Exception>? BenchmarkFailed;
 
-    /// <summary>Ob die Sitzung aktuell laeuft - siehe <see cref="RawHidReportReader.IsRunning"/>.</summary>
+    /// <summary>Whether the session is currently running; see <see cref="RawHidReportReader.IsRunning"/>.</summary>
     public bool IsRunning => _reader.IsRunning;
 
     private BenchmarkSession(PhysicalDeviceInfo device, HidDeviceInfo hidInfo, IReadOnlyList<HidDeviceInfo> hidCandidates,
@@ -79,23 +75,18 @@ public sealed class BenchmarkSession : IDisposable
     }
 
     /// <summary>
-    /// Loest anhand von <see cref="PhysicalDeviceInfo.VendorId"/>/<see cref="PhysicalDeviceInfo.ProductId"/>
-    /// das zugehoerige HID-Geraet auf und oeffnet dessen Report-Quelle - siehe Klassendokumentation fuer die
-    /// Faelle, in denen dies fehlschlaegt (kein HID-Geraet, keine VID/PID bekannt, Geraet bereits exklusiv
-    /// geoeffnet).
+    /// Resolves the associated HID device from <see cref="PhysicalDeviceInfo.VendorId"/> and
+    /// <see cref="PhysicalDeviceInfo.ProductId"/>, then opens its report source. See the class documentation
+    /// for failure cases (no HID device, unknown VID/PID, or device already opened exclusively).
     ///
-    /// Bei mehreren HID-Interfaces desselben Composite-Geraets (gleiche VID/PID, z.B. Saitek X-56 Rhino
-    /// Stick mit getrennten Interfaces fuer Joystick-Input und Vendor-/Firmware-Funktionen) wird NICHT
-    /// mehr blind das erste gefundene Interface verwendet (das kann - wie bei diesem Geraet beobachtet -
-    /// ein Nicht-Input-Interface ohne jegliche Achsen sein, was zu einer Sitzung mit durchgehend 0
-    /// Messwerten fuehrt). Stattdessen wird jeder Kandidat per <see cref="HidAxisReportParser"/> auf
-    /// deklarierte Generic-Desktop-Achsen (siehe <see cref="HidAxisUsage"/>) geprueft und bevorzugt der
-    /// erste Kandidat mit mindestens einer Achse gewaehlt - dies ist ein zuverlaessiges Signal fuer das
-    /// tatsaechliche Eingabe-Interface eines Joysticks/Gamepads. Deklariert KEIN Kandidat irgendeine Achse
-    /// (z.B. bei einem reinen Tastatur-/Button-Geraet ohne Achsen), wird auf das bisherige Verhalten
-    /// (erster gefundener Kandidat) zurueckgefallen, da <see cref="PhysicalDeviceInfo"/> aktuell keine
-    /// Seriennummer fuehrt, ueber die sich in diesem Fall eindeutig disambiguieren liesse. Alle gefundenen
-    /// Kandidaten werden unabhaengig von der Auswahl fuer die Fehlersuche im Ergebnis mitgefuehrt (siehe
+    /// When a composite device has multiple HID interfaces with the same VID/PID (e.g. a Saitek X-56 Rhino
+    /// stick with separate joystick-input and vendor/firmware interfaces), do not blindly use the first one.
+    /// It may be a non-input interface with no axes, resulting in zero samples. Instead, check each candidate
+    /// with <see cref="HidAxisReportParser"/> for declared Generic Desktop axes (see <see cref="HidAxisUsage"/>)
+    /// and prefer the first candidate with at least one axis, a reliable indicator of a joystick/gamepad input
+    /// interface. If none declares axes (e.g. a keyboard/button-only device), fall back to the first candidate
+    /// because <see cref="PhysicalDeviceInfo"/> currently has no serial number to disambiguate them. Include
+    /// every candidate in the result for diagnostics, regardless of which one was selected (see
     /// <see cref="BenchmarkDiagnosticsInfo"/>).
     /// </summary>
     public static BenchmarkSession? TryCreate(PhysicalDeviceInfo device)
@@ -144,9 +135,8 @@ public sealed class BenchmarkSession : IDisposable
         _reader.Start();
     }
 
-    /// <summary>Stoppt die laufende Sitzung und liefert das vollstaendige Ergebnis - kann nach dem Stoppen
-    /// beliebig oft erneut aufgerufen werden (liefert stets denselben, bereits berechneten Endstand),
-    /// solange <see cref="Dispose"/> noch nicht aufgerufen wurde.</summary>
+    /// <summary>Stops the session and returns its complete result. Can be called repeatedly after stopping,
+    /// returning the same final result until <see cref="Dispose"/> is called.</summary>
     public BenchmarkResult Stop()
     {
         _reader.Stop();
@@ -242,11 +232,10 @@ public sealed class BenchmarkSession : IDisposable
             Diagnostics: diagnostics);
     }
 
-    /// <summary>Liefert eine Momentaufnahme des bisherigen Ergebnisses, WAEHREND die Sitzung noch laeuft -
-    /// fuer eine Echtzeit-Anzeige (siehe geplantes Benchmark-Popup-Fenster). Im Gegensatz zu <see cref="Stop"/>
-    /// wird der Lese-Thread dabei nicht angehalten; <see cref="BenchmarkResult.DurationSeconds"/> spiegelt die
-    /// bisher verstrichene Zeit wider (der Stopwatch laeuft weiter). Kann beliebig oft waehrend einer laufenden
-    /// Sitzung aufgerufen werden, typischerweise periodisch aus einem UI-Timer.</summary>
+    /// <summary>Returns a snapshot of results while the session is still running, for a real-time display.
+    /// Unlike <see cref="Stop"/>, this does not stop the reader thread; <see cref="BenchmarkResult.DurationSeconds"/>
+    /// reflects elapsed time while the stopwatch continues. Can be called repeatedly during a session, typically
+    /// from a UI timer.</summary>
     public BenchmarkResult GetSnapshot() => BuildResult();
 
     public void Dispose()

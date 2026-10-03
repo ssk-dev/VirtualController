@@ -1,30 +1,24 @@
 <ResourceDictionary xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
                     xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
                     xmlns:vm="clr-namespace:VirtualController.App.ViewModels"
+                    xmlns:loc="clr-namespace:VirtualController.App.Localization"
                     xmlns:controls="clr-namespace:VirtualController.App.Views.Controls">
 
     <ResourceDictionary.MergedDictionaries>
-        <!-- Wird benoetigt, damit die unten verwendeten {StaticResource BoolToHighlightBrushConverter}/
-             {StaticResource BoolToVisibilityConverter}-Verweise sowie die Farb-Brushes (z.B.
-             {StaticResource MutedTextBrush}, {StaticResource PanelBorderBrush}, {StaticResource AccentBrush})
-             innerhalb der DataTemplates zur Laufzeit aufgeloest werden koennen: StaticResource-Verweise in
-             Templates werden im Scope DIESER Datei (+ ihrer eigenen MergedDictionaries) aufgeloest, nicht im
-             Scope von App.xaml, auch wenn App.xaml diese Datei per MergedDictionaries einbindet. Ohne diese
-             beiden Verweise stuerzte die App beim ersten Rendern des "Gerätekonfiguration"-Tabs mit einer
-             XamlParseException ab. -->
+           <!-- Required to resolve the StaticResource converter and brush references used below at runtime.
+               StaticResource references in templates are resolved in the scope of THIS file and its own
+               MergedDictionaries, not App.xaml, even when App.xaml merges this dictionary. Without these
+               dictionaries, the app threw a XamlParseException when first rendering the Device Configuration tab. -->
         <ResourceDictionary Source="/Converters/Converters.xaml" />
         <ResourceDictionary Source="/Themes/Theme.xaml" />
     </ResourceDictionary.MergedDictionaries>
 
-    <!-- Implizite DataTemplates (kein x:Key) fuer den "Gerätekonfiguration"-Tab (siehe MainWindow.xaml):
-         WPF waehlt automatisch die passende Vorlage anhand des Laufzeittyps der jeweiligen
-         Visualisierungs-Instanz aus - Einzelachsen als horizontaler Slider, kombinierte X/Y-Achsen als
-         quadratisches Koordinatenfeld. Jede Achsen-/Stick-Karte bindet ihre eigene
-         ContentPresenter.Content="{Binding Visualization}" direkt eingebettet (statt, wie zuvor, alle
-         Achsen gesammelt in einem separaten globalen "Live-Vorschau"-Abschnitt anzuzeigen) - so ist die
-         Live-Anzeige unmittelbar bei der zugehoerigen Achse sichtbar. Ursprünglich in DeviceConfigWindow.xaml
-         definiert (frueherer separater "Geraete konfigurieren"-Dialog); hierher ausgelagert, damit dieselben
-         Vorlagen auch innerhalb des "Gerätekonfiguration"-Tabs von MainWindow.xaml verwendet werden koennen. -->
+        <!-- Implicit DataTemplates (no x:Key) for the Device Configuration tab (see MainWindow.xaml). WPF selects
+            the template from each visualization's runtime type: individual axes use a horizontal slider, while
+            combined X/Y axes use a square coordinate field. Each axis/stick card embeds its own
+            ContentPresenter.Content="{Binding Visualization}" rather than collecting all axes in a separate
+            global preview section, keeping the live display beside its corresponding axis. Originally defined
+            in DeviceConfigWindow.xaml, these templates were moved here so MainWindow.xaml can reuse them. -->
     <DataTemplate DataType="{x:Type vm:AxisVisualizationViewModel}">
         <controls:AxisGaugeControl />
     </DataTemplate>
@@ -32,12 +26,10 @@
         <controls:Axis2DPadControl />
     </DataTemplate>
 
-    <!-- Detaildarstellung einer einzelnen physischen Eingabe (Name/Enable + bei kalibrierbaren
-         Achsen-Eintraegen zusaetzlich die Kalibrierungs-Werkzeuge). Als implizites Template (statt
-         als expliziter ItemTemplate) registriert, damit es sowohl von der flachen Buttons/D-Pad-Liste
-         (DeviceConfigInputGroupViewModel) als auch vom Achsen-Paar-Frame (DeviceConfigAxisPairViewModel)
-         gemeinsam per ContentPresenter/ItemsControl automatisch anhand des Laufzeittyps wiederverwendet
-         werden kann. -->
+        <!-- Details for one physical input (name/enabled state, plus calibration tools for calibratable axes).
+            Registered as an implicit template so both the flat button/D-pad list
+            (DeviceConfigInputGroupViewModel) and axis-pair frame (DeviceConfigAxisPairViewModel) can reuse it
+            through ContentPresenter/ItemsControl based on runtime type. -->
     <DataTemplate DataType="{x:Type vm:DeviceConfigInputRowViewModel}">
         <Border Background="{Binding IsActive, Converter={StaticResource BoolToHighlightBrushConverter}}"
                 Padding="4,2" Margin="0,0,0,4">
@@ -51,29 +43,29 @@
                 <StackPanel Margin="24,0,0,0"
                             Visibility="{Binding IsCalibratable, Converter={StaticResource BoolToVisibilityConverter}}">
                     <StackPanel Orientation="Horizontal" Margin="0,2">
-                        <Button Content="Bereich kalibrieren" Command="{Binding CalibrateRangeCommand}" Padding="6,1" Margin="0,0,4,0" />
-                        <Button Content="Zentrum setzen" Command="{Binding SetCenterCommand}" Padding="6,1" Margin="0,0,4,0" />
-                        <Button Content="Deadzone kalibrieren" Command="{Binding CalibrateDeadzoneCommand}" Padding="6,1" Margin="0,0,4,0" />
-                        <Button Content="Zuruecksetzen" Command="{Binding ResetCalibrationCommand}" Padding="6,1" />
+                        <Button Content="{loc:Loc devices.calibrate_range}" Command="{Binding CalibrateRangeCommand}" Padding="6,1" Margin="0,0,4,0" />
+                        <Button Content="{loc:Loc devices.set_center}" Command="{Binding SetCenterCommand}" Padding="6,1" Margin="0,0,4,0" />
+                        <Button Content="{loc:Loc devices.calibrate_deadzone}" Command="{Binding CalibrateDeadzoneCommand}" Padding="6,1" Margin="0,0,4,0" />
+                        <Button Content="{loc:Loc devices.reset}" Command="{Binding ResetCalibrationCommand}" Padding="6,1" />
                     </StackPanel>
 
                     <StackPanel Orientation="Horizontal" Margin="0,2">
-                        <TextBlock Text="Min:" VerticalAlignment="Center" Margin="0,0,2,0" />
+                        <TextBlock Text="{loc:Loc devices.min}" VerticalAlignment="Center" Margin="0,0,2,0" />
                         <TextBlock Text="{Binding CalibratedMin, TargetNullValue='-'}" VerticalAlignment="Center" Width="50" />
-                        <TextBlock Text="Max:" VerticalAlignment="Center" Margin="8,0,2,0" />
+                        <TextBlock Text="{loc:Loc devices.max}" VerticalAlignment="Center" Margin="8,0,2,0" />
                         <TextBlock Text="{Binding CalibratedMax, TargetNullValue='-'}" VerticalAlignment="Center" Width="50" />
-                        <TextBlock Text="Zentrum:" VerticalAlignment="Center" Margin="8,0,2,0" />
+                        <TextBlock Text="{loc:Loc devices.center}" VerticalAlignment="Center" Margin="8,0,2,0" />
                         <TextBlock Text="{Binding CalibratedCenter, TargetNullValue='-'}" VerticalAlignment="Center" Width="50" />
-                        <TextBlock Text="Deadzone:" VerticalAlignment="Center" Margin="8,0,2,0" />
+                        <TextBlock Text="{loc:Loc devices.deadzone}" VerticalAlignment="Center" Margin="8,0,2,0" />
                         <TextBox Text="{Binding Deadzone, UpdateSourceTrigger=PropertyChanged}" Width="50" />
                     </StackPanel>
 
                     <StackPanel Orientation="Horizontal" Margin="0,2">
-                        <TextBlock Text="Kurve:" VerticalAlignment="Center" Margin="0,0,4,0" />
+                        <TextBlock Text="{loc:Loc devices.curve}" VerticalAlignment="Center" Margin="0,0,4,0" />
                         <ComboBox ItemsSource="{x:Static vm:DeviceConfigInputRowViewModel.CurveTypeOptions}"
                                   IsSynchronizedWithCurrentItem="False"
                                   SelectedItem="{Binding CurveType}" Width="100" Margin="0,0,8,0" />
-                        <TextBlock Text="Staerke:" VerticalAlignment="Center" Margin="0,0,4,0" />
+                        <TextBlock Text="{loc:Loc devices.strength}" VerticalAlignment="Center" Margin="0,0,4,0" />
                         <TextBox Text="{Binding CurveStrength, UpdateSourceTrigger=PropertyChanged}" Width="50" />
                     </StackPanel>
 
@@ -84,8 +76,8 @@
         </Border>
     </DataTemplate>
 
-    <!-- Flache Eingabe-Gruppe (Buttons, D-Pad): Ueberschrift + Liste der Zeilen, jede Zeile per obigem
-         implizitem DeviceConfigInputRowViewModel-Template dargestellt. -->
+        <!-- Flat input group (buttons, D-pad): heading and row list, with each row rendered by the implicit
+            DeviceConfigInputRowViewModel template above. -->
     <DataTemplate DataType="{x:Type vm:DeviceConfigInputGroupViewModel}">
         <StackPanel Margin="0,0,0,6">
             <TextBlock Text="{Binding GroupName}" FontWeight="SemiBold" Foreground="{StaticResource MutedTextBrush}" Margin="0,0,0,3" />
@@ -93,26 +85,23 @@
         </StackPanel>
     </DataTemplate>
 
-    <!-- Ein Achsen-Paar (Positiv-/Negativ-Richtung derselben physischen Achse) als optisch klar
-         abgegrenzter Rahmen: beide Richtungen stehen direkt untereinander, darunter (nur unterhalb des
-         Positiv-Eintrags, siehe DeviceConfigInputRowViewModel.IsCalibratable) die Kalibrierungs-
-         Werkzeuge. Der Rahmen macht auf einen Blick erkennbar, welche Zeilen zur selben Achse gehoeren -
-         zuvor standen Positiv-/Negativ-Eintraege optisch nicht unterscheidbar von unabhaengigen Buttons. -->
+        <!-- A physical axis pair (positive and negative directions) in a distinct frame, with both directions
+            stacked above the calibration tools (shown only below the positive entry; see
+            DeviceConfigInputRowViewModel.IsCalibratable). The frame makes it clear which rows belong to the
+            same axis; previously they looked like unrelated buttons. -->
     <DataTemplate DataType="{x:Type vm:DeviceConfigAxisPairViewModel}">
         <Border BorderBrush="{StaticResource PanelBorderBrush}" BorderThickness="1" CornerRadius="4"
                 Background="Transparent" Padding="6,4" Margin="0,0,0,8" HorizontalAlignment="Left">
             <StackPanel>
-                <!-- Eigenstaendiger Master-Schalter fuer die komplette Achse (beide Richtungen
-                     zugleich) - wird ausgeblendet, wenn diese Achse Teil eines Sticks ist, dessen
-                     Kopfbereich bereits einen einzigen kombinierten Schalter fuer beide Achsen anbietet.
-                     Tri-State (IsThreeState), da bei nur einer deaktivierten Richtung ein rein binaerer
-                     Haken faelschlich "komplett aus" suggerieren wuerde; das eigentliche Umschalten
-                     erfolgt ueber Command statt einer direkten IsChecked-Bindung, damit ein Klick immer
-                     beide Richtungen auf denselben expliziten Wert setzt statt durch den dritten
-                     (unbestimmten) Zustand zu zyklen. -->
+                 <!-- Standalone master switch for both axis directions. Hidden when this axis belongs to a
+                     stick whose header already provides a combined switch for both axes. Uses three states
+                     because a binary checkmark would incorrectly imply the whole axis is off when only one
+                     direction is disabled. The command, rather than a direct IsChecked binding, ensures one
+                     click sets both directions to the same explicit value instead of cycling through the
+                     indeterminate state. -->
                 <CheckBox IsChecked="{Binding EnabledState, Mode=OneWay}" IsThreeState="True"
-                          Command="{Binding ToggleEnabledCommand}" Content="Achse aktivieren"
-                          Margin="0,0,0,4" ToolTip="Komplette Achse (beide Richtungen) aktivieren/deaktivieren"
+                          Command="{Binding ToggleEnabledCommand}" Content="{loc:Loc devices.enable_axis}"
+                          Margin="0,0,0,4" ToolTip="{loc:Loc devices.enable_axis_tooltip}"
                           Visibility="{Binding ShowMasterToggle, Converter={StaticResource BoolToVisibilityConverter}}" />
 
                 <StackPanel>
@@ -127,36 +116,31 @@
         </Border>
     </DataTemplate>
 
-    <!-- Ein kompletter Stick (zwei zusammengehoerige Achsen, z.B. "Linker Stick" = X+Y): rahmt beide
-         Achsen-Paare (je per obigem impliziten DeviceConfigAxisPairViewModel-Template) gemeinsam in
-         einem staerker hervorgehobenen Rahmen ein, mit Stick-Name und einem einzigen
-         "Stick deaktivieren"-Schalter im Kopfbereich, der alle vier zugrunde liegenden Positiv-/
-         Negativ-Zeilen zugleich (de-)aktiviert - der Nutzer muss dafuer nicht mehr jede der vier
-         Einzelrichtungen separat abhaken. -->
+        <!-- A complete stick (two related axes, e.g. "Left stick" = X+Y) groups both axis pairs in a highlighted
+            frame. Its header contains the stick name and one switch for all four positive/negative rows, so
+            users do not have to toggle each direction individually. -->
     <DataTemplate DataType="{x:Type vm:DeviceConfigStickGroupViewModel}">
         <Border BorderBrush="{StaticResource AccentBrush}" BorderThickness="2" CornerRadius="6"
                 Background="Transparent" Padding="8" Margin="0,0,0,10" HorizontalAlignment="Left">
             <StackPanel>
                 <StackPanel Orientation="Horizontal" Margin="0,0,0,6">
-                    <!-- Tri-State, da bei nur einer deaktivierten Richtung (z.B. Y+) ein rein
-                         binaerer Haken faelschlich "kompletter Stick aus" suggerieren wuerde; das
-                         eigentliche Umschalten erfolgt ueber Command statt einer direkten
-                         IsChecked-Bindung, damit ein Klick immer alle vier Richtungen auf denselben
-                         expliziten Wert setzt statt durch den dritten (unbestimmten) Zustand zu zyklen. -->
+                    <!-- Three states are needed because a binary checkmark would incorrectly imply the entire
+                         a binary checkmark would incorrectly imply the complete stick is disabled. The
+                         command, rather than a direct IsChecked binding, ensures one click sets all four
+                         directions to the same explicit value instead of cycling through the indeterminate state. -->
                     <CheckBox IsChecked="{Binding EnabledState, Mode=OneWay}" IsThreeState="True"
                               Command="{Binding ToggleEnabledCommand}"
                               VerticalAlignment="Center" Margin="0,0,8,0"
-                              ToolTip="Kompletten Stick aktivieren/deaktivieren" />
+                              ToolTip="{loc:Loc devices.enable_stick_tooltip}" />
                     <TextBox Text="{Binding Name, UpdateSourceTrigger=PropertyChanged}"
                              FontWeight="Bold" FontSize="14" VerticalAlignment="Center" Width="200" />
                 </StackPanel>
 
-                <!-- X/Y-Achsen bleiben stets eigenstaendig bedienbar (jede Richtung hat ihre eigene
-                     Checkbox) - nur die Kalibrierungs-Werkzeuge und die Live-Vorschau (ohne eigenen
-                     Schalter) werden ausgegraut, wenn der Stick oben komplett deaktiviert wird. Wuerde
-                     man IsEnabled hier auf den gesamten Bereich (inkl. X/Y-Zeilen) anwenden, wuerde das
-                     Deaktivieren einer einzelnen Richtung ueber die Enabled-Kaskade (Achse -> Stick)
-                     auch die noch aktive Gegenachse mitsperren.
+                 <!-- Keep X/Y axes independently editable (each direction has its own checkbox). Only the
+                     calibration tools and live preview, which have no separate switch, are dimmed when the
+                     entire stick is disabled above. Applying IsEnabled to this whole area would cascade an
+                     individual direction's disabled state up to the stick and incorrectly disable its active
+                     counterpart.
                 -->
                 <Grid>
                     <Grid.ColumnDefinitions>
@@ -176,14 +160,13 @@
                             <ContentPresenter Content="{Binding YAxis}" />
                         </StackPanel>
 
-                        <!-- Kombinierte Kalibrierung fuer X und Y gleichzeitig, damit der Nutzer den
-                             Stick nur einmal bewegen muss statt jede Achse einzeln zu kalibrieren. -->
+                            <!-- Calibrate X and Y together so the user only needs to move the stick once. -->
                         <StackPanel Margin="24,4,0,0" IsEnabled="{Binding IsAnyEnabled}">
                             <StackPanel Orientation="Horizontal" Margin="0,2">
-                                <Button Content="Bereich kalibrieren" Command="{Binding CalibrateRangeCommand}" Padding="6,1" Margin="0,0,4,0" />
-                                <Button Content="Zentrum setzen" Command="{Binding SetCenterCommand}" Padding="6,1" Margin="0,0,4,0" />
-                                <Button Content="Deadzone kalibrieren" Command="{Binding CalibrateDeadzoneCommand}" Padding="6,1" Margin="0,0,4,0" />
-                                <Button Content="Zuruecksetzen" Command="{Binding ResetCalibrationCommand}" Padding="6,1" />
+                                <Button Content="{loc:Loc devices.calibrate_range}" Command="{Binding CalibrateRangeCommand}" Padding="6,1" Margin="0,0,4,0" />
+                                <Button Content="{loc:Loc devices.set_center}" Command="{Binding SetCenterCommand}" Padding="6,1" Margin="0,0,4,0" />
+                                <Button Content="{loc:Loc devices.calibrate_deadzone}" Command="{Binding CalibrateDeadzoneCommand}" Padding="6,1" Margin="0,0,4,0" />
+                                <Button Content="{loc:Loc devices.reset}" Command="{Binding ResetCalibrationCommand}" Padding="6,1" />
                             </StackPanel>
                             <TextBlock Text="{Binding CalibrationStatus}" Foreground="{StaticResource MutedTextBrush}" FontStyle="Italic"
                                        Margin="0,2" TextWrapping="Wrap" />
@@ -199,9 +182,8 @@
         </Border>
     </DataTemplate>
 
-    <!-- Achsen-Gruppe: Ueberschrift + Liste der Achsen-Elemente (entweder eigenstaendige Achsen-Paare
-         oder komplette Sticks aus zwei gepaarten Achsen), jedes Element per obigem passendem impliziten
-         Template (Rahmen) dargestellt. -->
+        <!-- Axis group: heading and axis items (standalone axis pairs or complete sticks made from two paired
+            axes), each rendered with the matching implicit framed template above. -->
     <DataTemplate DataType="{x:Type vm:DeviceConfigAxisGroupViewModel}">
         <StackPanel Margin="0,0,0,6">
             <TextBlock Text="{Binding GroupName}" FontWeight="SemiBold" Foreground="{StaticResource MutedTextBrush}" Margin="0,0,0,3" />
@@ -209,23 +191,22 @@
         </StackPanel>
     </DataTemplate>
 
-    <!-- Ein komplettes physisches Geraet als Inhalt eines Tabs innerhalb der Geraete-Tabbar (siehe
-         MainWindow.xaml, "Gerätekonfiguration"-Tab): globaler Enable/Disable-Schalter oben, darunter
-         die Liste der Eingabe-Gruppen dieses Geraets. Ersetzt den frueheren, pro Geraet aufklappbaren
-         Expander des separaten "Geraete konfigurieren"-Dialogs. -->
+        <!-- Complete physical device content for a tab in the device tab bar (see the Device Configuration tab
+            in MainWindow.xaml): a global enabled switch followed by this device's input groups. Replaces the
+            per-device expander in the former separate device configuration dialog. -->
     <DataTemplate DataType="{x:Type vm:DeviceConfigDeviceViewModel}">
         <ScrollViewer VerticalScrollBarVisibility="Auto">
             <StackPanel Margin="12">
                 <DockPanel Margin="0,0,0,10">
                     <Button DockPanel.Dock="Right" Padding="8,2" Margin="6,0,0,0"
-                            Content="Benchmark"
+                            Content="{loc:Loc devices.benchmark}"
                             Command="{Binding OpenBenchmarkWindowCommand}"
-                            ToolTip="Oeffnet ein Fenster mit Start/Stop-Steuerung und fortlaufend aktualisierten Live-Messwerten (Polling-Rate/Latenz/Zuverlaessigkeit/Signal) fuer den Hardware-Benchmark dieses Geraets." />
+                            ToolTip="{loc:Loc devices.benchmark_tooltip}" />
                     <Button DockPanel.Dock="Right" Padding="8,2"
-                            Content="{Binding IsLogging, Converter={StaticResource BoolToLogButtonTextConverter}}"
+                            Content="{loc:LocBool Value={Binding IsLogging}, WhenTrue=devices.logging_stop, WhenFalse=devices.logging_start}"
                             Command="{Binding ToggleLoggingCommand}"
-                            ToolTip="{Binding LastLogFilePath, TargetNullValue='Protokolliert den rohen Geraetezustand (Achsen/Buttons/D-Pad) fortlaufend in eine Textdatei, bis erneut geklickt wird - unabhaengig von Tab-Wechseln.'}" />
-                    <CheckBox IsChecked="{Binding Enabled}" Content="Geraet aktivieren" FontWeight="Bold"
+                                ToolTip="{Binding LastLogFilePath, TargetNullValue='Continuously logs raw device state (axes/buttons/D-pad) to a text file until clicked again, independently of tab changes.'}" />
+                            <CheckBox IsChecked="{Binding Enabled}" Content="{loc:Loc devices.enable}" FontWeight="Bold"
                               VerticalAlignment="Center" />
                 </DockPanel>
 

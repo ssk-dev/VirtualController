@@ -4,22 +4,20 @@ using VirtualController.App.ViewModels;
 namespace VirtualController.App.Views;
 
 /// <summary>
-/// Code-Behind des "Version wechseln"-Dialogs (Rollback-Funktion). Enthaelt bewusst keine
-/// Geschaeftslogik - diese lebt komplett im <see cref="RollbackDialogViewModel"/>. Hier wird lediglich
-/// das ViewModel per <see cref="RollbackDialogViewModel.RequestClose"/>-Ereignis an <see cref="Window.Close"/>
-/// gekoppelt, das Laden der Versionsliste beim Oeffnen angestossen und - falls die Installation
-/// erfolgreich gestartet wurde - der Anwendung ueber <see cref="InstallationStarted"/> signalisiert, dass
-/// sie sich beenden soll (damit der separate Updater-Prozess die aktuell gesperrten Installationsdateien
-/// ueberschreiben kann). Analog zu <see cref="UpdateAvailableDialog"/>.
+/// Code-behind for the Change Version (rollback) dialog. Business logic lives in
+/// <see cref="RollbackDialogViewModel"/>. This class connects
+/// <see cref="RollbackDialogViewModel.RequestClose"/> to <see cref="Window.Close"/>, starts loading the version
+/// list when the dialog opens, and signals through <see cref="InstallationStarted"/> when the app should shut
+/// down after installation starts so the separate updater can replace locked files. Similar to
+/// <see cref="UpdateAvailableDialog"/>.
 /// </summary>
 public partial class RollbackDialog : Window
 {
     private readonly RollbackDialogViewModel _viewModel;
     private bool _installationStarted;
 
-    /// <summary>Wird ausgeloest, wenn der Nutzer erfolgreich eine Installation gestartet hat (nicht bei
-    /// "Abbrechen" oder einfachem Schliessen) - der Aufrufer (<see cref="MainWindow"/>) beendet die
-    /// Anwendung daraufhin, damit der separate Updater-Prozess die Dateien austauschen kann.</summary>
+    /// <summary>Raised when the user successfully starts an installation, but not on cancellation or normal
+    /// close. The caller (<see cref="MainWindow"/>) then shuts down the app so the separate updater can replace files.</summary>
     public event Action? InstallationStarted;
 
     public RollbackDialog(RollbackDialogViewModel viewModel)
@@ -34,9 +32,9 @@ public partial class RollbackDialog : Window
 
     private void OnRequestClose()
     {
-        // IsInstalling bleibt ab dem erfolgreichen Start des Updater-Prozesses dauerhaft true (siehe
-        // RollbackDialogViewModel.InstallAsync) - das unterscheidet diesen Fall zuverlaessig von
-        // "Abbrechen" (dort wird RequestClose ausgeloest, OHNE dass zuvor IsInstalling gesetzt wurde).
+        // IsInstalling remains true after the updater process starts successfully (see
+        // RollbackDialogViewModel.InstallAsync), distinguishing this case from cancellation, which raises
+        // RequestClose without setting IsInstalling.
         _installationStarted = _viewModel.IsInstalling;
         Close();
     }

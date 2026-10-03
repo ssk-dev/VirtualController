@@ -5,20 +5,19 @@ using System.Windows.Threading;
 namespace VirtualController.App.Views;
 
 /// <summary>
-/// Kurze, reine Anzeige-Benachrichtigung (kein Nutzer-Interaktionselement) fuer einen tatsaechlichen
-/// Moduswechsel eines virtuellen Controllers (siehe <see cref="ViewModels.VirtualControllerViewModel.ModeActivated"/>).
-/// Erscheint automatisch unten links auf dem Hauptbildschirm, bleibt <see cref="DisplayDuration"/> lang
-/// sichtbar (mit kurzem Ein-/Ausblenden) und schliesst sich danach selbststaendig. Enthaelt bewusst keine
-/// Geschaeftslogik - <see cref="Show"/> wird direkt aus <see cref="MainWindow"/> aufgerufen, sobald das
-/// <see cref="ViewModels.VirtualControllerViewModel.ModeActivated"/>-Ereignis eintritt.
+/// Brief, display-only notification (not interactive) for an actual virtual controller mode change (see
+/// <see cref="ViewModels.VirtualControllerViewModel.ModeActivated"/>). Appears at the bottom-left of the main
+/// screen, remains visible for <see cref="DisplayDuration"/> with a short fade in/out, then closes itself.
+/// Contains no business logic; <see cref="Show"/> is called directly from <see cref="MainWindow"/> when the
+/// <see cref="ViewModels.VirtualControllerViewModel.ModeActivated"/> event fires.
 /// </summary>
 public partial class ModeChangeToast : Window
 {
     private static readonly TimeSpan DisplayDuration = TimeSpan.FromSeconds(2);
     private static readonly TimeSpan FadeDuration = TimeSpan.FromMilliseconds(250);
 
-    /// <summary>Zuletzt angezeigte Instanz - eine neue Benachrichtigung ersetzt eine noch sichtbare
-    /// sofort, statt mehrere Popups uebereinander zu stapeln (z.B. bei schneller Trigger-Umschaltung).</summary>
+    /// <summary>Most recently displayed instance. A new notification immediately replaces a visible one
+    /// instead of stacking multiple popups, e.g. during rapid trigger switching.</summary>
     private static ModeChangeToast? _current;
 
     private readonly DispatcherTimer _closeTimer;
@@ -33,8 +32,8 @@ public partial class ModeChangeToast : Window
         _closeTimer.Tick += (_, _) => BeginFadeOutAndClose();
     }
 
-    /// <summary>Zeigt die Benachrichtigung fuer den angegebenen virtuellen Controller/Modus unten links
-    /// auf dem Hauptbildschirm an. Eine bereits sichtbare Benachrichtigung wird dabei sofort ersetzt.</summary>
+    /// <summary>Shows a notification for the specified virtual controller/mode at the bottom-left of the main
+    /// screen, immediately replacing any visible notification.</summary>
     public static void Show(string controllerName, string modeName)
     {
         _current?.CloseImmediately();
@@ -42,8 +41,8 @@ public partial class ModeChangeToast : Window
         var toast = new ModeChangeToast(controllerName, modeName);
         _current = toast;
 
-        // Unten links auf dem Hauptbildschirm (WorkArea beruecksichtigt die Taskleiste, damit das
-        // Popup nicht dahinter verschwindet), mit etwas Abstand zum Bildschirmrand.
+        // Position at the bottom-left of the main screen with some margin. WorkArea accounts for the taskbar
+        // so the popup is not hidden behind it.
         const double margin = 24;
         toast.Left = SystemParameters.WorkArea.Left + margin;
         toast.Top = SystemParameters.WorkArea.Bottom - toast.Height - margin;

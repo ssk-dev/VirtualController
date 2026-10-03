@@ -5,13 +5,12 @@ using VirtualController.Core.Profiles;
 namespace VirtualController.Core.Benchmark;
 
 /// <summary>
-/// Schreibt ein <see cref="BenchmarkResult"/> als JSON-Datei nach
-/// "%AppData%\VirtualController\Benchmark\benchmark-device-{marke}-{name}.json" - bewusst eine eigene,
-/// schlanke Kopie des Atomar-Schreib-Musters von <see cref="AtomicJsonWriter"/>/<see cref="ProfileJsonOptions"/>
-/// statt deren Wiederverwendung, da beide Typen als <see langword="internal"/> ausschliesslich fuer die
-/// Profil-Teilspeicher (<see cref="Profiles.ControllerStore"/> usw.) gedacht sind und das Benchmark-Feature
-/// bewusst als eigenstaendiges, von der Profil-Persistenz unabhaengiges Feature entworfen wurde (siehe
-/// Klassendokumentation von <see cref="BenchmarkSession"/>).
+/// Writes a <see cref="BenchmarkResult"/> to
+/// "%AppData%\VirtualController\Benchmark\benchmark-device-{brand}-{name}.json". Uses a small, dedicated
+/// copy of the atomic-write pattern from <see cref="AtomicJsonWriter"/>/<see cref="ProfileJsonOptions"/>
+/// rather than reusing those internal types, which are intended only for profile stores such as
+/// <see cref="Profiles.ControllerStore"/>. Benchmarking is intentionally independent of profile persistence
+/// (see <see cref="BenchmarkSession"/> documentation).
 /// </summary>
 public static class BenchmarkJsonExporter
 {
@@ -24,9 +23,9 @@ public static class BenchmarkJsonExporter
         return options;
     }
 
-    /// <summary>Leitet den Standard-Dateipfad aus dem Anzeigenamen des Geraets ab - dieselbe Marke/Name-
-    /// Aufteilung wie bei den Log-Dateien (siehe <see cref="Logging.DeviceStateLogger.BuildDefaultFilePath"/>),
-    /// damit beide Dateiarten fuer denselben Geraetenamen konsistent benannt sind.</summary>
+    /// <summary>Builds the default file path from the device display name, using the same brand/name split as
+    /// log files (see <see cref="Logging.DeviceStateLogger.BuildDefaultFilePath"/>) so both file types are
+    /// named consistently for the same device.</summary>
     public static string BuildDefaultFilePath(Devices.PhysicalDeviceInfo device)
     {
         var (brand, name) = FileNaming.SplitBrandAndName(device.DisplayName);
@@ -34,9 +33,9 @@ public static class BenchmarkJsonExporter
         return Path.Combine(directory, $"benchmark-device-{brand}-{name}.json");
     }
 
-    /// <summary>Schreibt <paramref name="result"/> atomar (ueber eine temporaere Datei + <see cref="File.Replace"/>)
-    /// nach <paramref name="targetPath"/>, damit ein Absturz waehrend des Schreibens niemals eine bereits
-    /// vorhandene, gueltige Datei beschaedigt - identisches Vorgehen wie <see cref="AtomicJsonWriter.Write{T}"/>.</summary>
+    /// <summary>Atomically writes <paramref name="result"/> to <paramref name="targetPath"/> through a temporary
+    /// file and <see cref="File.Replace"/>, so a crash during writing cannot corrupt an existing valid file.
+    /// Uses the same approach as <see cref="AtomicJsonWriter.Write{T}"/>.</summary>
     public static void Write(string targetPath, BenchmarkResult result)
     {
         var directory = Path.GetDirectoryName(targetPath);

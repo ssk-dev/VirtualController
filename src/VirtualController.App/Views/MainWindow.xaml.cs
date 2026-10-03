@@ -7,9 +7,8 @@ using VirtualController.Core.Updates;
 namespace VirtualController.App.Views;
 
 /// <summary>
-/// Code-Behind des Hauptfensters. Enthaelt bewusst keine Geschaeftslogik - diese lebt komplett
-/// im <see cref="MainViewModel"/>. Hier wird lediglich der DataContext gesetzt, ein initialer
-/// Verbindungsversuch zum ViGEmBus-Treiber angestossen und beim Schliessen sauber aufgeraeumt.
+/// Main window code-behind. Business logic lives in <see cref="MainViewModel"/>; this class sets the
+/// DataContext, starts the initial ViGEmBus connection attempt, and performs cleanup when closing.
 /// </summary>
 public partial class MainWindow : Window
 {
@@ -21,98 +20,73 @@ public partial class MainWindow : Window
         DataContext = _viewModel;
         Loaded += (_, _) => _viewModel.ConnectDriverCommand.Execute(null);
 
-        // Automatische Update-Pruefung beim Start (nur falls "Automatisch auf Updates prüfen" aktiv ist,
-        // siehe UpdateViewModel.RunStartupCheckAsync) - bewusst "fire-and-forget" (async void-artig ueber
-        // den Lambda-Ausdruck) statt den Start des Fensters darauf warten zu lassen: die Pruefung selbst
-        // blockiert dank interner Ausnahmebehandlung (UpdateCheckException wird dort verworfen) niemals
-        // die Anwendung, auch nicht bei fehlender Internetverbindung.
+        // Run the startup update check only when "Check for updates automatically" is enabled (see
+        // UpdateViewModel.RunStartupCheckAsync). Fire and forget rather than delaying window startup;
+        // internal exception handling ensures an update check never blocks the app, even without internet.
         Loaded += (_, _) => _ = _viewModel.Update.RunStartupCheckAsync();
 
-        // Zeigt das Update-Popup (siehe UpdateAvailableDialog), sobald eine neuere, noch nicht per
-        // "Update ueberspringen" markierte Version gefunden wurde - ausgeloest sowohl von der
-        // automatischen Start-Pruefung als auch vom manuellen "Auf Updates prüfen"-Button im
-        // "Einstellungen"-Tab.
+        // Show the update dialog (see UpdateAvailableDialog) when a newer, non-skipped version is found,
+        // either by the automatic startup check or the manual "Check for updates" button on the Settings tab.
         _viewModel.Update.UpdateAvailable += OnUpdateAvailable;
 
-        // Zeigt eine kurze Bildschirmbenachrichtigung (unten links, 2 Sekunden), wenn sich der aktive
-        // Modus eines virtuellen Controllers tatsaechlich geaendert hat und dieser Controller
-        // Benachrichtigungen aktiviert hat (siehe VirtualControllerViewModel.NotifyOnModeChange).
+        // Show a brief on-screen notification (bottom left, two seconds) when a virtual controller's active
+        // mode changes and notifications are enabled (see VirtualControllerViewModel.NotifyOnModeChange).
         _viewModel.ModeActivated += (vm, mode) => ModeChangeToast.Show(vm.Name, mode.Name);
 
-        // Haelt MainViewModel.IsWindowMinimized aktuell: Window.WindowState laesst sich nicht direkt per
-        // XAML-Binding an eine bool-Eigenschaft koppeln, daher hier ueber das StateChanged-Ereignis
-        // manuell nachgezogen. Wird benoetigt, damit teures Live-Polling physischer Geraete (Mapping-
-        // Tabellen-Hervorhebung, Achsen-Live-Vorschau der Geraetekonfiguration) waehrend der Minimierung
-        // des Fensters komplett angehalten wird (siehe MainViewModel.RefreshScreenActiveStates) - eine
-        // waehrend dieser Zeit ohnehin unsichtbare visuelle Rueckmeldung muss nicht berechnet werden.
+        // Keep MainViewModel.IsWindowMinimized up to date. Window.WindowState cannot be bound directly to a
+        // bool property in XAML, so update it through StateChanged. This lets us pause expensive physical
+        // device polling while the window is minimized, when mapping highlights and the device configuration
+        // axis preview cannot be seen (see MainViewModel.RefreshScreenActiveStates).
         StateChanged += (_, _) => _viewModel.IsWindowMinimized = WindowState == WindowState.Minimized;
 
-        // Aktualisiert zusaetzlich das Maximieren/Wiederherstellen-Glyph der eigenen Titelleiste (siehe
-        // MainWindow.xaml, TitleBar-Border), da dessen Icon je nach WindowState zwischen "maximieren"
-        // und "wiederherstellen" wechseln muss - ein reiner XAML-Trigger auf Window.WindowState kann
-        // hierfuer nicht direkt am Button ansetzen, da WindowState keine mit einfachen DataTriggern
-        // bindbare Eigenschaft dieses Buttons/TextBlocks ist.
+        // Also update the custom title bar's maximize/restore glyph (see the TitleBar border in
+        // MainWindow.xaml) for the current WindowState. A plain XAML trigger cannot bind Window.WindowState
+        // directly to this button or TextBlock.
         StateChanged += (_, _) => UpdateMaximizeRestoreGlyph();
         UpdateMaximizeRestoreGlyph();
 
-        // Fix fuer den Bug "Ziel-Typ/Ziel-Wert wird nicht uebernommen": faengt jede Auswahl-Aenderung
-        // einer beliebigen ComboBox innerhalb der (nun nach Ziel-Typ gruppierten, also auf mehrere
-        // DataGrids verteilten) Mapping-Tabelle ab, um dort per UpdateSource() (siehe
-        // OnAnyComboBoxSelectionChanged) den Wert zuverlaessig ins ViewModel zu uebernehmen. Die
-        // Registrierung erfolgt bewusst am gemeinsamen aeusseren Vorfahren "MappingsScrollViewer"
-        // statt an einer einzelnen DataGrid, da SelectionChangedEvent durch die dazwischenliegende
-        // ItemsControl/DataTemplate-Verschachtelung unveraendert bis hierher durchbubbelt.
+        // Work around target type/value selections not reaching the view model. Handle selection changes
+        // from every ComboBox in the target-type-grouped mapping table and explicitly call UpdateSource()
+        // (see OnAnyComboBoxSelectionChanged). Register on the shared MappingsScrollViewer ancestor rather
+        // than on one DataGrid because SelectionChangedEvent bubbles through the ItemsControl/DataTemplate nesting.
         MappingsScrollViewer.AddHandler(Selector.SelectionChangedEvent, new System.Windows.Controls.SelectionChangedEventHandler(OnAnyComboBoxSelectionChanged), true);
 
-        // Analoger Fix fuer denselben Bug, nur fuer CheckBoxen statt ComboBoxen ("Invertieren", "Nur
-        // diese Richtung"): auch hier wechselt die Zelle beim Klick nicht zuverlaessig in den
-        // Bearbeitungsmodus, wodurch UpdateSource() des Zwei-Wege-IsChecked-Bindings nicht ausgeloest
-        // wird - die CheckBox selbst flippt dabei trotzdem sichtbar um (ToggleButton aktualisiert seine
-        // eigene IsChecked-Dependency-Property immer lokal), was den fehlenden Ruecktransport ins
-        // ViewModel optisch verschleiert. ToggleButton.CheckedEvent/UncheckedEvent sind wie
-        // Selector.SelectionChangedEvent bubbelnde RoutedEvents und erreichen diesen gemeinsamen
-        // Vorfahren unabhaengig von der ItemsControl/DataTemplate-Verschachtelung.
+        // Apply the same workaround to CheckBoxes ("Invert" and "This direction only"). The cell may not enter
+        // edit mode on click, so UpdateSource() is not called for the two-way IsChecked binding. The CheckBox
+        // still visibly toggles because ToggleButton updates its local IsChecked dependency property, hiding
+        // the missing view-model update. CheckedEvent/UncheckedEvent bubble to this shared ancestor just like
+        // Selector.SelectionChangedEvent, regardless of ItemsControl/DataTemplate nesting.
         MappingsScrollViewer.AddHandler(System.Windows.Controls.Primitives.ToggleButton.CheckedEvent, new RoutedEventHandler(OnAnyCheckBoxCheckedChanged), true);
         MappingsScrollViewer.AddHandler(System.Windows.Controls.Primitives.ToggleButton.UncheckedEvent, new RoutedEventHandler(OnAnyCheckBoxCheckedChanged), true);
     }
 
-    /// <summary>Minimiert das Fenster ueber den Minimieren-Button der eigenen Titelleiste (siehe
-    /// MainWindow.xaml, TitleBar-Border) - Ersatz fuer die entfallene native Windows-Titelleiste.</summary>
+    /// <summary>Minimizes the window through the custom title bar button (see the TitleBar border in
+    /// MainWindow.xaml), replacing the removed native title bar.</summary>
     private void OnMinimizeButtonClicked(object sender, RoutedEventArgs e) => WindowState = WindowState.Minimized;
 
-    /// <summary>Wechselt zwischen maximiertem und normalem Fensterzustand ueber den Maximieren/
-    /// Wiederherstellen-Button der eigenen Titelleiste - Ersatz fuer die entfallene native Windows-
-    /// Titelleiste. Das Icon selbst wird ueber <see cref="UpdateMaximizeRestoreGlyph"/> aktuell gehalten.</summary>
+    /// <summary>Toggles between maximized and normal through the custom title bar button, replacing the
+    /// removed native title bar. The icon is updated by <see cref="UpdateMaximizeRestoreGlyph"/>.</summary>
     private void OnMaximizeRestoreButtonClicked(object sender, RoutedEventArgs e)
         => WindowState = WindowState == WindowState.Maximized ? WindowState.Normal : WindowState.Maximized;
 
-    /// <summary>Schliesst das Fenster ueber den Schliessen-Button der eigenen Titelleiste - Ersatz fuer
-    /// die entfallene native Windows-Titelleiste. Loest wie gewohnt <see cref="MainWindow_OnClosing"/> aus.</summary>
+    /// <summary>Closes the window through the custom title bar button, replacing the removed native title bar.
+    /// Raises <see cref="MainWindow_OnClosing"/> as usual.</summary>
     private void OnCloseButtonClicked(object sender, RoutedEventArgs e) => Close();
 
-    /// <summary>Aktualisiert das Icon des Maximieren/Wiederherstellen-Buttons der eigenen Titelleiste
-    /// anhand des aktuellen <see cref="Window.WindowState"/> - zeigt das "Maximieren"-Glyph (Segoe MDL2
-    /// Assets E922), solange das Fenster normal/minimiert ist, und das "Wiederherstellen"-Glyph (E923),
-    /// solange es maximiert ist. Ein reiner XAML-Trigger auf WindowState kann hierfuer nicht direkt am
-    /// Button ansetzen, da WindowState keine mit einfachen DataTriggern bindbare Eigenschaft dieses
-    /// Buttons/TextBlocks ist - daher hier ueber das StateChanged-Ereignis manuell nachgezogen (siehe
-    /// Konstruktor).</summary>
+    /// <summary>Updates the custom title bar's maximize/restore icon for the current
+    /// <see cref="Window.WindowState"/>. Shows the maximize glyph (Segoe MDL2 Assets E922) when normal or
+    /// minimized and the restore glyph (E923) when maximized. A plain XAML trigger cannot bind WindowState
+    /// to this button or TextBlock, so the constructor updates it through StateChanged.</summary>
     private void UpdateMaximizeRestoreGlyph()
         => MaximizeRestoreGlyph.Text = WindowState == WindowState.Maximized ? "\uE923" : "\uE922";
 
     private void OnMappingsScrollViewerPreviewMouseWheel(object sender, System.Windows.Input.MouseWheelEventArgs e)
     {
-        // Fix fuer den Bug "Mapping-Tabelle laesst sich mit dem Mausrad nicht scrollen, wenn sich der
-        // Mauszeiger ueber einer DataGrid-Zeile innerhalb der Tabelle befindet": WPFs DataGrid besitzt
-        // (als Teil seines Standard-Steuerelement-Templates) einen eigenen internen ScrollViewer, der
-        // das MouseWheel-Ereignis IMMER als Handled markiert, sobald sich der Mauszeiger ueber einer
-        // Zeile befindet - unabhaengig davon, ob dieser innere DataGrid ueberhaupt scrollen muesste.
-        // Dadurch bubbelt das Ereignis niemals bis zu diesem aeusseren ScrollViewer hoch. Da
-        // PreviewMouseWheel jedoch ein Tunneling-Event ist, erreicht es diesen aeusseren ScrollViewer
-        // bereits VOR dem inneren DataGrid-ScrollViewer. Hier wird daher manuell um das Mausrad-Delta
-        // gescrollt und das Ereignis als Handled markiert, sodass das eigentliche (fehlerhafte)
-        // Scroll-Verhalten des inneren DataGrid komplett uebersprungen wird und ausschliesslich dieser
-        // aeussere ScrollViewer scrollt.
+        // Work around the mapping table not scrolling with the mouse wheel over a DataGrid row. WPF's default
+        // DataGrid template contains an inner ScrollViewer that marks MouseWheel handled whenever the pointer
+        // is over a row, even if the grid itself cannot scroll, so the event never bubbles to this outer
+        // ScrollViewer. PreviewMouseWheel tunnels through the outer viewer before reaching the inner one, so
+        // scroll the outer viewer manually and mark the event handled to bypass the inner viewer.
         if (sender is not System.Windows.Controls.ScrollViewer scrollViewer)
         {
             return;
@@ -124,16 +98,13 @@ public partial class MainWindow : Window
 
     private void OnAnyComboBoxSelectionChanged(object sender, System.Windows.Controls.SelectionChangedEventArgs e)
     {
-        // Fix fuer den Bug "Ziel-Typ/Ziel-Wert wird nicht uebernommen bzw. faellt auf den alten
-        // Wert zurueck": ComboBoxen in DataGridTemplateColumn-Zellen wechseln beim Auswaehlen eines
-        // Eintrags nicht automatisch/zuverlaessig in den Zellen-Bearbeitungsmodus. Dadurch loest WPF
-        // den Ruecktransport (UpdateSource) des Zwei-Wege-Bindings von SelectedItem/SelectedValue oft
-        // gar nicht oder erst durch einen zufaelligen Nebeneffekt (z.B. Fokuswechsel Sekunden spaeter)
-        // aus - das Binding selbst bleibt dabei die ganze Zeit "Active" und fehlerfrei, weshalb dies
-        // durch reine Bindungspruefung nicht auffaellt. Durch das explizite Erzwingen von
-        // UpdateSource() direkt hier (SelectionChanged bubbelt von jeder ComboBox im DataGrid bis zu
-        // diesem Fenster-weiten Handler durch) wird der Wert garantiert sofort ins ViewModel
-        // uebernommen, unabhaengig vom Zellen-Fokuszustand.
+        // Work around target type/value selections not reaching the view model or reverting. ComboBoxes in
+        // DataGridTemplateColumn cells do not reliably enter edit mode when an item is selected, so WPF may
+        // not call UpdateSource() for the SelectedItem/SelectedValue two-way binding until an unrelated event
+        // such as a later focus change. The binding remains active and error-free, so normal binding checks
+        // do not reveal the problem. Explicitly call UpdateSource() here; SelectionChanged bubbles from every
+        // ComboBox in the DataGrid to this window-level handler, guaranteeing an immediate update regardless
+        // of cell focus.
         if (e.OriginalSource is System.Windows.Controls.ComboBox comboBox)
         {
             System.Windows.Data.BindingOperations.GetBindingExpression(comboBox, Selector.SelectedItemProperty)?.UpdateSource();
@@ -143,16 +114,12 @@ public partial class MainWindow : Window
 
     private void OnAnyCheckBoxCheckedChanged(object sender, RoutedEventArgs e)
     {
-        // Analoger Fix fuer denselben Bug wie OnAnyComboBoxSelectionChanged, nur fuer CheckBoxen
-        // ("Invertieren", "Nur diese Richtung") statt ComboBoxen: ToggleButton aktualisiert beim Klick
-        // immer sofort seine eigene IsChecked-Dependency-Property (die CheckBox "flippt" also optisch
-        // zuverlaessig um), unabhaengig davon, ob die umgebende DataGridTemplateColumn-Zelle tatsaechlich
-        // in den Bearbeitungsmodus gewechselt ist. Bleibt die Zelle im reinen Anzeigemodus, loest WPF
-        // den Ruecktransport (UpdateSource) des Zwei-Wege-IsChecked-Bindings nicht aus - das Binding
-        // selbst bleibt dabei weiterhin "Active" und fehlerfrei, nur eben ungenutzt. Durch das explizite
-        // Erzwingen von UpdateSource() direkt hier (Checked/Unchecked bubbelt von jeder CheckBox im
-        // DataGrid bis zu diesem Fenster-weiten Handler durch) wird der Wert garantiert sofort ins
-        // ViewModel uebernommen, unabhaengig vom Zellen-Fokuszustand.
+        // Apply the same workaround as OnAnyComboBoxSelectionChanged to CheckBoxes ("Invert" and "This
+        // direction only"). ToggleButton immediately updates its own IsChecked dependency property, so the
+        // CheckBox visibly toggles even if the DataGridTemplateColumn cell never enters edit mode. In that
+        // case WPF does not update the view model, though the binding remains active and error-free. Explicitly
+        // call UpdateSource() here; Checked/Unchecked bubbles from every CheckBox in the DataGrid to this
+        // window-level handler, guaranteeing an immediate update regardless of cell focus.
         if (e.OriginalSource is System.Windows.Controls.CheckBox checkBox)
         {
             System.Windows.Data.BindingOperations.GetBindingExpression(checkBox, System.Windows.Controls.Primitives.ToggleButton.IsCheckedProperty)?.UpdateSource();
@@ -167,10 +134,9 @@ public partial class MainWindow : Window
 
     private void OnAssignInputClicked(object sender, RoutedEventArgs e)
     {
-        // Der "Zuweisen"-Button lebt innerhalb der Zeile der Mapping-DataGrid, deren DataContext das
-        // zugehoerige MappingRowViewModel ist (siehe MainWindow.xaml, DataTemplate DataType="{x:Type
-        // vm:MappingRowViewModel}") - so laesst sich ohne CommandParameter/Command-Bindung ermitteln,
-        // fuer welche konkrete Zeile der Dialog geoeffnet werden soll.
+        // The Assign button is inside a mapping DataGrid row whose DataContext is its MappingRowViewModel
+        // (see the MappingRowViewModel DataTemplate in MainWindow.xaml). This identifies the target row
+        // without a CommandParameter or command binding.
         if (((FrameworkElement)sender).DataContext is not MappingRowViewModel row)
         {
             return;
@@ -187,9 +153,8 @@ public partial class MainWindow : Window
 
     private void OnAssignSwitchTriggerClicked(object sender, RoutedEventArgs e)
     {
-        // Analog zu OnAssignInputClicked: der "Zuweisen"-Button fuer den Switch-Trigger lebt innerhalb
-        // des Tab-Labels eines Modus, deren DataContext das zugehoerige ModeViewModel ist (siehe
-        // MainWindow.xaml, DataTemplate DataType="{x:Type vm:ModeViewModel}" in der Modus-Tab-Leiste).
+        // Like OnAssignInputClicked, the switch trigger's Assign button is inside a mode tab whose DataContext
+        // is its ModeViewModel (see the ModeViewModel DataTemplate in MainWindow.xaml).
         if (((FrameworkElement)sender).DataContext is not ModeViewModel mode)
         {
             return;
@@ -206,9 +171,8 @@ public partial class MainWindow : Window
 
     private void OnAssignToggleTriggerClicked(object sender, RoutedEventArgs e)
     {
-        // Analog zu OnAssignSwitchTriggerClicked: der "Zuweisen"-Button fuer den controller-weiten
-        // Toggle-Trigger lebt im Abschnitt "Modi Switch / Toggle", deren DataContext der aktuell
-        // ausgewaehlte Controller ist (SelectedController, also ein VirtualControllerViewModel).
+        // Like OnAssignSwitchTriggerClicked, the controller-wide toggle trigger's Assign button is in the
+        // Mode switch/toggle section, whose DataContext is the selected VirtualControllerViewModel.
         if (((FrameworkElement)sender).DataContext is not VirtualControllerViewModel controller)
         {
             return;
@@ -225,32 +189,23 @@ public partial class MainWindow : Window
 
     private void OnModeTabBorderPreviewMouseLeftButtonDown(object sender, System.Windows.Input.MouseButtonEventArgs e)
     {
-        // Fix fuer die Bugs "beim Klick auf einen Modus-Tab wird der falsche Tab ausgewaehlt" und
-        // "die Mapping-Tabelle zeigt beim Modus-Wechsel nicht die passenden Mappings an" (beide sind
-        // tatsaechlich dieselbe Ursache: SelectedMode wurde beim Klick nicht zuverlaessig aktualisiert).
-        // Fruehere Versuche haengten den Handler an das ListBoxItem bzw. die ListBox selbst und mussten
-        // per Hit-Test/ItemContainerGenerator vom angeklickten Element auf das zugehoerige Datenelement
-        // zurueckschliessen - das erwies sich als unzuverlaessig. Der Handler haengt daher jetzt direkt am
-        // Wurzel-Border jedes Tabs innerhalb des DataTemplate (siehe MainWindow.xaml): dessen DataContext
-        // ist durch den DataTemplate-Mechanismus GARANTIERT genau das ModeViewModel dieses Tabs - es ist
-        // also kein Hit-Test/Container-Lookup mehr noetig, sondern nur ein direkter Zugriff auf
-        // DataContext. Anschliessend wird lediglich noch die umschliessende ListBox gesucht, um deren
-        // SelectedItem (zwei-Wege gebunden an VirtualControllerViewModel.SelectedMode) explizit zu setzen.
-        // Da PreviewMouseLeftButtonDown ein Tunneling-Event ist und e.Handled bewusst NICHT gesetzt wird,
-        // laeuft das eigentliche Klickverhalten verschachtelter Buttons/TextBox/CheckBox danach unveraendert
-        // weiter.
+        // Work around incorrect mode tab selection and the mapping table showing the wrong rows; both came
+        // from SelectedMode not being updated reliably on click. Earlier attempts attached this handler to
+        // the ListBoxItem/ListBox and used hit testing or ItemContainerGenerator to find the data item, which
+        // was unreliable. Attach it to each tab's root Border instead (see MainWindow.xaml): its DataContext
+        // is guaranteed to be that tab's ModeViewModel, so no container lookup is needed. Find the enclosing
+        // ListBox and explicitly set its SelectedItem (two-way bound to VirtualControllerViewModel.SelectedMode).
+        // PreviewMouseLeftButtonDown tunnels, and e.Handled remains false so nested buttons, text boxes, and
+        // checkboxes retain their normal click behavior.
         //
-        // Temporaeres Debug-Logging (siehe VirtualController.App.Diagnostics.DebugLog) zur gezielten
-        // Fehlersuche des Bugs "falscher Tab wird ausgewaehlt": protokolliert jeden Klick, welches Modus
-        // als DataContext erkannt wurde, ob eine ListBox gefunden wurde und was tatsaechlich als
-        // SelectedItem gesetzt wurde - damit sich anhand der Log-Datei nachvollziehen laesst, ob dieser
-        // Handler ueberhaupt ausgefuehrt wird und mit welchem Ergebnis.
+        // Temporary diagnostics (see VirtualController.App.Diagnostics.DebugLog) for incorrect tab selection:
+        // log each click, the recognized ModeViewModel, whether a ListBox was found, and the SelectedItem set.
         var originalSourceInfo = (e.OriginalSource as System.Windows.FrameworkElement)?.GetType().Name ?? e.OriginalSource?.GetType().Name ?? "null";
-        DebugLog.Write($"[ModeTab] PreviewMouseLeftButtonDown ausgeloest. sender={sender.GetType().Name} OriginalSource={originalSourceInfo}");
+        DebugLog.Write($"[ModeTab] PreviewMouseLeftButtonDown raised. sender={sender.GetType().Name} OriginalSource={originalSourceInfo}");
 
         if (sender is not System.Windows.FrameworkElement border || border.DataContext is not ModeViewModel mode)
         {
-            DebugLog.Write($"[ModeTab] Abbruch: sender ist kein FrameworkElement mit ModeViewModel-DataContext (DataContext={(sender as System.Windows.FrameworkElement)?.DataContext?.GetType().Name ?? "null"}).");
+            DebugLog.Write($"[ModeTab] Aborted: sender is not a FrameworkElement with a ModeViewModel DataContext (DataContext={(sender as System.Windows.FrameworkElement)?.DataContext?.GetType().Name ?? "null"}).");
             return;
         }
 
@@ -258,29 +213,24 @@ public partial class MainWindow : Window
 
         if (FindVisualAncestor<System.Windows.Controls.ListBox>(border) is not { } listBox)
         {
-            DebugLog.Write("[ModeTab] Abbruch: keine umschliessende ListBox gefunden.");
+            DebugLog.Write("[ModeTab] Aborted: no enclosing ListBox found.");
             return;
         }
 
-        DebugLog.Write($"[ModeTab] Vor SelectedItem-Zuweisung: listBox.SelectedItem war '{(listBox.SelectedItem as ModeViewModel)?.Name ?? "null"}'.");
+        DebugLog.Write($"[ModeTab] Before SelectedItem assignment: listBox.SelectedItem was '{(listBox.SelectedItem as ModeViewModel)?.Name ?? "null"}'.");
         listBox.SelectedItem = mode;
-        DebugLog.Write($"[ModeTab] Nach SelectedItem-Zuweisung: listBox.SelectedItem ist jetzt '{(listBox.SelectedItem as ModeViewModel)?.Name ?? "null"}'.");
+        DebugLog.Write($"[ModeTab] After SelectedItem assignment: listBox.SelectedItem is now '{(listBox.SelectedItem as ModeViewModel)?.Name ?? "null"}'.");
     }
 
     private void OnMappingsDataGridTargetUpdated(object sender, System.Windows.Data.DataTransferEventArgs e)
     {
-        // Diagnose-Logging fuer den Bug "Mapping-Tabelle aktualisiert sich beim Modus-Wechsel waehrend
-        // der Controller laeuft nicht": TargetUpdated feuert genau dann, wenn das ItemsSource-Binding
-        // einer der (nach Ziel-Typ gruppierten) Mapping-DataGrids tatsaechlich einen neuen Wert ins
-        // UI-Steuerelement uebernommen hat - das ist die "Ground Truth" dessen, was wirklich angezeigt
-        // wird, im Gegensatz zu dem, was das ViewModel ueber SelectedMode/ActiveModeId zu wissen glaubt
-        // (siehe DebugLog-Aufrufe in VirtualControllerViewModel.OnSelectedModeChanged). Der DataContext
-        // dieser DataGrid ist seit der Gruppierung nach Ziel-Typ keine VirtualControllerViewModel mehr,
-        // sondern die MappingGroupViewModel der jeweiligen Gruppe (Button/Achse/Trigger/D-Pad) - daher
-        // wird hier deren Header/Kind statt des Controller-Namens protokolliert. Wenn dieser Handler
-        // beim Tab-Wechsel waehrend der Laufzeit NICHT feuert (oder mit falscher Mapping-Anzahl/falschem
-        // Gruppen-Header), liegt der Fehler tatsaechlich im UI-Rendering/Binding und nicht in der
-        // ViewModel-Logik.
+        // Diagnostics for the mapping table not updating when switching modes while the controller runs.
+        // TargetUpdated fires when a grouped DataGrid's ItemsSource binding applies a new value to the UI,
+        // the ground truth of what is displayed versus what the view model reports (see debug logs in
+        // VirtualControllerViewModel.OnSelectedModeChanged). Each DataGrid's DataContext is now its
+        // MappingGroupViewModel (button/axis/trigger/D-pad), not VirtualControllerViewModel, so log the
+        // group header/kind instead of the controller name. If this handler does not fire on a mode switch,
+        // or reports the wrong row count/group header, the problem is in UI rendering/binding rather than view-model logic.
         if (sender is not System.Windows.Controls.DataGrid grid)
         {
             return;
@@ -288,23 +238,22 @@ public partial class MainWindow : Window
 
         string groupInfo = grid.DataContext is MappingGroupViewModel group
             ? $"Gruppe='{group.Header}' (Kind={group.Kind})"
-            : "Gruppe=<keine MappingGroupViewModel als DataContext>";
+            : "Group=<no MappingGroupViewModel DataContext>";
 
         int itemCount = grid.ItemsSource is System.Collections.ICollection collection
             ? collection.Count
             : grid.ItemsSource?.Cast<object>().Count() ?? -1;
 
-        DebugLog.Write($"[MappingsGrid] TargetUpdated: {groupInfo} AngezeigteMappingAnzahl={itemCount}");
+        DebugLog.Write($"[MappingsGrid] TargetUpdated: {groupInfo} DisplayedMappingCount={itemCount}");
     }
 
     /// <summary>
-    /// Zeigt das Update-Popup (siehe <see cref="UpdateAvailableDialog"/>) fuer <paramref name="details"/>
-    /// an - aufgerufen sowohl von der automatischen Start-Pruefung als auch vom manuellen "Auf Updates
-    /// prüfen"-Button (siehe <see cref="MainViewModel.Update"/>). Hat der Nutzer im Popup erfolgreich
-    /// eine Installation gestartet (<see cref="UpdateAvailableDialog.InstallationStarted"/>), wird die
-    /// Anwendung anschliessend beendet, damit der bereits gestartete, separate Updater-Prozess die
-    /// aktuell durch die laufende EXE gesperrten Installationsdateien ueberschreiben und die neue Version
-    /// starten kann (siehe VirtualController.Core.Updates.UpdateInstaller).
+    /// Shows the update dialog (see <see cref="UpdateAvailableDialog"/>) for <paramref name="details"/>,
+    /// called by both the automatic startup check and the manual "Check for updates" button (see
+    /// <see cref="MainViewModel.Update"/>). After installation starts successfully
+    /// (<see cref="UpdateAvailableDialog.InstallationStarted"/>), shuts down the app so the separate updater
+    /// process can replace files locked by the running executable and launch the new version (see
+    /// VirtualController.Core.Updates.UpdateInstaller).
     /// </summary>
     private void OnUpdateAvailable(UpdateCheckResult details)
     {
@@ -315,11 +264,10 @@ public partial class MainWindow : Window
     }
 
     /// <summary>
-    /// Oeffnet den "Version wechseln"-Dialog (<see cref="RollbackDialog"/>), ueber den der Nutzer gezielt
-    /// zu einer beliebigen an der Update-Quelle verfuegbaren Version wechseln kann - einschliesslich
-    /// aelterer Versionen (Rollback), was die reguläre Update-Pruefung bewusst nicht anbietet. Hat der
-    /// Nutzer erfolgreich eine Installation gestartet (<see cref="RollbackDialog.InstallationStarted"/>),
-    /// wird die Anwendung anschliessend beendet, analog zu <see cref="OnUpdateAvailable"/>.
+    /// Opens the "Change version" dialog (<see cref="RollbackDialog"/>), which lets the user switch to any
+    /// version available from the update source, including older versions (rollback), which regular update
+    /// checks intentionally do not offer. Shuts down the app after installation starts successfully
+    /// (<see cref="RollbackDialog.InstallationStarted"/>), as in <see cref="OnUpdateAvailable"/>.
     /// </summary>
     private void RollbackButton_Click(object sender, System.Windows.RoutedEventArgs e)
     {

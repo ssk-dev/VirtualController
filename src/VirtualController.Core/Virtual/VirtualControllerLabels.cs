@@ -1,12 +1,10 @@
 namespace VirtualController.Core.Virtual;
 
 /// <summary>
-/// Liefert die Anzeigenamen fuer Elemente des virtuellen Controllers, wie sie tatsaechlich auf
-/// dem jeweils gewaehlten <see cref="ControllerLayout"/> beschriftet sind (z.B. Xbox: A/B/X/Y,
-/// PlayStation: Kreuz/Kreis/Quadrat/Dreieck, Nintendo: B/A/Y/X seitenverkehrt). Wird von der UI
-/// genutzt, damit die "Ziel-Wert"-Auswahl in der Mapping-Tabelle nicht die internen, generischen
-/// Enum-Namen (South/East/West/North, ...) zeigt, sondern die dem Nutzer vertrauten Beschriftungen
-/// des tatsaechlich gewaehlten virtuellen Controllers.
+/// Provides virtual controller element labels for the selected <see cref="ControllerLayout"/> (e.g. Xbox:
+/// A/B/X/Y, PlayStation: Cross/Circle/Square/Triangle, Nintendo: B/A/Y/X reversed). Used by the UI so the
+/// mapping table's target-value selector shows familiar controller labels instead of generic enum names
+/// (South/East/West/North, etc.).
 /// </summary>
 public static class VirtualControllerLabels
 {
@@ -14,10 +12,10 @@ public static class VirtualControllerLabels
     {
         ControllerLayout.PlayStation => button switch
         {
-            VirtualButton.South => "Kreuz",
-            VirtualButton.East => "Kreis",
-            VirtualButton.West => "Quadrat",
-            VirtualButton.North => "Dreieck",
+            VirtualButton.South => "Cross",
+            VirtualButton.East => "Circle",
+            VirtualButton.West => "Square",
+            VirtualButton.North => "Triangle",
             VirtualButton.LeftShoulder => "L1",
             VirtualButton.RightShoulder => "R1",
             VirtualButton.LeftThumbClick => "L3",
@@ -30,15 +28,15 @@ public static class VirtualControllerLabels
         },
         ControllerLayout.Nintendo => button switch
         {
-            // Kosmetisch seitenverkehrt zu Xbox (siehe ControllerLayout-Dokumentation): A/B und X/Y vertauscht.
+            // Cosmetic mapping reversed from Xbox (see ControllerLayout docs): A/B and X/Y are swapped.
             VirtualButton.South => "B",
             VirtualButton.East => "A",
             VirtualButton.West => "Y",
             VirtualButton.North => "X",
             VirtualButton.LeftShoulder => "L",
             VirtualButton.RightShoulder => "R",
-            VirtualButton.LeftThumbClick => "Linker Stick (Klick)",
-            VirtualButton.RightThumbClick => "Rechter Stick (Klick)",
+            VirtualButton.LeftThumbClick => "Left stick (click)",
+            VirtualButton.RightThumbClick => "Right stick (click)",
             VirtualButton.Back => "-",
             VirtualButton.Start => "+",
             VirtualButton.Guide => "Home",
@@ -53,8 +51,8 @@ public static class VirtualControllerLabels
             VirtualButton.North => "Y",
             VirtualButton.LeftShoulder => "LB",
             VirtualButton.RightShoulder => "RB",
-            VirtualButton.LeftThumbClick => "Linker Stick (Klick)",
-            VirtualButton.RightThumbClick => "Rechter Stick (Klick)",
+            VirtualButton.LeftThumbClick => "Left stick (click)",
+            VirtualButton.RightThumbClick => "Right stick (click)",
             VirtualButton.Back => "Back",
             VirtualButton.Start => "Start",
             VirtualButton.Guide => "Guide",
@@ -77,7 +75,7 @@ public static class VirtualControllerLabels
             VirtualTrigger.RightTrigger => "ZR",
             _ => trigger.ToString()
         },
-        _ => trigger switch // Xbox (Standard)
+        _ => trigger switch // Xbox (default)
         {
             VirtualTrigger.LeftTrigger => "LT",
             VirtualTrigger.RightTrigger => "RT",
@@ -85,28 +83,28 @@ public static class VirtualControllerLabels
         }
     };
 
-    /// <summary>Achsen-Beschriftungen sind layoutunabhaengig (alle drei Layouts nutzen dieselbe Stick-Anordnung).</summary>
+    /// <summary>Axis labels are layout-independent; all three layouts use the same stick arrangement.</summary>
     public static string GetAxisLabel(VirtualAxis axis) => axis switch
     {
-        VirtualAxis.LeftStickX => "Linker Stick X",
-        VirtualAxis.LeftStickY => "Linker Stick Y",
-        VirtualAxis.RightStickX => "Rechter Stick X",
-        VirtualAxis.RightStickY => "Rechter Stick Y",
+        VirtualAxis.LeftStickX => "Left stick X",
+        VirtualAxis.LeftStickY => "Left stick Y",
+        VirtualAxis.RightStickX => "Right stick X",
+        VirtualAxis.RightStickY => "Right stick Y",
         _ => axis.ToString()
     };
 
-    /// <summary>D-Pad-Richtungen sind layoutunabhaengig (Kreuz-Layout ist auf allen drei Layouts identisch).</summary>
+    /// <summary>D-pad labels are layout-independent; all three layouts use the same directional cross.</summary>
     public static string GetDPadLabel(DPadDirection direction) => direction switch
     {
-        DPadDirection.None => "Keine",
-        DPadDirection.Up => "Hoch",
-        DPadDirection.UpRight => "Hoch-Rechts",
-        DPadDirection.Right => "Rechts",
-        DPadDirection.DownRight => "Runter-Rechts",
-        DPadDirection.Down => "Runter",
-        DPadDirection.DownLeft => "Runter-Links",
-        DPadDirection.Left => "Links",
-        DPadDirection.UpLeft => "Hoch-Links",
+        DPadDirection.None => "None",
+        DPadDirection.Up => "Up",
+        DPadDirection.UpRight => "Up-Right",
+        DPadDirection.Right => "Right",
+        DPadDirection.DownRight => "Down-Right",
+        DPadDirection.Down => "Down",
+        DPadDirection.DownLeft => "Down-Left",
+        DPadDirection.Left => "Left",
+        DPadDirection.UpLeft => "Up-Left",
         _ => direction.ToString()
     };
 }

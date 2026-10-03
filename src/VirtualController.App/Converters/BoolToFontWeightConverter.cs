@@ -4,9 +4,9 @@ using System.Windows.Data;
 
 namespace VirtualController.App.Converters;
 
-/// <summary>Wandelt einen bool-Zustand in ein <see cref="FontWeight"/> um: fett bei true, normal bei false.
-/// Wird u.a. genutzt, um den Speichern-Button bei ungespeicherten Aenderungen zusaetzlich zur roten
-/// Textfarbe (siehe <see cref="BoolToUnsavedForegroundConverter"/>) hervorzuheben.</summary>
+/// <summary>Converts a boolean state to a <see cref="FontWeight"/>: bold for true, normal for false.
+/// Used to emphasize the save button for unsaved changes in addition to its red text color
+/// (see <see cref="BoolToUnsavedForegroundConverter"/>).</summary>
 public sealed class BoolToFontWeightConverter : IValueConverter
 {
     public object Convert(object? value, Type targetType, object? parameter, CultureInfo culture)

@@ -1,6 +1,6 @@
 namespace VirtualController.Core.Virtual;
 
-/// <summary>Analoge Stick-Achsen, normalisiert auf den Bereich -1.0 .. 1.0.</summary>
+/// <summary>Analog stick axes normalized to -1.0 .. 1.0.</summary>
 public enum VirtualAxis
 {
     LeftStickX,
@@ -9,7 +9,7 @@ public enum VirtualAxis
     RightStickY
 }
 
-/// <summary>Analoge Trigger, normalisiert auf den Bereich 0.0 .. 1.0.</summary>
+/// <summary>Analog triggers normalized to 0.0 .. 1.0.</summary>
 public enum VirtualTrigger
 {
     LeftTrigger,

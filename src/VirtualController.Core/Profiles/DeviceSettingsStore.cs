@@ -4,21 +4,18 @@ using VirtualController.Core.Devices;
 namespace VirtualController.Core.Profiles;
 
 /// <summary>
-/// Speichert die geraeteweiten Einstellungen (<see cref="DeviceSettings"/>) nicht mehr gesammelt in
-/// einer einzigen Datei, sondern je physischem Geraet in einer eigenen, sprechend benannten Datei
-/// (device-{marke}-{name}.json, z.B. "device-logitech-x56.json") unterhalb eines "Devices"-Ordners.
-/// Das macht die einzelnen Dateien uebersichtlicher und erlaubt es, die Einstellungen eines einzelnen
-/// Geraets unabhaengig von allen anderen zu sichern, zu teilen oder zu loeschen.
+/// Stores device-wide <see cref="DeviceSettings"/> in one descriptive file per physical device
+/// (device-{brand}-{name}.json, e.g. "device-logitech-x56.json") under a Devices directory instead of one
+/// combined file. This makes files easier to inspect and lets users back up, share, or delete settings for
+/// one device independently.
 /// </summary>
 internal static class DeviceSettingsStore
 {
     private static readonly JsonSerializerOptions SerializerOptions = ProfileJsonOptions.Create();
 
-    /// <summary>Eine einzelne Geraetedatei: die <see cref="DeviceId"/> wird zusaetzlich zu den eigentlichen
-    /// Einstellungen mitgespeichert, damit spaeter erkannt werden kann, welches Geraet gemeint ist (der
-    /// Dateiname selbst ist nur eine vom Anzeigenamen abgeleitete, nicht zwingend eindeutige Naeherung -
-    /// siehe <see cref="ResolveFileName"/>) und Dateien beim Laden nicht anhand ihres Namens, sondern
-    /// anhand dieses Felds zugeordnet werden.</summary>
+    /// <summary>One device file. Stores <see cref="DeviceId"/> alongside the settings so the device can be
+    /// identified later; the filename is only an approximate, potentially non-unique derivative of the
+    /// display name (see <see cref="ResolveFileName"/>). Files are matched by this field, not by filename.</summary>
     private sealed class DeviceFile
     {
         public required string DeviceId { get; set; }
@@ -64,9 +61,8 @@ internal static class DeviceSettingsStore
             AtomicJsonWriter.Write(fullPath, file, SerializerOptions);
         }
 
-        // Dateien verwaister Geraete (z.B. nach dem Entfernen/Ausblenden in der Konfiguration) wieder
-        // loeschen, damit alte Stand-Dateien nicht dauerhaft liegen bleiben und beim naechsten Laden
-        // faelschlich wieder auftauchen.
+        // Delete files for orphaned devices (e.g. removed/hidden in configuration) so stale files do not
+        // remain permanently and reappear on the next load.
         foreach (var existing in Directory.EnumerateFiles(devicesDirectory, "device-*.json"))
         {
             if (!expectedFiles.Contains(existing))
@@ -85,8 +81,7 @@ internal static class DeviceSettingsStore
         }
         catch (JsonException)
         {
-            // Beschaedigte Einzeldatei -> dieses eine Geraet wird beim Laden uebersprungen statt die
-            // gesamte Konfiguration unbrauchbar zu machen.
+            // Skip this device's corrupted file rather than making the entire configuration unusable.
             return null;
         }
     }
@@ -109,11 +104,9 @@ internal static class DeviceSettingsStore
         return candidate;
     }
 
-    /// <summary>Zwei unterschiedliche Geraete koennen denselben abgeleiteten Dateinamen ergeben (z.B.
-    /// zwei baugleiche Joysticks). Bevor ein Dateiname fuer ein Geraet vergeben wird, muss daher
-    /// geprueft werden, ob eine bereits existierende Datei mit diesem Namen tatsaechlich zu einem
-    /// ANDEREN Geraet gehoert (dann muss ausgewichen werden) oder ohnehin schon zu diesem Geraet
-    /// gehoert (dann wird sie regulaer ueberschrieben).</summary>
+    /// <summary>Different devices can produce the same derived filename (e.g. two identical joysticks). Before
+    /// assigning a filename, check whether an existing file belongs to a different device (choose another name)
+    /// or to this device (overwrite it normally).</summary>
     private static bool BelongsToDifferentDevice(string devicesDirectory, string fileName, string deviceId)
     {
         var path = Path.Combine(devicesDirectory, fileName);

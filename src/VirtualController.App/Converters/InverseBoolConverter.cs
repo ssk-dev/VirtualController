@@ -3,9 +3,9 @@ using System.Windows.Data;
 
 namespace VirtualController.App.Converters;
 
-/// <summary>Kehrt einen bool-Wert um (true -&gt; false, false -&gt; true). Wird u.a. genutzt, um
-/// die "Layout"-Auswahl eines virtuellen Controllers zu sperren, waehrend dieser laeuft
-/// (IsEnabled soll dann false sein, waehrend IsRunning true ist).</summary>
+/// <summary>Inverts a boolean value (true -&gt; false, false -&gt; true). Used, for example, to
+/// disable the virtual controller's "Layout" selection while it is running
+/// (IsEnabled should then be false while IsRunning is true).</summary>
 public sealed class InverseBoolConverter : IValueConverter
 {
     public object Convert(object? value, Type targetType, object? parameter, CultureInfo culture)

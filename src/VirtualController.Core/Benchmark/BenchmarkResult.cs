@@ -6,13 +6,11 @@ using VirtualController.Core.Devices.Usb;
 
 namespace VirtualController.Core.Benchmark;
 
-/// <summary>Identification-Kennzahlen (siehe geplantes Benchmark-Feature) - stammen aus
-/// <see cref="HidDeviceInfo"/> (Phase 2), ergaenzt um die vom Anwender vergebenen/erkannten
-/// <see cref="PhysicalDeviceInfo"/>-Angaben (Api/Slot), da letztere fuer die Zuordnung zur restlichen
-/// Anwendungskonfiguration relevant sind, HidDeviceInfo diese aber nicht kennt.</summary>
-/// <param name="ReleaseNumberBcd">Siehe <see cref="HidDeviceInfo.ReleaseNumberBcd"/> - NUR eine
-/// Naeherung fuer eine Firmware-Version, nicht garantiert korrekt (siehe Klassendokumentation von
-/// <see cref="HidDeviceInfoReader"/>).</param>
+/// <summary>Device identification metrics from <see cref="HidDeviceInfo"/> (phase 2), augmented with the
+/// user-facing/detected <see cref="PhysicalDeviceInfo"/> API and slot data, which are relevant to the rest
+/// of the application configuration but are not known to HidDeviceInfo.</summary>
+/// <param name="ReleaseNumberBcd">See <see cref="HidDeviceInfo.ReleaseNumberBcd"/>. This is only an estimate
+/// of the firmware version and is not guaranteed to be accurate (see <see cref="HidDeviceInfoReader"/> docs).</param>
 public sealed record BenchmarkIdentificationInfo(
     string DeviceDisplayName,
     InputApi Api,
@@ -27,9 +25,9 @@ public sealed record BenchmarkIdentificationInfo(
     int MaxOutputReportLength,
     int MaxFeatureReportLength);
 
-/// <summary>Ein einzelner USB-Endpoint innerhalb der Transport-Kennzahlen, siehe <see cref="UsbEndpointInfo"/>
-/// (Phase 2) - hier ohne den dortigen rohen <c>IntervalRaw</c>-Wert, da <see cref="NominalPollingIntervalMs"/>
-/// bereits die daraus abgeleitete, direkt interpretierbare Millisekunden-Angabe ist.</summary>
+/// <summary>A USB endpoint in the transport metrics (see <see cref="UsbEndpointInfo"/>, phase 2), omitting its
+/// raw <c>IntervalRaw</c> value because <see cref="NominalPollingIntervalMs"/> is the derived, directly
+/// interpretable value in milliseconds.</summary>
 public sealed record BenchmarkEndpointInfo(
     byte EndpointAddress,
     UsbEndpointDirection Direction,
@@ -37,9 +35,9 @@ public sealed record BenchmarkEndpointInfo(
     ushort MaxPacketSize,
     double NominalPollingIntervalMs);
 
-/// <param name="Supported">False, wenn die USB-Hub-Topologie-Abfrage (Phase 2, <see cref="UsbTopologyResolver"/>)
-/// fehlgeschlagen ist (z.B. fehlende Berechtigung, oder Geraet nicht direkt an einem erreichbaren Hub) -
-/// in diesem Fall sind alle uebrigen Felder dieses Datensatzes ohne Aussagekraft (Standardwerte).</param>
+/// <param name="Supported">False if USB hub topology lookup (phase 2, <see cref="UsbTopologyResolver"/>) failed,
+/// e.g. because of missing permissions or because the device is not directly connected to a reachable hub.
+/// In that case, the remaining fields contain default values and are not meaningful.</param>
 public sealed record BenchmarkTransportInfo(
     bool Supported,
     UsbSpeed? Speed,
@@ -47,15 +45,13 @@ public sealed record BenchmarkTransportInfo(
     byte? CurrentConfigurationValue,
     IReadOnlyList<BenchmarkEndpointInfo> Endpoints);
 
-/// <summary>Ein einzelnes, waehrend der Geraete-Aufloesung (<see cref="HidDeviceInfoReader.TryResolveAll"/>)
-/// gefundenes HID-Interface mit passender Vendor-/Product-ID - siehe <see cref="BenchmarkDiagnosticsInfo"/>.
-/// Composite-Geraete (z.B. Joysticks mit mehreren HID-Top-Level-Collections unter derselben VID/PID)
-/// koennen hier mehr als einen Eintrag liefern, von denen ggf. nur einer tatsaechlich Input-Reports
-/// sendet - diese Kennzahl macht genau diesen Fall (statt eines stillen "0 Samples")
-/// im Benchmark-Ergebnis sichtbar.</summary>
-/// <param name="IsResolved">Ob dies das Interface ist, dessen <see cref="IHidReportSource"/> tatsaechlich
-/// fuer diese Sitzung geoeffnet wurde (siehe <see cref="BenchmarkSession.TryCreate"/> - aktuell bewusst
-/// immer der erste gefundene Kandidat, siehe dortige Dokumentation).</param>
+/// <summary>A HID interface with a matching vendor/product ID found during device resolution
+/// (<see cref="HidDeviceInfoReader.TryResolveAll"/>; see <see cref="BenchmarkDiagnosticsInfo"/>). Composite
+/// devices, such as joysticks with multiple HID top-level collections under one VID/PID, may produce several
+/// entries, though only one may send input reports. This metric makes that case visible in the benchmark
+/// result instead of silently reporting zero samples.</summary>
+/// <param name="IsResolved">Whether this is the interface whose <see cref="IHidReportSource"/> was opened for
+/// the session (see <see cref="BenchmarkSession.TryCreate"/>; currently the first suitable candidate).</param>
 public sealed record BenchmarkHidCandidateInfo(
     string DevicePath,
     int MaxInputReportLength,
@@ -63,18 +59,17 @@ public sealed record BenchmarkHidCandidateInfo(
     int MaxFeatureReportLength,
     bool IsResolved);
 
-/// <summary>Immer (unabhaengig vom Erfolg der restlichen Messung) befuellte Diagnose-Angaben zur
-/// HID-Geraete-Aufloesung - Grundlage fuer die Fehlersuche bei Sitzungen, die trotz erfolgreich
-/// geoeffneter Report-Quelle durchgehend 0 Samples liefern (siehe <see cref="Candidates"/>: mehr als ein
-/// Eintrag deutet auf ein Composite-Geraet hin, bei dem ggf. das falsche Interface geoeffnet wurde).</summary>
-/// <param name="Candidates">Alle zum Zeitpunkt der Sitzungserstellung gefundenen HID-Interfaces mit
-/// passender Vendor-/Product-ID, siehe <see cref="HidDeviceInfoReader.TryResolveAll"/>.</param>
+/// <summary>HID resolution diagnostics, always populated regardless of whether the rest of the measurement
+/// succeeds. Helps troubleshoot sessions that return zero samples despite opening a report source; multiple
+/// <see cref="Candidates"/> may indicate a composite device where the wrong interface was opened.</summary>
+/// <param name="Candidates">All HID interfaces with matching vendor/product IDs found when the session was
+/// created (see <see cref="HidDeviceInfoReader.TryResolveAll"/>).</param>
 public sealed record BenchmarkDiagnosticsInfo(
     IReadOnlyList<BenchmarkHidCandidateInfo> Candidates);
 
-/// <summary>Betriebssystem-Kenndaten zum Zeitpunkt der Messung - vom Nutzer explizit gewuenscht (siehe
-/// Session-Vorgabe), da dieselbe Hardware unter verschiedenen Windows-Versionen/-Builds unterschiedliches
-/// Timing-Verhalten zeigen kann (z.B. durch geaenderte USB-Treiber/HID-Stack-Implementierungen).</summary>
+/// <summary>Operating system details at measurement time, included at the user's request because the same
+/// hardware can have different timing behavior across Windows versions/builds, e.g. due to changes in USB
+/// drivers or the HID stack.</summary>
 public sealed record BenchmarkEnvironmentInfo(
     string OsDescription,
     string OsVersion,
@@ -82,19 +77,17 @@ public sealed record BenchmarkEnvironmentInfo(
     string FrameworkDescription);
 
 /// <summary>
-/// Vollstaendiges Ergebnis einer einzelnen Benchmark-Sitzung (siehe <see cref="BenchmarkSession"/>) -
-/// die Struktur, die als JSON nach "%AppData%\VirtualController\Benchmark\benchmark-device-{marke}-{name}.json"
-/// exportiert wird (siehe <see cref="BenchmarkSession.BuildDefaultFilePath"/>).
+/// Complete result of one benchmark session (see <see cref="BenchmarkSession"/>), exported as JSON to
+/// "%AppData%\VirtualController\Benchmark\benchmark-device-{brand}-{name}.json" (see
+/// <see cref="BenchmarkSession.BuildDefaultFilePath"/>).
 /// </summary>
-/// <param name="SchemaVersion">Format-Version dieser Exportdatei, fuer eine spaetere abwaertskompatible
-/// Weiterentwicklung des JSON-Formats (aktuell 2 - Version 2 ergaenzt <see cref="Diagnostics"/>).</param>
-/// <param name="Signal">Je Achse ein Eintrag (siehe <see cref="SignalAxisResult"/>) - als Liste statt
-/// eines nach <see cref="HidAxisUsage"/> geschluesselten Dictionary exportiert, da <see cref="SignalAxisResult"/>
-/// das jeweilige <see cref="SignalAxisResult.Axis"/> bereits selbst enthaelt und ein enum-geschluesseltes
-/// Dictionary sich mit dem Standard-JSON-Serializer nicht ohne Weiteres lesbar (Enum-Name statt Zahl als
-/// Objektschluessel) exportieren laesst.</param>
-/// <param name="Diagnostics">Immer befuellte Fehlersuche-Angaben zur HID-Geraete-Aufloesung (siehe
-/// <see cref="BenchmarkDiagnosticsInfo"/>) - unabhaengig davon, ob die restliche Messung erfolgreich war.</param>
+/// <param name="SchemaVersion">Export format version for future backward-compatible JSON changes. Currently 2;
+/// version 2 adds <see cref="Diagnostics"/>.</param>
+/// <param name="Signal">One entry per axis (see <see cref="SignalAxisResult"/>), exported as a list rather than
+/// a dictionary keyed by <see cref="HidAxisUsage"/>. Each <see cref="SignalAxisResult"/> already contains its
+/// <see cref="SignalAxisResult.Axis"/>, and the default JSON serializer does not produce readable enum-keyed dictionaries.</param>
+/// <param name="Diagnostics">HID resolution diagnostics, always populated regardless of whether the rest of
+/// the measurement succeeded (see <see cref="BenchmarkDiagnosticsInfo"/>).</param>
 public sealed record BenchmarkResult(
     int SchemaVersion,
     DateTime GeneratedAtUtc,

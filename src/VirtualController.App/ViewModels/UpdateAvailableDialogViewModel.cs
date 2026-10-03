@@ -5,13 +5,11 @@ using VirtualController.Core.Updates;
 namespace VirtualController.App.ViewModels;
 
 /// <summary>
-/// ViewModel des Update-Popups (<see cref="Views.UpdateAvailableDialog"/>), das erscheint, sobald
-/// <see cref="UpdateViewModel"/> eine neuere, noch nicht uebersprungene Version ermittelt hat. Bietet
-/// dem Nutzer zwei Aktionen: "Update installieren" (startet <see cref="UpdateInstaller"/>, zeigt den
-/// Installationsfortschritt an und beendet bei Erfolg die Anwendung, damit der separate Updater-Prozess
-/// die Dateien austauschen und die neue Version starten kann) und "Update ueberspringen" (markiert die
-/// angebotene Version dauerhaft als uebersprungen ueber <see cref="UpdateCoordinator.SkipVersion"/> und
-/// schliesst das Popup ohne weitere Aktion).
+/// ViewModel for the update dialog (<see cref="Views.UpdateAvailableDialog"/>), shown when
+/// <see cref="UpdateViewModel"/> finds a newer version that has not been skipped. It offers two actions:
+/// "Install update" starts <see cref="UpdateInstaller"/>, shows progress, and closes the app on success so
+/// the separate updater process can replace the files and start the new version; "Skip update" permanently
+/// skips the offered version through <see cref="UpdateCoordinator.SkipVersion"/> and closes the dialog.
 /// </summary>
 public sealed partial class UpdateAvailableDialogViewModel : ObservableObject
 {
@@ -19,47 +17,42 @@ public sealed partial class UpdateAvailableDialogViewModel : ObservableObject
     private readonly UpdateCoordinator _coordinator;
     private readonly UpdateInstaller _installer = new();
 
-    /// <summary>Ob aktuell ein Download/eine Installation laeuft - blendet in der View einen
-    /// Ladeindikator ein und deaktiviert beide Buttons, damit der Nutzer waehrend der laufenden
-    /// Installation nicht versehentlich das Popup schliessen oder eine zweite Installation anstossen
-    /// kann.</summary>
+    /// <summary>Whether a download or installation is currently running. The view shows a progress indicator
+    /// and disables both buttons to prevent closing the dialog or starting another installation.</summary>
     [ObservableProperty]
     private bool _isInstalling;
 
-    /// <summary>Statustext waehrend der Installation (siehe <see cref="InstallAsync"/>), fuer die Anzeige
-    /// in der View.</summary>
+    /// <summary>Status text shown in the view during installation (see <see cref="InstallAsync"/>).</summary>
     [ObservableProperty]
     private string? _installStatusText;
 
-    /// <summary>Fortschritt (0-100) des GESAMTEN Installationsvorgangs ueber alle Schritte hinweg (siehe
-    /// <see cref="UpdateInstallProgress.OverallPercent"/>), fuer die Anzeige eines Fortschrittsbalkens in
-    /// der View.</summary>
+    /// <summary>Overall installation progress (0-100) across all steps (see
+    /// <see cref="UpdateInstallProgress.OverallPercent"/>), displayed in the view's progress bar.</summary>
     [ObservableProperty]
     private double _installProgressPercent;
 
-    /// <summary>Beschreibung des aktuellen Installationsschritts inkl. Schrittzaehler, z.B. "Schritt 1
-    /// von 4: Dateien werden heruntergeladen" - wird unterhalb des Fortschrittsbalkens angezeigt.</summary>
+    /// <summary>Description of the current installation step, including its position, e.g. "Step 1 of 4:
+    /// Downloading files". Displayed below the progress bar.</summary>
     [ObservableProperty]
     private string? _installStepText;
 
-    /// <summary>Titeltext des Popups, z.B. "Neue Version verfügbar: Version 1.5.0".</summary>
-    public string TitleText => $"Neue Version verfügbar: Version {_details.AvailableVersion}";
+    /// <summary>Dialog title, e.g. "New version available: Version 1.5.0".</summary>
+    public string TitleText => $"New version available: Version {_details.AvailableVersion}";
 
     public string InstalledVersionText => _details.InstalledVersion.ToString();
 
     public string AvailableVersionText => _details.AvailableVersion.ToString();
 
-    /// <summary>Changelog/Release-Notes-Text der verfuegbaren Version (siehe
-    /// <see cref="UpdateCheckResult.ReleaseNotes"/>), zur Anzeige in der aufklappbaren Box des Popups.</summary>
+    /// <summary>Changelog or release notes for the available version (see
+    /// <see cref="UpdateCheckResult.ReleaseNotes"/>), shown in the dialog's expandable section.</summary>
     public string? ReleaseNotesText => _details.ReleaseNotes;
 
-    /// <summary>Ob <see cref="ReleaseNotesText"/> tatsaechlich Inhalt hat - steuert, ob die aufklappbare
-    /// Changelog-Box im Popup ueberhaupt angezeigt wird (manche Releases haben z.B. keine Notizen).</summary>
+    /// <summary>Whether <see cref="ReleaseNotesText"/> contains any content; controls whether the expandable
+    /// changelog section is shown (some releases have no notes).</summary>
     public bool HasReleaseNotes => !string.IsNullOrWhiteSpace(ReleaseNotesText);
 
-    /// <summary>Wird ausgeloest, sobald der Nutzer das Popup schliessen soll - entweder nach "Update
-    /// ueberspringen" oder nachdem die Installation erfolgreich gestartet wurde (unmittelbar vor dem
-    /// bevorstehenden Beenden der Anwendung durch <see cref="Views.MainWindow"/>).</summary>
+    /// <summary>Raised when the dialog should close, either after "Skip update" or after installation has
+    /// started successfully, just before <see cref="Views.MainWindow"/> shuts down the app.</summary>
     public event Action? RequestClose;
 
     public UpdateAvailableDialogViewModel(UpdateCheckResult details, UpdateCoordinator coordinator)
@@ -69,14 +62,11 @@ public sealed partial class UpdateAvailableDialogViewModel : ObservableObject
     }
 
     /// <summary>
-    /// "Update installieren": laedt das Update-Archiv herunter, entpackt es in ein temporaeres
-    /// Verzeichnis und startet danach den separaten Updater-Prozess (siehe <see cref="UpdateInstaller"/>).
-    /// Schlaegt der Download/das Entpacken fehl, bleibt die aktuell installierte Version unveraendert
-    /// lauffaehig und eine verstaendliche Fehlermeldung wird angezeigt - das Popup bleibt in diesem Fall
-    /// geoeffnet, damit der Nutzer es erneut versuchen oder stattdessen ueberspringen kann. Bei Erfolg
-    /// wird <see cref="RequestClose"/> ausgeloest; <see cref="Views.MainWindow"/> beendet daraufhin die
-    /// Anwendung, damit der Updater-Prozess die aktuell durch die laufende EXE gesperrten Dateien
-    /// ueberschreiben kann.
+    /// "Install update": downloads the update archive, extracts it to a temporary directory, and starts the
+    /// separate updater process (see <see cref="UpdateInstaller"/>). If downloading or extraction fails, the
+    /// installed version remains usable, an error is shown, and the dialog stays open so the user can retry
+    /// or skip the update. On success, raises <see cref="RequestClose"/>; <see cref="Views.MainWindow"/> then
+    /// shuts down the app so the updater can replace files locked by the running executable.
     /// </summary>
     [RelayCommand(CanExecute = nameof(CanInstall))]
     private async Task InstallAsync()
@@ -86,7 +76,7 @@ public sealed partial class UpdateAvailableDialogViewModel : ObservableObject
         var progress = new Progress<UpdateInstallProgress>(p =>
         {
             InstallProgressPercent = p.OverallPercent;
-            InstallStepText = $"Schritt {p.StepNumber} von {p.TotalSteps}: {p.StepDescription}";
+            InstallStepText = $"Step {p.StepNumber} of {p.TotalSteps}: {p.StepDescription}";
             InstallStatusText = p.StepDescription;
         });
 
@@ -95,10 +85,9 @@ public sealed partial class UpdateAvailableDialogViewModel : ObservableObject
             var preparation = await _installer.PrepareAsync(_details.DownloadUrl, _details.AvailableVersion.ToString(), progress).ConfigureAwait(true);
             _installer.LaunchUpdaterProcess(preparation, progress);
 
-            // Ab hier ist der separate Updater-Prozess gestartet und wartet auf die Beendigung dieses
-            // Prozesses (siehe UpdateInstaller.LaunchUpdaterProcess) - das eigentliche Beenden der
-            // Anwendung (Application.Shutdown) obliegt bewusst dem Aufrufer (Views.MainWindow), nicht
-            // diesem ViewModel, das keine Kenntnis von der WPF-Application-Instanz haben soll.
+            // The separate updater process is now running and waiting for this process to exit (see
+            // UpdateInstaller.LaunchUpdaterProcess). The caller (Views.MainWindow), not this view model,
+            // shuts down the WPF application so the view model does not need access to the Application instance.
             RequestClose?.Invoke();
         }
         catch (UpdateInstallException ex)
@@ -108,16 +97,16 @@ public sealed partial class UpdateAvailableDialogViewModel : ObservableObject
             InstallStepText = null;
             InstallProgressPercent = 0;
             System.Windows.MessageBox.Show(
-                ex.Message, "Update-Installation fehlgeschlagen", System.Windows.MessageBoxButton.OK, System.Windows.MessageBoxImage.Error);
+                ex.Message, "Update installation failed", System.Windows.MessageBoxButton.OK, System.Windows.MessageBoxImage.Error);
         }
     }
 
     private bool CanInstall() => !IsInstalling;
 
     /// <summary>
-    /// "Update ueberspringen": markiert die aktuell angebotene Version dauerhaft als uebersprungen
-    /// (siehe <see cref="UpdateCoordinator.SkipVersion"/>) und schliesst das Popup. Eine spaeter
-    /// erscheinende, hoehere Version wird davon unbeeintraechtigt wieder regulaer angeboten.
+    /// "Skip update": permanently skips the currently offered version (see
+    /// <see cref="UpdateCoordinator.SkipVersion"/>) and closes the dialog. A later, higher version will
+    /// still be offered normally.
     /// </summary>
     [RelayCommand(CanExecute = nameof(CanInstall))]
     private void SkipUpdate()

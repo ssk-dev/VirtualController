@@ -1,54 +1,47 @@
 namespace VirtualController.Core.Updates;
 
-/// <summary>Ergebnis-Kategorie einer <see cref="UpdateCoordinator.CheckAsync"/>-Pruefung.</summary>
+/// <summary>Outcome category of an <see cref="UpdateCoordinator.CheckAsync"/> operation.</summary>
 public enum UpdateCheckOutcome
 {
-    /// <summary>Keine neuere Version verfuegbar (installierte Version ist aktuell oder neuer).</summary>
+    /// <summary>No newer version is available (the installed version is current or newer).</summary>
     UpToDate,
 
-    /// <summary>Eine neuere, noch nicht uebersprungene Version ist verfuegbar - der Aufrufer soll das
-    /// Update-Popup anzeigen.</summary>
+    /// <summary>A newer, not-yet-skipped version is available; the caller should show the update dialog.</summary>
     UpdateAvailable,
 
-    /// <summary>Eine neuere Version ist verfuegbar, wurde vom Nutzer aber bereits per "Update
-    /// ueberspringen" fuer genau diese Versionsnummer dauerhaft uebersprungen (siehe
-    /// <see cref="UpdateCoordinator.SkipVersion"/>) - kein erneutes Popup fuer dieselbe Version.</summary>
+    /// <summary>A newer version is available but the user permanently skipped this exact version through
+    /// <see cref="UpdateCoordinator.SkipVersion"/>; do not show another dialog for it.</summary>
     UpdateSkipped
 }
 
-/// <summary>Kombiniert die Ergebnis-Kategorie mit den vollstaendigen Versionsdetails.</summary>
+/// <summary>Combines the outcome category with the complete version details.</summary>
 public sealed record UpdateCoordinatorResult(UpdateCheckOutcome Outcome, UpdateCheckResult Details);
 
 /// <summary>
-/// Zentrale Schnittstelle der App-Schicht zur Update-Funktion: kombiniert <see cref="UpdateChecker"/>
-/// (Kommunikation mit der Update-Quelle + semantischer Versionsvergleich) mit der Verwaltung der
-/// persistierten Einstellung "Automatisch auf Updates pruefen" sowie der versionsbezogenen
-/// "Update ueberspringen"-Markierung (<see cref="UpdateSettingsStore"/>). Sowohl die automatische
-/// Pruefung beim Programmstart als auch die manuelle Pruefung ueber den "Auf Updates pruefen"-Button
-/// nutzen ausschliesslich diese eine Klasse, damit beide Pfade exakt dieselbe Skip-Logik anwenden.
-/// Bietet zusaetzlich <see cref="GetAllVersionsAsync"/> fuer den "Version wechseln"-Dialog (Rollback-
-/// Funktion), mit dem der Nutzer explizit auch zu einer aelteren Version zurueckwechseln kann.
+/// App-layer entry point for updates. Combines <see cref="UpdateChecker"/> (source communication and semantic
+/// version comparison) with the persisted "Check for updates automatically" setting and per-version skip marker
+/// (<see cref="UpdateSettingsStore"/>). Both automatic startup and manual checks use this class so they share
+/// identical skip logic. Also provides <see cref="GetAllVersionsAsync"/> for the Change Version/rollback dialog,
+/// allowing users to switch to an older version.
 /// </summary>
 public sealed class UpdateCoordinator
 {
     private readonly UpdateChecker _checker;
     private readonly string? _baseDirectory;
 
-    /// <param name="source">Zu verwendende Update-Quelle. Optional, damit die Quelle spaeter leicht
-    /// ausgetauscht werden kann bzw. in Tests durch ein Test-Double ersetzbar ist - Standard ist
-    /// <see cref="GitHubReleaseUpdateSource"/>.</param>
-    /// <param name="baseDirectory">Basisverzeichnis fuer <see cref="UpdateSettingsStore"/>, Standard ist
-    /// <see cref="Profiles.ProfileStore.BaseDirectory"/>. Nur fuer Tests relevant.</param>
+    /// <param name="source">Update source to use. Optional so it can be replaced later or substituted by a test
+    /// double; defaults to <see cref="GitHubReleaseUpdateSource"/>.</param>
+    /// <param name="baseDirectory">Base directory for <see cref="UpdateSettingsStore"/>; defaults to
+    /// <see cref="Profiles.ProfileStore.BaseDirectory"/>. Intended for tests only.</param>
     public UpdateCoordinator(IUpdateSource? source = null, string? baseDirectory = null)
     {
         _checker = new UpdateChecker(source ?? new GitHubReleaseUpdateSource());
         _baseDirectory = baseDirectory;
     }
 
-    /// <summary>Ob bei jedem App-Start automatisch geprueft werden soll, ob eine neuere Version
-    /// verfuegbar ist. Liest/schreibt sofort (kein Batching) von/nach "update-settings.json"
-    /// (siehe <see cref="UpdateSettingsStore"/>), unabhaengig vom expliziten "Profile speichern"-Vorgang
-    /// der restlichen Konfiguration.</summary>
+    /// <summary>Whether to check for a newer version automatically at each app startup. Reads/writes
+    /// "update-settings.json" immediately without batching (see <see cref="UpdateSettingsStore"/>), independent
+    /// of the explicit Save profiles operation for the rest of the configuration.</summary>
     public bool AutoCheckEnabled
     {
         get => UpdateSettingsStore.Load(_baseDirectory).AutoCheckEnabled;
@@ -65,11 +58,9 @@ public sealed class UpdateCoordinator
         }
     }
 
-    /// <summary>Ob bei der Update-Pruefung auch als "Pre-release" markierte Versionen (z.B. Tags mit
-    /// Suffix "-alpha"/"-beta"/"-nightly") beruecksichtigt werden sollen, statt ausschliesslich
-    /// vollwertige, stabile Releases. Liest/schreibt sofort (kein Batching) von/nach
-    /// "update-settings.json" (siehe <see cref="UpdateSettingsStore"/>), analog zu
-    /// <see cref="AutoCheckEnabled"/>.</summary>
+    /// <summary>Whether update checks include prereleases (e.g. tags ending in -alpha/-beta/-nightly) instead
+    /// of stable releases only. Reads/writes "update-settings.json" immediately without batching, like
+    /// <see cref="AutoCheckEnabled"/> (see <see cref="UpdateSettingsStore"/>).</summary>
     public bool IncludePreReleases
     {
         get => UpdateSettingsStore.Load(_baseDirectory).IncludePreReleases;
@@ -87,11 +78,11 @@ public sealed class UpdateCoordinator
     }
 
     /// <summary>
-    /// Fuehrt eine Update-Pruefung durch und ordnet das Ergebnis anhand der zuletzt uebersprungenen
-    /// Version einer der <see cref="UpdateCheckOutcome"/>-Kategorien zu.
+    /// Checks for updates and classifies the result using the most recently skipped version and
+    /// <see cref="UpdateCheckOutcome"/>.
     /// </summary>
-    /// <exception cref="UpdateCheckException">Die Pruefung ist fehlgeschlagen (Verbindungsfehler oder
-    /// ungueltige Antwort der Update-Quelle) - siehe <see cref="UpdateChecker.CheckAsync"/>.</exception>
+    /// <exception cref="UpdateCheckException">The check failed due to a connection error or invalid update
+    /// source response; see <see cref="UpdateChecker.CheckAsync"/>.</exception>
     public async Task<UpdateCoordinatorResult> CheckAsync(CancellationToken cancellationToken = default)
     {
         var details = await _checker.CheckAsync(IncludePreReleases, cancellationToken).ConfigureAwait(false);
@@ -110,12 +101,10 @@ public sealed class UpdateCoordinator
             details);
     }
 
-    /// <summary>Markiert <paramref name="version"/> dauerhaft als uebersprungen: eine erneute
-    /// <see cref="CheckAsync"/>-Pruefung liefert fuer exakt diese Versionsnummer danach
-    /// <see cref="UpdateCheckOutcome.UpdateSkipped"/> statt <see cref="UpdateCheckOutcome.UpdateAvailable"/>.
-    /// Eine spaeter erscheinende, noch nicht uebersprungene hoehere Version wird davon nicht betroffen
-    /// weiterhin regulaer als <see cref="UpdateCheckOutcome.UpdateAvailable"/> gemeldet (versionsbezogenes,
-    /// kein generelles Uebersprringen).</summary>
+    /// <summary>Permanently marks <paramref name="version"/> as skipped. Subsequent <see cref="CheckAsync"/>
+    /// calls return <see cref="UpdateCheckOutcome.UpdateSkipped"/> for that exact version instead of
+    /// <see cref="UpdateCheckOutcome.UpdateAvailable"/>. A later, higher version that has not been skipped is
+    /// still reported normally; skipping is version-specific, not global.</summary>
     public void SkipVersion(SemanticVersion version)
     {
         var settings = UpdateSettingsStore.Load(_baseDirectory);
@@ -124,15 +113,13 @@ public sealed class UpdateCoordinator
     }
 
     /// <summary>
-    /// Ermittelt ALLE an der Update-Quelle verfuegbaren Versionen (absteigend sortiert), fuer den
-    /// "Version wechseln"-Dialog: im Gegensatz zu <see cref="CheckAsync"/> nicht auf ein einzelnes,
-    /// bewertetes Ergebnis (neuer/uebersprungen/aktuell) beschraenkt, sondern die vollstaendige Liste
-    /// installierbarer Versionen - einschliesslich solcher, die AELTER als die aktuell installierte
-    /// Version sind, um einen gezielten Rollback zu ermoeglichen. Beruecksichtigt dabei die persistierte
-    /// <see cref="IncludePreReleases"/>-Einstellung genau wie <see cref="CheckAsync"/>.
+    /// Returns all versions available from the update source in descending order for the Change Version dialog.
+    /// Unlike <see cref="CheckAsync"/>, this returns the full list of installable versions, including versions
+    /// older than the installed one for rollback. Respects the persisted <see cref="IncludePreReleases"/> setting,
+    /// like <see cref="CheckAsync"/>.
     /// </summary>
-    /// <exception cref="UpdateCheckException">Die Abfrage ist fehlgeschlagen (Verbindungsfehler oder
-    /// ungueltige Antwort der Update-Quelle) - siehe <see cref="UpdateChecker.GetAllAvailableAsync"/>.</exception>
+    /// <exception cref="UpdateCheckException">The request failed due to a connection error or invalid update
+    /// source response; see <see cref="UpdateChecker.GetAllAvailableAsync"/>.</exception>
     public Task<IReadOnlyList<UpdateInfo>> GetAllVersionsAsync(CancellationToken cancellationToken = default) =>
         _checker.GetAllAvailableAsync(IncludePreReleases, cancellationToken);
 }

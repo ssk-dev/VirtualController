@@ -5,72 +5,63 @@ using VirtualController.Core.Logging;
 namespace VirtualController.Core.Updates;
 
 /// <summary>
-/// Fuehrt die eigentliche Update-Installation durch: laedt das ZIP-Archiv der neuen Version herunter,
-/// entpackt es in ein temporaeres Staging-Verzeichnis und startet anschliessend einen versteckten
-/// PowerShell-Prozess (siehe <see cref="LaunchUpdaterProcess"/>), der - NACHDEM diese Anwendung sich
-/// beendet hat (die laufende EXE/DLLs koennen waehrend der eigenen Laufzeit nicht überschrieben werden) -
-/// die neuen Dateien an die Installation kopiert und die Anwendung anschliessend neu startet.
+/// Performs the update installation: downloads the new version's ZIP archive, extracts it to a temporary
+/// staging directory, then starts a hidden PowerShell process (see <see cref="LaunchUpdaterProcess"/>). After
+/// this application exits (its executable and DLLs cannot be overwritten while it is running), the process
+/// copies the new files into the installation and restarts the application.
 ///
-/// Bewusst auf einen generierten PowerShell-Skript-Aufruf statt eines eigenstaendigen, mitveroeffentlichten
-/// Updater-Hilfsprogramms gesetzt: <c>powershell.exe</c> ist ein signiertes Windows-System-Binary (liegt in
-/// <c>System32</c>) und ist daher NICHT von pfadbasierten Ausfuehrungsbeschraenkungen betroffen, die auf
-/// vielen verwalteten Windows-Rechnern (Gruppenrichtlinien/AppLocker) die Ausfuehrung unsignierter oder
-/// unbekannter EXE-Dateien aus benutzerschreibbaren Verzeichnissen wie <c>%TEMP%</c> blockieren (beobachtet
-/// als <see cref="System.ComponentModel.Win32Exception"/> mit NativeErrorCode 1260
-/// "ERROR_ACCESS_DISABLED_BY_POLICY") - ein zuvor zusaetzlich vorhandenes, mitveroeffentlichtes
-/// "VirtualController.Updater"-Hilfsprogramm war genau davon betroffen und wurde deshalb wieder entfernt.
+/// Uses a generated PowerShell script instead of a separately shipped updater executable:
+/// <c>powershell.exe</c> is a signed Windows system binary in <c>System32</c>, so it is not affected by
+/// path-based execution restrictions used on many managed Windows machines (Group Policy/AppLocker) to block
+/// unsigned or unknown executables from user-writable directories such as <c>%TEMP%</c>. A previously shipped
+/// "VirtualController.Updater" helper was blocked by these restrictions and was removed.
 ///
-/// Bewusst zweigeteilt (<see cref="PrepareAsync"/> vor dem Beenden der Anwendung,
-/// <see cref="LaunchUpdaterProcess"/> unmittelbar vor <c>Application.Shutdown()</c>): jeder Fehler
-/// waehrend <see cref="PrepareAsync"/> (Download fehlgeschlagen, Archiv beschaedigt) wirft eine
-/// <see cref="UpdateInstallException"/>, OHNE dass zu diesem Zeitpunkt bereits irgendeine Datei der
-/// laufenden Installation angefasst wurde - die aktuell installierte Version bleibt unveraendert
-/// lauffaehig, die Anwendung muss dafuer nicht beendet werden.
+/// The process is deliberately split into two phases (<see cref="PrepareAsync"/> before the application exits,
+/// <see cref="LaunchUpdaterProcess"/> immediately before <c>Application.Shutdown()</c>). Any failure during
+/// <see cref="PrepareAsync"/> (such as a failed download or corrupted archive) throws an
+/// <see cref="UpdateInstallException"/> before touching installed files, leaving the current version usable.
 /// </summary>
 public sealed class UpdateInstaller
 {
-    /// <summary>Gesamtzahl der Installationsschritte (siehe <see cref="UpdateInstallProgress"/>): 1=Download,
-    /// 2=Entpacken, 3=Vorbereitung abschliessen, 4=Update wird gestartet - fuer die Anzeige "Schritt X
-    /// von <see cref="TotalSteps"/>: ..." im Update-Popup.</summary>
+    /// <summary>Total number of installation steps (see <see cref="UpdateInstallProgress"/>): 1=download,
+    /// 2=extract, 3=finish preparation, 4=start update. Used to display "Step X of <see cref="TotalSteps"/>: ..."
+    /// in the update dialog.</summary>
     public const int TotalSteps = 4;
 
     private static readonly Lazy<HttpClient> HttpClientLazy = new(() => new HttpClient { Timeout = TimeSpan.FromMinutes(5) });
 
     /// <summary>
-    /// Laedt das Update-Archiv herunter und entpackt es in ein neues temporaeres Verzeichnis. Wirft
-    /// <see cref="UpdateInstallException"/>, falls der Download oder das Entpacken fehlschlaegt (z.B.
-    /// Verbindungsabbruch, beschaedigtes/unerwartetes Archiv) - in diesem Fall wurde die laufende
-    /// Installation nicht veraendert.
+    /// Downloads the update archive and extracts it to a new temporary directory. Throws
+    /// <see cref="UpdateInstallException"/> if the download or extraction fails (e.g. connection loss or a
+    /// corrupted/unexpected archive); the current installation remains unchanged.
     /// </summary>
-    /// <param name="downloadUrl">Download-URL des Update-Archivs.</param>
-    /// <param name="targetVersion">Versionsnummer der zu installierenden Version (z.B. "1.5.0"), wird
-    /// unveraendert in die zurueckgegebene <see cref="UpdateInstallPreparation"/> uebernommen (siehe
-    /// <see cref="UpdateInstallPreparation.TargetVersion"/>) - hat keinen Einfluss auf den
-    /// Installationsvorgang selbst.</param>
-    /// <param name="progress">Optionaler Fortschritts-Reporter fuer die Anzeige im Update-Popup (siehe
-    /// <see cref="UpdateInstallProgress"/>) - meldet den Download-Fortschritt anhand der empfangenen
-    /// Bytes (soweit die Serverantwort einen Content-Length-Header liefert) sowie den Beginn der
-    /// nachfolgenden Schritte (Entpacken, Validierung).</param>
-    /// <param name="cancellationToken">Abbruchtoken.</param>
+    /// <param name="downloadUrl">Download URL of the update archive.</param>
+    /// <param name="targetVersion">Version to install (e.g. "1.5.0"), passed unchanged to the returned
+    /// <see cref="UpdateInstallPreparation"/> (see <see cref="UpdateInstallPreparation.TargetVersion"/>); it
+    /// does not affect the installation process.</param>
+    /// <param name="progress">Optional progress reporter for the update dialog (see
+    /// <see cref="UpdateInstallProgress"/>). Reports download progress based on received bytes (when the
+    /// server provides a Content-Length header) and the start of subsequent steps (extraction, validation).</param>
+    /// <param name="cancellationToken">Cancellation token.</param>
     public async Task<UpdateInstallPreparation> PrepareAsync(
         string downloadUrl, string targetVersion, IProgress<UpdateInstallProgress>? progress = null, CancellationToken cancellationToken = default)
     {
         string stagingDirectory = Path.Combine(Path.GetTempPath(), "VirtualControllerUpdate_" + Guid.NewGuid().ToString("N"));
         string archivePath = stagingDirectory + ".zip";
 
-        UpdateLog.WriteSessionStart("Update-Vorbereitung gestartet (PrepareAsync)");
-        UpdateLog.Write($"Download-URL: {downloadUrl}");
-        UpdateLog.Write($"Staging-Verzeichnis: {stagingDirectory}");
+        UpdateLog.WriteSessionStart("Update preparation started (PrepareAsync)");
+        UpdateLog.Write($"Download URL: {downloadUrl}");
+        UpdateLog.Write($"Staging directory: {stagingDirectory}");
 
         try
         {
             Directory.CreateDirectory(stagingDirectory);
 
-            progress?.Report(new UpdateInstallProgress(1, TotalSteps, "Dateien werden heruntergeladen", OverallPercent(1, 0)));
+            progress?.Report(new UpdateInstallProgress(1, TotalSteps, "Downloading files", OverallPercent(1, 0)));
 
             using (var response = await HttpClientLazy.Value.GetAsync(downloadUrl, HttpCompletionOption.ResponseHeadersRead, cancellationToken).ConfigureAwait(false))
             {
-                UpdateLog.Write($"HTTP-Antwort erhalten: Status={(int)response.StatusCode} {response.StatusCode}, Content-Length={response.Content.Headers.ContentLength?.ToString() ?? "unbekannt"}");
+                UpdateLog.Write($"HTTP response received: Status={(int)response.StatusCode} {response.StatusCode}, Content-Length={response.Content.Headers.ContentLength?.ToString() ?? "unknown"}");
                 response.EnsureSuccessStatusCode();
 
                 long? totalBytes = response.Content.Headers.ContentLength;
@@ -81,30 +72,30 @@ public sealed class UpdateInstaller
             }
 
             long archiveSize = new FileInfo(archivePath).Length;
-            UpdateLog.Write($"Download abgeschlossen: {archivePath} ({archiveSize} Bytes)");
+            UpdateLog.Write($"Download completed: {archivePath} ({archiveSize} bytes)");
 
-            progress?.Report(new UpdateInstallProgress(2, TotalSteps, "Archiv wird entpackt", OverallPercent(2, 0)));
+            progress?.Report(new UpdateInstallProgress(2, TotalSteps, "Extracting archive", OverallPercent(2, 0)));
             ZipFile.ExtractToDirectory(archivePath, stagingDirectory, overwriteFiles: true);
-            UpdateLog.Write($"Archiv entpackt nach: {stagingDirectory}");
+            UpdateLog.Write($"Archive extracted to: {stagingDirectory}");
 
-            progress?.Report(new UpdateInstallProgress(3, TotalSteps, "Vorbereitung wird abgeschlossen", OverallPercent(3, 0)));
+            progress?.Report(new UpdateInstallProgress(3, TotalSteps, "Finishing preparation", OverallPercent(3, 0)));
 
             string executableFileName = Path.GetFileName(Environment.ProcessPath)
-                ?? throw new UpdateInstallException("Der Pfad der aktuell laufenden Anwendung konnte nicht ermittelt werden.");
+                ?? throw new UpdateInstallException("Could not determine the path of the currently running application.");
 
             if (!File.Exists(Path.Combine(stagingDirectory, executableFileName)))
             {
                 throw new UpdateInstallException(
-                    $"Das heruntergeladene Update-Archiv enthaelt keine '{executableFileName}' und kann daher nicht installiert werden.");
+                    $"The downloaded update archive does not contain '{executableFileName}' and cannot be installed.");
             }
 
             string installDirectory = Path.GetDirectoryName(Environment.ProcessPath!)
-                ?? throw new UpdateInstallException("Das Installationsverzeichnis der aktuell laufenden Anwendung konnte nicht ermittelt werden.");
+                ?? throw new UpdateInstallException("Could not determine the installation directory of the currently running application.");
 
             long stagedExeSize = new FileInfo(Path.Combine(stagingDirectory, executableFileName)).Length;
             UpdateLog.Write(
-                $"Vorbereitung abgeschlossen: exeName={executableFileName}, stagedExeSize={stagedExeSize} Bytes, " +
-                $"installDirectory={installDirectory}, aktuelle ProcessId={Environment.ProcessId}");
+                $"Preparation completed: exeName={executableFileName}, stagedExeSize={stagedExeSize} bytes, " +
+                $"installDirectory={installDirectory}, current processId={Environment.ProcessId}");
 
             return new UpdateInstallPreparation(
                 stagingDirectory,
@@ -115,30 +106,29 @@ public sealed class UpdateInstaller
         }
         catch (UpdateInstallException ex)
         {
-            UpdateLog.Write($"FEHLER in PrepareAsync (UpdateInstallException): {ex.Message}");
+            UpdateLog.Write($"ERROR in PrepareAsync (UpdateInstallException): {ex.Message}");
             CleanupBestEffort(stagingDirectory, archivePath);
             throw;
         }
         catch (Exception ex)
         {
-            UpdateLog.Write($"FEHLER in PrepareAsync ({ex.GetType().Name}): {ex}");
+            UpdateLog.Write($"ERROR in PrepareAsync ({ex.GetType().Name}): {ex}");
             CleanupBestEffort(stagingDirectory, archivePath);
             throw new UpdateInstallException(
-                "Das Update konnte nicht heruntergeladen oder entpackt werden. Bitte Internetverbindung prüfen und erneut versuchen.", ex);
+                "The update could not be downloaded or extracted. Check your internet connection and try again.", ex);
         }
         finally
         {
-            // Das Archiv selbst wird nach dem Entpacken nicht mehr benoetigt - nur der entpackte Inhalt
-            // in stagingDirectory wird an den Updater-Prozess weitergegeben.
+            // The archive is no longer needed after extraction; only the extracted contents of
+            // stagingDirectory are passed to the updater process.
             TryDeleteFile(archivePath);
         }
     }
 
-    /// <summary>Kopiert <paramref name="source"/> nach <paramref name="destination"/> und meldet dabei
-    /// den Download-Fortschritt (Schritt 1) anhand der bereits kopierten Bytes im Verhaeltnis zu
-    /// <paramref name="totalBytes"/> - bleibt <paramref name="totalBytes"/> unbekannt (kein
-    /// Content-Length-Header), wird lediglich der Schrittbeginn ohne feingranulare Prozentanzeige
-    /// gemeldet (siehe Aufrufer).</summary>
+    /// <summary>Copies <paramref name="source"/> to <paramref name="destination"/> and reports download
+    /// progress (step 1) based on bytes copied relative to <paramref name="totalBytes"/>. If
+    /// <paramref name="totalBytes"/> is unknown (no Content-Length header), only the step start is reported,
+    /// without granular percentage updates (see caller).</summary>
     private static async Task CopyWithProgressAsync(
         Stream source, Stream destination, long? totalBytes, IProgress<UpdateInstallProgress>? progress, CancellationToken cancellationToken)
     {
@@ -154,87 +144,81 @@ public sealed class UpdateInstaller
             if (totalBytes is > 0)
             {
                 double stepFraction = Math.Clamp((double)totalRead / totalBytes.Value, 0d, 1d);
-                progress?.Report(new UpdateInstallProgress(1, TotalSteps, "Dateien werden heruntergeladen", OverallPercent(1, stepFraction)));
+                progress?.Report(new UpdateInstallProgress(1, TotalSteps, "Downloading files", OverallPercent(1, stepFraction)));
             }
         }
     }
 
-    /// <summary>Berechnet den Fortschritt (0-100) des GESAMTEN Installationsvorgangs anhand des aktuellen
-    /// Schritts (1-basiert) und des Fortschritts (0.0-1.0) innerhalb dieses Schritts - siehe
-    /// <see cref="UpdateInstallProgress.OverallPercent"/>.</summary>
+    /// <summary>Calculates progress (0-100) across the entire installation based on the current step
+    /// (1-based) and progress within that step (0.0-1.0); see <see cref="UpdateInstallProgress.OverallPercent"/>.</summary>
     private static double OverallPercent(int stepNumber, double stepFraction) =>
         ((stepNumber - 1) + Math.Clamp(stepFraction, 0d, 1d)) / TotalSteps * 100d;
 
     /// <summary>
-    /// Startet den versteckten PowerShell-Prozess (siehe <see cref="LaunchPowerShellUpdaterProcess"/>),
-    /// der - NACHDEM diese Anwendung sich beendet hat - die neuen Dateien an die Installation kopiert und
-    /// die Anwendung anschliessend neu startet. Muss unmittelbar VOR dem eigenen Beenden der Anwendung
-    /// aufgerufen werden (z.B. direkt vor <c>Application.Current.Shutdown()</c>), da der laufende Prozess
-    /// selbst seine eigene EXE/DLLs nicht ueberschreiben kann.
+    /// Starts the hidden PowerShell process (see <see cref="LaunchPowerShellUpdaterProcess"/>), which copies
+    /// the new files into the installation and restarts the application after this application exits. Must be
+    /// called immediately before shutting down the application (e.g. directly before
+    /// <c>Application.Current.Shutdown()</c>), because a running process cannot overwrite its own executable/DLLs.
     /// </summary>
     public void LaunchUpdaterProcess(UpdateInstallPreparation preparation, IProgress<UpdateInstallProgress>? progress = null) =>
         LaunchPowerShellUpdaterProcess(preparation, progress);
 
     /// <summary>
-    /// Erzeugt und startet den generierten, versteckten PowerShell-Updater-Prozess (siehe
-    /// <see cref="LaunchUpdaterProcess"/> sowie die Klassendokumentation zur Begruendung dieses Ansatzes
-    /// gegenueber einem eigenstaendigen, mitveroeffentlichten Updater-Hilfsprogramm). Dieser Prozess
-    /// wartet auf die Beendigung des aktuellen Prozesses (<see cref="UpdateInstallPreparation.ProcessId"/>),
-    /// kopiert dann alle Dateien aus dem Staging-Verzeichnis in das Installationsverzeichnis
-    /// (ueberschreibt dabei die alte Version), startet die neue EXE und raeumt anschliessend saemtliche
-    /// temporaeren Dateien wieder auf. Muss unmittelbar VOR dem eigenen Beenden der Anwendung aufgerufen
-    /// werden (z.B. direkt vor <c>Application.Current.Shutdown()</c>), da der laufende Prozess selbst
-    /// seine eigene EXE/DLLs nicht ueberschreiben kann.
+    /// Creates and starts the generated, hidden PowerShell updater process (see <see cref="LaunchUpdaterProcess"/>
+    /// and the class documentation for why this approach is used instead of a separately shipped updater).
+    /// The process waits for the current process (<see cref="UpdateInstallPreparation.ProcessId"/>) to exit,
+    /// copies all files from the staging directory into the installation directory (replacing the old version),
+    /// starts the new executable, and removes temporary files. Must be called immediately before shutting down
+    /// the application (e.g. directly before <c>Application.Current.Shutdown()</c>), because a running process
+    /// cannot overwrite its own executable/DLLs.
     /// </summary>
     private static void LaunchPowerShellUpdaterProcess(UpdateInstallPreparation preparation, IProgress<UpdateInstallProgress>? progress)
     {
         string scriptPath = Path.Combine(Path.GetTempPath(), $"VirtualControllerUpdater_{Guid.NewGuid():N}.ps1");
         File.WriteAllText(scriptPath, BuildUpdaterScript(preparation, scriptPath), Encoding.UTF8);
-        UpdateLog.Write($"Updater-Skript geschrieben: {scriptPath}");
+        UpdateLog.Write($"Updater script written: {scriptPath}");
 
         var startInfo = new System.Diagnostics.ProcessStartInfo
         {
             FileName = "powershell.exe",
-            // -WindowStyle Hidden: der Updater-Vorgang (Warten + Kopieren) dauert i.d.R. nur wenige
-            // Sekunden - ein sichtbares Konsolenfenster wuerde hier nur unnoetig verwirren, ohne dass der
-            // Nutzer waehrenddessen sinnvoll eingreifen koennte.
+            // -WindowStyle Hidden: the updater (waiting + copying) usually takes only a few seconds. A visible
+            // console window would be confusing, and the user cannot meaningfully interact with it.
             Arguments = $"-NoProfile -ExecutionPolicy Bypass -WindowStyle Hidden -File \"{scriptPath}\"",
             UseShellExecute = false,
             CreateNoWindow = true,
         };
 
-        progress?.Report(new UpdateInstallProgress(4, TotalSteps, "Update wird gestartet", OverallPercent(4, 0)));
+        progress?.Report(new UpdateInstallProgress(4, TotalSteps, "Starting update", OverallPercent(4, 0)));
 
         try
         {
-            UpdateLog.Write("Starte powershell.exe fuer Updater-Skript...");
+            UpdateLog.Write("Starting powershell.exe for updater script...");
             var process = System.Diagnostics.Process.Start(startInfo);
             UpdateLog.Write(process is null
-                ? "WARNUNG: Process.Start(powershell.exe) hat null zurueckgegeben (kein Handle auf den neuen Prozess erhalten)."
-                : $"powershell.exe gestartet, PID={process.Id}. Diese Anwendung wird nun beendet - weitere Log-Zeilen (Kopieren/Neustart) werden vom Updater-Skript selbst in dieselbe Datei geschrieben.");
+                ? "WARNING: Process.Start(powershell.exe) returned null (no handle to the new process was received)."
+                : $"powershell.exe started, PID={process.Id}. This application will now exit; subsequent log entries (copy/restart) are written to the same file by the updater script.");
         }
         catch (Exception ex)
         {
-            UpdateLog.Write($"FEHLER beim Starten von powershell.exe: {ex}");
-            throw new UpdateInstallException("Der Update-Installationsprozess konnte nicht gestartet werden.", ex);
+            UpdateLog.Write($"ERROR starting powershell.exe: {ex}");
+            throw new UpdateInstallException("The update installation process could not be started.", ex);
         }
     }
 
     private static string BuildUpdaterScript(UpdateInstallPreparation preparation, string ownScriptPath)
     {
-        // Alle Pfade werden ueber PowerShell-Literale eingebettet - einfache Hochkommata escapen sich in
-        // PowerShell durch Verdopplung ('' statt \'), was hier fuer beliebige (auch leerzeichenhaltige)
-        // Windows-Pfade ausreicht, da keiner der eingebetteten Werte selbst vom Nutzer kontrolliert wird
-        // (sie stammen ausschliesslich aus Environment.ProcessPath bzw. Path.GetTempPath()).
+        // Paths are embedded as PowerShell literals. PowerShell escapes single quotes by doubling them (''),
+        // which works for arbitrary Windows paths, including paths with spaces. None of these values is
+        // controlled by the user; they come from Environment.ProcessPath or Path.GetTempPath().
         string Quote(string value) => "'" + value.Replace("'", "''") + "'";
 
         return $$"""
             $ErrorActionPreference = 'Stop'
 
-            # Alle Schritte dieses Skripts werden in dieselbe Datei protokolliert wie der C#-Teil der
-            # Anwendung (siehe VirtualController.Core.Logging.UpdateLog) - genau dieser Zeitraum (Kopieren
-            # der neuen Dateien, Neustart) lief bislang vollstaendig unsichtbar ab, da die Anwendung sich
-            # bereits VOR dem Start dieses Skripts beendet (siehe UpdateInstaller.LaunchUpdaterProcess).
+            # All steps in this script are logged to the same file as the application's C# code
+            # (see VirtualController.Core.Logging.UpdateLog). Copying the new files and restarting were
+            # previously invisible because the application exits before this script starts
+            # (see UpdateInstaller.LaunchUpdaterProcess).
             $updateLogPath = {{Quote(UpdateLog.FilePath)}}
             function Write-UpdaterLog {
                 param([string]$Message)
@@ -242,7 +226,7 @@ public sealed class UpdateInstaller
                     $line = "{0} [Updater-Skript] {1}" -f (Get-Date -Format 'yyyy-MM-dd HH:mm:ss.fff'), $Message
                     Add-Content -Path $updateLogPath -Value $line -Encoding UTF8
                 } catch {
-                    # Logging darf den eigentlichen Update-Vorgang niemals verhindern.
+                    # Logging must never prevent the update itself.
                 }
             }
 
@@ -251,36 +235,36 @@ public sealed class UpdateInstaller
             $installDir = {{Quote(preparation.InstallDirectory)}}
             $exeName = {{Quote(preparation.ExecutableFileName)}}
 
-            Write-UpdaterLog "Updater-Skript gestartet. Warte auf Beendigung von Prozess-ID $processId ..."
+            Write-UpdaterLog "Updater script started. Waiting for process ID $processId to exit..."
 
-            # Wartet, bis die aktuell laufende Anwendung (die dieses Skript unmittelbar vor ihrem eigenen
-            # Beenden gestartet hat) tatsaechlich beendet ist - erst danach sind EXE/DLLs im
-            # Installationsverzeichnis entsperrt und koennen ueberschrieben werden.
+            # Wait until the currently running application (which started this script immediately before
+            # exiting) has actually terminated. Only then are the executable/DLLs in the installation
+            # directory unlocked and ready to be replaced.
             try {
                 $proc = Get-Process -Id $processId -ErrorAction SilentlyContinue
                 if ($proc) {
                     Wait-Process -Id $processId -Timeout 30 -ErrorAction SilentlyContinue
                     $stillRunning = Get-Process -Id $processId -ErrorAction SilentlyContinue
                     if ($stillRunning) {
-                        Write-UpdaterLog "WARNUNG: Prozess-ID $processId laeuft nach 30s Timeout IMMER NOCH - Kopiervorgang startet trotzdem, Dateien koennen ggf. gesperrt sein."
+                        Write-UpdaterLog "WARNING: Process ID $processId is STILL RUNNING after a 30s timeout; starting the copy anyway, but files may be locked."
                     } else {
-                        Write-UpdaterLog "Prozess-ID $processId ist beendet."
+                        Write-UpdaterLog "Process ID $processId has exited."
                     }
                 } else {
-                    Write-UpdaterLog "Prozess-ID $processId war bereits beim Start dieses Skripts nicht mehr vorhanden."
+                    Write-UpdaterLog "Process ID $processId was already absent when this script started."
                 }
             } catch {
-                Write-UpdaterLog "Fehler beim Warten auf Prozess-ID $processId (wird ignoriert): $($_.Exception.Message)"
+                Write-UpdaterLog "Error while waiting for process ID $processId (ignored): $($_.Exception.Message)"
             }
-            # Kurze zusaetzliche Verzoegerung, damit das Betriebssystem Datei-Handles der beendeten
-            # Anwendung (insb. der WPF-nativen Interop-DLLs) zuverlaessig vollstaendig freigibt.
+            # Wait briefly to let the operating system fully release file handles held by the terminated
+            # application, especially those for native WPF interop DLLs.
             Start-Sleep -Milliseconds 750
 
             $stagedExePath = Join-Path $stagingDir $exeName
             $installedExePath = Join-Path $installDir $exeName
             $stagedSize = if (Test-Path $stagedExePath) { (Get-Item $stagedExePath).Length } else { -1 }
             $installedSizeBefore = if (Test-Path $installedExePath) { (Get-Item $installedExePath).Length } else { -1 }
-            Write-UpdaterLog "Vor dem Kopieren: stagingDir='$stagingDir' (exe=$stagedSize Bytes), installDir='$installDir' (aktuelle exe=$installedSizeBefore Bytes)"
+            Write-UpdaterLog "Before copy: stagingDir='$stagingDir' (exe=$stagedSize bytes), installDir='$installDir' (current exe=$installedSizeBefore bytes)"
 
             $copySucceeded = $false
             $maxCopyAttempts = 5
@@ -289,63 +273,59 @@ public sealed class UpdateInstaller
                 try {
                     Copy-Item -Path (Join-Path $stagingDir '*') -Destination $installDir -Recurse -Force
                     $copySucceeded = $true
-                    Write-UpdaterLog "Copy-Item erfolgreich abgeschlossen (Versuch $attempt von $maxCopyAttempts)."
+                    Write-UpdaterLog "Copy-Item completed successfully (attempt $attempt of $maxCopyAttempts)."
                     break
                 } catch {
-                    # Haeufigste Ursache: die soeben beendete Anwendung (bzw. ein Virenscanner, der die
-                    # frisch beendete exe kurz nachtraeglich scannt) hat die Datei-Handles noch nicht
-                    # vollstaendig freigegeben ("... wird von einem anderen Prozess verwendet") - reine
-                    # Race Condition, die sich durch eine kurze Wartezeit und einen erneuten Versuch in
-                    # aller Regel selbst behebt (siehe gemeldeter Bug: Update wird uebersprungen, alte
-                    # Version bleibt installiert).
+                    # Most common cause: the just-terminated application (or an antivirus scanning its
+                    # executable) has not fully released its file handles ("... is being used by another
+                    # process"). This race condition usually resolves after a short delay and retry (see
+                    # reported bug: update was skipped and the old version remained installed).
                     if ($attempt -lt $maxCopyAttempts) {
-                        Write-UpdaterLog "Copy-Item fehlgeschlagen (Versuch $attempt von $maxCopyAttempts), naechster Versuch in ${copyRetryDelayMs}ms: $($_.Exception.Message)"
+                        Write-UpdaterLog "Copy-Item failed (attempt $attempt of $maxCopyAttempts); retrying in ${copyRetryDelayMs}ms: $($_.Exception.Message)"
                         Start-Sleep -Milliseconds $copyRetryDelayMs
                     } else {
-                        Write-UpdaterLog "FEHLER bei Copy-Item nach $maxCopyAttempts Versuchen, gebe endgueltig auf: $($_.Exception.Message)"
+                        Write-UpdaterLog "ERROR: Copy-Item failed after $maxCopyAttempts attempts; giving up: $($_.Exception.Message)"
                     }
                 }
             }
             Remove-Item -Path $stagingDir -Recurse -Force -ErrorAction SilentlyContinue
-            Write-UpdaterLog "Staging-Verzeichnis '$stagingDir' aufgeraeumt."
+            Write-UpdaterLog "Cleaned staging directory '$stagingDir'."
 
             $installedSizeAfter = if (Test-Path $installedExePath) { (Get-Item $installedExePath).Length } else { -1 }
-            Write-UpdaterLog "Nach dem Kopieren: installierte exe='$installedExePath' Groesse=$installedSizeAfter Bytes (vorher: $installedSizeBefore Bytes, staging: $stagedSize Bytes)"
+            Write-UpdaterLog "After copy: installed exe='$installedExePath' size=$installedSizeAfter bytes (before: $installedSizeBefore bytes, staging: $stagedSize bytes)"
 
-            # Vergleicht gezielt die Groesse der exe im entpackten ZIP (staging, $stagedSize) mit der
-            # Groesse der anschliessend tatsaechlich installierten exe ($installedSizeAfter) - genau diese
-            # Differenz war Ursache eines gemeldeten Bugs (Ziel-exe wuchs von 69MB auf 159MB an). Copy-Item
-            # mit -Recurse -Force ueberschreibt/ergaenzt lediglich Dateien, LOESCHT aber niemals Dateien im
-            # Zielverzeichnis, die im Quellverzeichnis nicht (mehr) existieren - Ueberreste eines fruehen,
-            # fehlgeschlagenen Updates (z.B. eine liegen gebliebene alte oder halbwegs ueberschriebene exe,
-            # oder durch Virenscanner/Datei-Sperren waehrend des Kopierens unterbrochene Schreibvorgaenge)
-            # koennten daher eine falsche Dateigroesse erklaeren.
+            # Compare the executable size in the extracted ZIP ($stagedSize) with the size actually installed
+            # ($installedSizeAfter). This difference caused a reported bug (the target executable grew from
+            # 69 MB to 159 MB). Copy-Item -Recurse -Force overwrites/adds files but does not delete files from
+            # the destination that are absent from the source. Leftovers from an earlier failed update (such as
+            # an old or partially overwritten executable, or writes interrupted by antivirus/file locks) could
+            # therefore explain an incorrect file size.
             if ($copySucceeded) {
                 if ($stagedSize -ge 0 -and $installedSizeAfter -ge 0) {
                     if ($installedSizeAfter -eq $stagedSize) {
-                        Write-UpdaterLog "Groessenpruefung OK: installierte exe ($installedSizeAfter Bytes) entspricht exakt der exe im entpackten Update-Archiv ($stagedSize Bytes)."
+                        Write-UpdaterLog "Size check OK: installed executable ($installedSizeAfter bytes) exactly matches the executable in the extracted update archive ($stagedSize bytes)."
                     } else {
                         $sizeDiff = $installedSizeAfter - $stagedSize
-                        Write-UpdaterLog "WARNUNG Groessenabweichung: installierte exe ($installedSizeAfter Bytes) unterscheidet sich von der exe im entpackten Update-Archiv ($stagedSize Bytes) um $sizeDiff Bytes. Moegliche Ursachen: Copy-Item loescht keine im Quellverzeichnis nicht mehr vorhandenen Dateien im Ziel (Ueberreste eines frueheren fehlgeschlagenen Updates), ein Virenscanner/Datei-Handle hat den Kopiervorgang unterbrochen, oder das Zielverzeichnis war bereits vor diesem Update in einem inkonsistenten Zustand."
+                        Write-UpdaterLog "WARNING: Size mismatch: installed executable ($installedSizeAfter bytes) differs from the executable in the extracted update archive ($stagedSize bytes) by $sizeDiff bytes. Possible causes: Copy-Item does not remove destination files absent from the source (leftovers from an earlier failed update), antivirus/file handles interrupted copying, or the destination was already inconsistent before this update."
                     }
                 } else {
-                    Write-UpdaterLog "Groessenpruefung nicht moeglich: stagedSize=$stagedSize, installedSizeAfter=$installedSizeAfter (mindestens eine der beiden Dateien wurde nicht gefunden)."
+                    Write-UpdaterLog "Size check unavailable: stagedSize=$stagedSize, installedSizeAfter=$installedSizeAfter (at least one of the files was not found)."
                 }
             }
 
             if ($copySucceeded) {
                 try {
                     $newProc = Start-Process -FilePath $installedExePath -WorkingDirectory $installDir -PassThru
-                    Write-UpdaterLog "Start-Process erfolgreich: neue PID=$($newProc.Id)."
+                    Write-UpdaterLog "Start-Process succeeded: new PID=$($newProc.Id)."
                 } catch {
-                    Write-UpdaterLog "FEHLER bei Start-Process (Anwendung wurde NICHT neu gestartet): $($_.Exception.Message)"
+                    Write-UpdaterLog "ERROR: Start-Process failed (application was NOT restarted): $($_.Exception.Message)"
                 }
             } else {
-                Write-UpdaterLog "Start-Process wird uebersprungen, da Copy-Item fehlgeschlagen ist - Anwendung wurde NICHT neu gestartet."
+                Write-UpdaterLog "Skipping Start-Process because Copy-Item failed; application was NOT restarted."
             }
 
-            Write-UpdaterLog "Updater-Skript beendet, raeumt sich selbst auf."
-            # Raeumt sich selbst auf - das Skript wird nur einmalig fuer genau diese eine Installation benoetigt.
+            Write-UpdaterLog "Updater script finished; cleaning itself up."
+            # The script is only needed once for this installation, so remove it after completion.
             Start-Sleep -Milliseconds 500
             Remove-Item -Path {{Quote(ownScriptPath)}} -Force -ErrorAction SilentlyContinue
             """;
@@ -368,8 +348,8 @@ public sealed class UpdateInstaller
         }
         catch
         {
-            // Aufraeumen ist best-effort - ein fehlgeschlagenes Loeschen einer temporaeren Datei darf
-            // niemals einen sonst erfolgreichen/fehlgeschlagenen Update-Vorgang ueberdecken.
+            // Cleanup is best-effort; failure to delete a temporary file must never mask the outcome of
+            // the update operation.
         }
     }
 
@@ -384,7 +364,7 @@ public sealed class UpdateInstaller
         }
         catch
         {
-            // Siehe TryDeleteFile.
+            // See TryDeleteFile.
         }
     }
 }

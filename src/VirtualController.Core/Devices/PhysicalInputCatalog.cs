@@ -1,9 +1,8 @@
 namespace VirtualController.Core.Devices;
 
 /// <summary>
-/// Erzeugt die vollstaendige Liste aller physischen Eingabeelemente (Buttons, Achsen-Richtungen,
-/// D-Pad) eines Geraets mit sinnvollen Standard-Anzeigenamen. Wird von der UI genutzt, um pro
-/// ausgewaehltem Geraet eine aufklappbare Liste aller belegbaren Eingaben anzuzeigen.
+/// Builds the complete list of a device's physical inputs (buttons, axis directions, D-pad) with sensible
+/// default display names. Used by the UI to show all assignable inputs for each selected device.
 /// </summary>
 public static class PhysicalInputCatalog
 {
@@ -12,7 +11,7 @@ public static class PhysicalInputCatalog
     {
         "A", "B", "X", "Y",
         "LB", "RB",
-        "Linker Stick (Klick)", "Rechter Stick (Klick)",
+        "Left stick (click)", "Right stick (click)",
         "Back", "Start",
         "D-Pad Hoch", "D-Pad Runter", "D-Pad Links", "D-Pad Rechts"
     };
@@ -31,23 +30,23 @@ public static class PhysicalInputCatalog
 
         if (device.Api == InputApi.XInput)
         {
-            // XInput hat immer eine feste Achsenbelegung (siehe XInputDeviceReader) -> bewaehrte Namen behalten.
-            AddAxisPair(inputs, device, PhysicalAxisId.X, "Linker Stick X");
-            AddAxisPair(inputs, device, PhysicalAxisId.Y, "Linker Stick Y");
-            AddAxisPair(inputs, device, PhysicalAxisId.Z, "Rechter Stick X");
-            AddAxisPair(inputs, device, PhysicalAxisId.RotationX, "Rechter Stick Y");
-            inputs.Add(new PhysicalInputRef(device.DeviceId, PhysicalInputKind.AxisPositive, (int)PhysicalAxisId.RotationY, "Linker Trigger"));
-            inputs.Add(new PhysicalInputRef(device.DeviceId, PhysicalInputKind.AxisPositive, (int)PhysicalAxisId.RotationZ, "Rechter Trigger"));
+            // XInput has a fixed axis layout (see XInputDeviceReader), so use the established names.
+            AddAxisPair(inputs, device, PhysicalAxisId.X, "Left stick X");
+            AddAxisPair(inputs, device, PhysicalAxisId.Y, "Left stick Y");
+            AddAxisPair(inputs, device, PhysicalAxisId.Z, "Right stick X");
+            AddAxisPair(inputs, device, PhysicalAxisId.RotationX, "Right stick Y");
+            inputs.Add(new PhysicalInputRef(device.DeviceId, PhysicalInputKind.AxisPositive, (int)PhysicalAxisId.RotationY, "Left trigger"));
+            inputs.Add(new PhysicalInputRef(device.DeviceId, PhysicalInputKind.AxisPositive, (int)PhysicalAxisId.RotationZ, "Right trigger"));
         }
         else
         {
-            // DirectInput: nur die Achsen auflisten, die dieses konkrete Geraet laut Enumeration tatsaechlich besitzt.
+            // DirectInput: list only axes actually present on this device according to enumeration.
             foreach (var axisId in device.AvailableAxes)
             {
                 if (axisId is PhysicalAxisId.Slider0 or PhysicalAxisId.Slider1)
                 {
-                    // Slider sind typischerweise physisch einseitig (z.B. Schubregler) -> nur ein Eintrag, 0..1.
-                    string sliderName = axisId == PhysicalAxisId.Slider0 ? "Schieberegler 1" : "Schieberegler 2";
+                    // Sliders are typically physically unidirectional (e.g. a throttle), so create one 0..1 entry.
+                    string sliderName = axisId == PhysicalAxisId.Slider0 ? "Slider 1" : "Slider 2";
                     inputs.Add(new PhysicalInputRef(device.DeviceId, PhysicalInputKind.AxisPositive, (int)axisId, sliderName));
                 }
                 else
@@ -59,10 +58,10 @@ public static class PhysicalInputCatalog
 
         if (device.HasPov)
         {
-            inputs.Add(new PhysicalInputRef(device.DeviceId, PhysicalInputKind.DPadUp, 0, "D-Pad Hoch"));
-            inputs.Add(new PhysicalInputRef(device.DeviceId, PhysicalInputKind.DPadDown, 1, "D-Pad Runter"));
-            inputs.Add(new PhysicalInputRef(device.DeviceId, PhysicalInputKind.DPadLeft, 2, "D-Pad Links"));
-            inputs.Add(new PhysicalInputRef(device.DeviceId, PhysicalInputKind.DPadRight, 3, "D-Pad Rechts"));
+            inputs.Add(new PhysicalInputRef(device.DeviceId, PhysicalInputKind.DPadUp, 0, "D-pad Up"));
+            inputs.Add(new PhysicalInputRef(device.DeviceId, PhysicalInputKind.DPadDown, 1, "D-pad Down"));
+            inputs.Add(new PhysicalInputRef(device.DeviceId, PhysicalInputKind.DPadLeft, 2, "D-pad Left"));
+            inputs.Add(new PhysicalInputRef(device.DeviceId, PhysicalInputKind.DPadRight, 3, "D-pad Right"));
         }
 
         return inputs;
@@ -70,12 +69,12 @@ public static class PhysicalInputCatalog
 
     private static string DirectInputAxisName(PhysicalAxisId axisId) => axisId switch
     {
-        PhysicalAxisId.X => "X-Achse",
-        PhysicalAxisId.Y => "Y-Achse",
-        PhysicalAxisId.Z => "Z-Achse",
-        PhysicalAxisId.RotationX => "X-Rotation",
-        PhysicalAxisId.RotationY => "Y-Rotation",
-        PhysicalAxisId.RotationZ => "Z-Rotation",
+        PhysicalAxisId.X => "X axis",
+        PhysicalAxisId.Y => "Y axis",
+        PhysicalAxisId.Z => "Z axis",
+        PhysicalAxisId.RotationX => "X rotation",
+        PhysicalAxisId.RotationY => "Y rotation",
+        PhysicalAxisId.RotationZ => "Z rotation",
         _ => axisId.ToString()
     };
 
@@ -85,21 +84,19 @@ public static class PhysicalInputCatalog
         inputs.Add(new PhysicalInputRef(device.DeviceId, PhysicalInputKind.AxisNegative, (int)axis, $"{baseName} -"));
     }
 
-    /// <summary>Eindeutiger Persistenz-Schluessel fuer benutzerdefinierte Anzeigenamen, unabhaengig vom virtuellen Controller.</summary>
+    /// <summary>Unique persistence key for custom display names, independent of virtual controller assignment.</summary>
     public static string BuildStorageKey(string deviceId, PhysicalInputKind kind, int index) => $"{deviceId}|{kind}|{index}";
 
-    /// <summary>Eindeutiger Persistenz-Schluessel fuer benutzerdefinierte Anzeigenamen kombinierter 2D-Sticks
-    /// (siehe <see cref="DeviceSettings.StickNames"/>), identifiziert ueber den Achsen-Index der X-Achse
-    /// dieses Sticks - eindeutig innerhalb eines Geraets, da jede Achse nur einem Stick zugeordnet sein kann.</summary>
+    /// <summary>Unique persistence key for custom names of combined 2D sticks (see
+    /// <see cref="DeviceSettings.StickNames"/>), identified by the stick's X-axis index. Unique within a device
+    /// because each axis can belong to only one stick.</summary>
     public static string BuildStickStorageKey(int xAxisIndex) => $"stick:{xAxisIndex}";
 
-    /// <summary>Parst einen Storage-Key im Format "{DeviceId}|{PhysicalInputKind}|{Index}" (siehe
-    /// <see cref="BuildStorageKey"/>) zurueck in seine Bestandteile. Die letzten zwei durch '|' getrennten
-    /// Segmente muessen Kind bzw. Index sein, alle davor liegenden Segmente werden wieder zur DeviceId
-    /// zusammengefuegt (falls diese selbst jemals ein '|' enthalten sollte). Zentral hier statt in
-    /// <see cref="Profiles.ProfileStore"/> definiert, damit auch <see cref="InputSettingsDictionaryConverter"/>
-    /// beim Serialisieren anhand des Keys entscheiden kann, ob eine Eingabe analoge Einstellungen
-    /// (Kalibrierung/Deadzone/Kurve) ueberhaupt unterstuetzt.</summary>
+    /// <summary>Parses a storage key in the format "{DeviceId}|{PhysicalInputKind}|{Index}" (see
+    /// <see cref="BuildStorageKey"/>) into its parts. The last two pipe-separated segments must be the kind
+    /// and index; preceding segments are rejoined as the device ID in case it contains a pipe. Defined here
+    /// rather than in <see cref="Profiles.ProfileStore"/> so <see cref="InputSettingsDictionaryConverter"/> can
+    /// determine during serialization whether an input supports analog settings (calibration/deadzone/curve).</summary>
     public static bool TryParseStorageKey(string key, out string deviceId, out PhysicalInputKind kind, out int index)
     {
         deviceId = string.Empty;

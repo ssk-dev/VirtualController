@@ -5,11 +5,9 @@ using VirtualController.App.ViewModels;
 namespace VirtualController.App.Views;
 
 /// <summary>
-/// Code-Behind des modalen "Zuweisen"-Dialogs. Enthaelt bewusst keine Geschaeftslogik - diese lebt
-/// komplett im <see cref="AssignInputDialogViewModel"/>. Hier wird lediglich das ViewModel per
-/// Confirmed/Cancelled-Events an <see cref="Window.DialogResult"/> gekoppelt, damit der Aufrufer
-/// (<see cref="MainWindow"/>) per <c>ShowDialog()</c>-Rueckgabewert erkennen kann, ob der Nutzer eine
-/// Eingabe bestaetigt hat.
+/// Code-behind for the modal Assign dialog. Business logic lives in <see cref="AssignInputDialogViewModel"/>;
+/// this class connects its Confirmed/Cancelled events to <see cref="Window.DialogResult"/> so the caller
+/// (<see cref="MainWindow"/>) can use the <c>ShowDialog()</c> return value to determine whether an input was confirmed.
 /// </summary>
 public partial class AssignInputDialog : Window
 {
@@ -41,8 +39,8 @@ public partial class AssignInputDialog : Window
         Close();
     }
 
-    /// <summary>Doppelklick auf einen Listeneintrag bestaetigt die Auswahl direkt, ohne dass der
-    /// Nutzer zusaetzlich den OK-Button anklicken muss (uebliches Verhalten in Auswahl-Dialogen).</summary>
+    /// <summary>A double-click on a list entry confirms the selection without requiring the user to click OK,
+    /// as is customary in selection dialogs.</summary>
     private void OnListViewDoubleClick(object sender, MouseButtonEventArgs e)
     {
         if (_viewModel.SelectedInput is not null)

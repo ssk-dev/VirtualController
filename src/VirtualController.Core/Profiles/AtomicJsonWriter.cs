@@ -3,12 +3,10 @@ using System.Text.Json;
 namespace VirtualController.Core.Profiles;
 
 /// <summary>
-/// Schreibt ein Objekt atomar als JSON in eine Datei (ueber eine temporaere Datei + <see cref="File.Replace"/>),
-/// damit ein Absturz oder Stromausfall waehrend des Schreibens niemals eine bereits vorhandene, gueltige
-/// Datei beschaedigt. Wird von allen Profil-Teilspeichern (<see cref="DeviceSettingsStore"/>,
-/// <see cref="ControllerStore"/>, <see cref="SettingsStore"/>) gemeinsam genutzt - urspruenglich das
-/// Verhalten von <see cref="ProfileStore.Save"/>, bevor die einzelne profiles.json in mehrere Dateien
-/// aufgeteilt wurde.
+/// Atomically writes an object as JSON through a temporary file and <see cref="File.Replace"/>, so a crash or
+/// power loss during writing cannot corrupt an existing valid file. Shared by all profile stores
+/// (<see cref="DeviceSettingsStore"/>, <see cref="ControllerStore"/>, <see cref="SettingsStore"/>); originally
+/// used by <see cref="ProfileStore.Save"/> before profiles.json was split into multiple files.
 /// </summary>
 internal static class AtomicJsonWriter
 {

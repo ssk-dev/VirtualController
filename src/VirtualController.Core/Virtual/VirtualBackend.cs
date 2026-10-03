@@ -1,22 +1,22 @@
 namespace VirtualController.Core.Virtual;
 
 /// <summary>
-/// Das tatsaechlich von Windows/ViGEmBus als Geraet erzeugte Ziel.
+/// Device target actually created by Windows/ViGEmBus.
 /// </summary>
 public enum VirtualBackend
 {
-    /// <summary>XInput-Geraet, von Windows und praktisch allen Spielen als "Xbox 360 Controller" erkannt.</summary>
+    /// <summary>XInput device recognized by Windows and nearly all games as an "Xbox 360 Controller".</summary>
     Xbox360,
 
-    /// <summary>HID-Gamepad, von Windows als "Wireless Controller" (Sony DualShock 4) erkannt.</summary>
+    /// <summary>HID gamepad recognized by Windows as "Wireless Controller" (Sony DualShock 4).</summary>
     DualShock4
 }
 
 public static class LayoutBackendMap
 {
     /// <summary>
-    /// Legt fest, welches ViGEmBus-Backend fuer ein gewaehltes Anzeige-Layout verwendet wird.
-    /// Nur PlayStation nutzt DualShock4, alle anderen (inkl. Nintendo, kosmetisch) nutzen Xbox360.
+    /// Selects the ViGEmBus backend for a display layout. PlayStation uses DualShock 4; all other layouts,
+    /// including cosmetic Nintendo, use Xbox 360.
     /// </summary>
     public static VirtualBackend Resolve(ControllerLayout layout) => layout switch
     {

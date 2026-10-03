@@ -8,47 +8,42 @@ using VirtualController.Core.Virtual;
 namespace VirtualController.App.ViewModels;
 
 /// <summary>
-/// Kombiniert einen Ziel-Wert (<see cref="VirtualButton"/>, <see cref="VirtualAxis"/>,
-/// <see cref="VirtualTrigger"/> oder <see cref="DPadDirection"/>) mit dem layoutabhaengigen
-/// Anzeigenamen, wie er auf dem aktuell gewaehlten <see cref="ControllerLayout"/> tatsaechlich
-/// beschriftet ist (siehe <see cref="VirtualControllerLabels"/>). Wird als Item der "Ziel-Wert"-
-/// ComboBox verwendet (DisplayMemberPath = Label, SelectedValuePath = Value).
+/// Combines a target value (<see cref="VirtualButton"/>, <see cref="VirtualAxis"/>,
+/// <see cref="VirtualTrigger"/>, or <see cref="DPadDirection"/>) with the layout-specific label used by the
+/// selected <see cref="ControllerLayout"/> (see <see cref="VirtualControllerLabels"/>). Used as an item in
+/// the target value ComboBox (DisplayMemberPath = Label, SelectedValuePath = Value).
 /// </summary>
 public sealed record TargetOptionItem(object Value, string Label);
 
 /// <summary>
-/// Ein einzelner Eintrag der "Zuweisen"-Auswahlliste (siehe <see cref="MappingRowViewModel.AssignableInputs"/>):
-/// eine physische Eingabe eines bestimmten Geraets, die der Nutzer als Quelle dieser Mapping-Zeile
-/// uebernehmen kann, ohne sie tatsaechlich druecken/bewegen zu muessen (Alternative zu "Erfassen",
-/// z.B. sinnvoll bei Triggern, die bereits leicht ausgeloest sind, oder Eingaben, die sich nur schwer
-/// gezielt einzeln ausloesen lassen).
+/// One entry in the "Assign" selection list (see <see cref="MappingRowViewModel.AssignableInputs"/>): a
+/// physical input on a specific device that the user can select as the source for this mapping row without
+/// physically pressing or moving it. This is an alternative to Capture, useful for triggers that are already
+/// slightly engaged or inputs that are difficult to activate individually.
 /// </summary>
 public sealed record AssignableInputOption(PhysicalDeviceInfo Device, PhysicalInputRef InputRef, string Label)
 {
-    /// <summary>Bequemlichkeits-Eigenschaft fuer die Gruppierung nach Geraet im "Zuweisen"-Dialog
-    /// (<see cref="Views.AssignInputDialog"/>), damit dort per einfacher <c>PropertyGroupDescription</c>
-    /// gruppiert werden kann, ohne auf einen (fehleranfälligeren) gepunkteten Bindungspfad "Device.DisplayName"
-    /// angewiesen zu sein.</summary>
+    /// <summary>Convenience property for grouping by device in the "Assign" dialog
+    /// (<see cref="Views.AssignInputDialog"/>), allowing a simple <c>PropertyGroupDescription</c> instead of
+    /// relying on the more error-prone dotted binding path "Device.DisplayName".</summary>
     public string DeviceDisplayName => Device.DisplayName;
 }
 
 /// <summary>
-/// Eine einzelne Zeile der Mapping-Tabelle eines virtuellen Controllers: zeigt und bearbeitet,
-/// welche physische Eingabe (welcher angeschlossene Controller, welcher Button/Achse/DPad) auf
-/// welches Element des virtuellen Controllers wirkt. Alle bindbaren Properties schreiben direkt
-/// in das zugrunde liegende <see cref="MappingEntry"/> zurueck, das Teil des gespeicherten Profils ist.
+/// One row in a virtual controller's mapping table. Shows and edits which physical input (controller,
+/// button, axis, or D-pad) affects which virtual controller element. All bindable properties write directly
+/// to the underlying <see cref="MappingEntry"/>, which is part of the saved profile.
 /// </summary>
 public sealed partial class MappingRowViewModel : ObservableObject
 {
     private static readonly TimeSpan CaptureTimeout = TimeSpan.FromSeconds(5);
 
-    /// <summary>Ab diesem absoluten Achsenausschlag gilt eine Achsen-Richtung als "aktiv" - identischer
-    /// Schwellwert wie <see cref="PhysicalInputRowViewModel.AxisActiveThreshold"/>, damit die Live-
-    /// Hervorhebung dieser Mapping-Zeile (siehe <see cref="IsSourceActive"/>) exakt im selben Moment
-    /// reagiert wie die entsprechende Zeile in der aufklappbaren Geraete-Eingabeliste.</summary>
+    /// <summary>An axis direction is considered active at this absolute deflection. Matches
+    /// <see cref="PhysicalInputRowViewModel.AxisActiveThreshold"/> so this mapping row's live highlight
+    /// (<see cref="IsSourceActive"/>) responds at the same point as the corresponding device input row.</summary>
     private const float AxisActiveThreshold = 0.3f;
 
-    /// <summary>Fuer ComboBox-Bindings in der View: alle moeglichen Ziel-Kategorien.</summary>
+    /// <summary>All target categories, for ComboBox bindings in the view.</summary>
     public static IReadOnlyList<MappingTargetKind> TargetKindOptions { get; } = Enum.GetValues<MappingTargetKind>();
     public static IReadOnlyList<VirtualButton> ButtonOptions { get; } = Enum.GetValues<VirtualButton>();
     public static IReadOnlyList<VirtualAxis> AxisOptions { get; } = Enum.GetValues<VirtualAxis>();
@@ -57,48 +52,41 @@ public sealed partial class MappingRowViewModel : ObservableObject
 
     public MappingEntry Entry { get; }
 
-    /// <summary>Kurze, pro Instanz eindeutige ID (fuer Debug-Logging), damit sich in <see cref="DebugLog"/>
-    /// unzweifelhaft nachvollziehen laesst, welche konkrete Zeilen-Instanz eine Aktion ausgeloest hat -
-    /// wichtig, um zu erkennen, ob sich mehrere Zeilen gegenseitig ungewollt beeinflussen.</summary>
+    /// <summary>Short, instance-unique ID for debug logging, making it clear which row instance triggered an
+    /// action in <see cref="DebugLog"/>. Useful for diagnosing unintended interactions between rows.</summary>
     public string RowId { get; } = Guid.NewGuid().ToString("N")[..8];
 
     private readonly Func<IReadOnlyList<PhysicalDeviceInfo>> _getAvailableDevices;
     private readonly Func<IReadOnlyDictionary<string, DeviceSettings>> _getDeviceSettings;
     private readonly Func<ControllerLayout> _getLayout;
 
-    /// <summary>Wird ausgeloest, wenn der Nutzer diese Zeile ueber den "Entfernen"-Button loeschen moechte.</summary>
+    /// <summary>Raised when the user removes this row through the Remove button.</summary>
     public event Action<MappingRowViewModel>? RemoveRequested;
 
-    /// <summary>Wird ausgeloest, wenn sich das zugrunde liegende <see cref="MappingEntry"/> dieser Zeile
-    /// aendert (Erfassen einer neuen physischen Quelle, Ziel-Typ/Ziel-Wert, Invertieren) - damit
-    /// der uebergeordnete <see cref="VirtualControllerViewModel"/> laufende Sessions aktualisieren und
-    /// ungespeicherte Aenderungen erkennen kann.</summary>
+    /// <summary>Raised when this row's underlying <see cref="MappingEntry"/> changes (captured physical source,
+    /// target type/value, or inversion), so the parent <see cref="VirtualControllerViewModel"/> can update
+    /// running sessions and track unsaved changes.</summary>
     public event Action<MappingRowViewModel>? Changed;
 
     [ObservableProperty]
     private string _sourceDisplayName;
 
-    /// <summary>Ob das physische Quellgeraet dieser Zeile aktuell tatsaechlich angeschlossen ist. Wird von
-    /// der View genutzt, um bei getrennten Geraeten einen roten "nicht verbunden"-Hinweis anzuzeigen,
-    /// statt stillschweigend nur die bedeutungslose DeviceId zu zeigen.</summary>
+    /// <summary>Whether this row's physical source device is currently connected. The view shows a red
+    /// "disconnected" indicator when it is not, rather than displaying only an unhelpful device ID.</summary>
     [ObservableProperty]
     private bool _isSourceConnected;
 
-    /// <summary>Ob dieser Zeile bereits eine physische Quelle zugewiesen wurde (per "Erfassen" oder
-    /// "Zuweisen"). Frisch angelegte Zeilen haben noch keine Quelle (<see cref="MappingEntry.SourceDeviceId"/>
-    /// ist leer) - solche Zeilen werden von <see cref="ModeViewModel.RebuildMappingGroups"/> keiner
-    /// Ziel-Typ-Gruppe zugeordnet, sondern in einem eigenen, gruppierungslosen Bereich ganz oben in der
-    /// Mapping-Tabelle angezeigt, bis eine Quelle zugewiesen wurde.</summary>
+    /// <summary>Whether a physical source has been assigned to this row through Capture or Assign. New rows
+    /// have no source (<see cref="MappingEntry.SourceDeviceId"/> is empty), so
+    /// <see cref="ModeViewModel.RebuildMappingGroups"/> displays them in a separate ungrouped section at the
+    /// top of the mapping table until a source is assigned.</summary>
     [ObservableProperty]
     private bool _isSourceAssigned;
 
-    /// <summary>Ob die physische Quelle dieser Mapping-Zeile aktuell tatsaechlich aktiv ist (Taste
-    /// gedrueckt, Achse ausgeschlagen, D-Pad-Richtung gehalten) - analog zu
-    /// <see cref="PhysicalInputRowViewModel.IsActive"/> in der aufklappbaren Geraete-Eingabeliste, nur
-    /// hier fuer die Zeilen-Hervorhebung der Mapping-Tabelle. Wird von <see cref="VirtualControllerViewModel"/>
-    /// per Live-Polling der ausgewaehlten/aufgeklappten Geraete aktualisiert (siehe
-    /// <see cref="UpdateSourceActiveState"/>) - solange kein passendes Geraet aufgeklappt ist, bleibt
-    /// dieser Wert unveraendert false.</summary>
+    /// <summary>Whether this row's physical source is currently active (button pressed, axis deflected, or
+    /// D-pad held). Like <see cref="PhysicalInputRowViewModel.IsActive"/>, it drives the mapping table's row
+    /// highlight. Updated by <see cref="VirtualControllerViewModel"/> through live polling of selected or
+    /// expanded devices (see <see cref="UpdateSourceActiveState"/>); remains false until a matching device is monitored.</summary>
     [ObservableProperty]
     private bool _isSourceActive;
 
@@ -108,10 +96,9 @@ public sealed partial class MappingRowViewModel : ObservableObject
     [ObservableProperty]
     private bool _isCapturing;
 
-    /// <summary>Verbleibende Sekunden, waehrend "Erfassen" auf eine physische Eingabe wartet - zaehlt vom
-    /// Erfassen-Timeout (<see cref="CaptureTimeout"/>) bis 0 herunter. Wird von der View als Countdown
-    /// neben dem "Erfassen"-Button angezeigt, damit der Nutzer sieht, dass der Erfassen-Modus automatisch
-    /// beendet wird, falls innerhalb dieser Zeit keine neue Eingabe erkannt wird.</summary>
+    /// <summary>Seconds remaining while Capture waits for a physical input, counting down from
+    /// <see cref="CaptureTimeout"/> to zero. Shown beside the Capture button so users know the mode ends
+    /// automatically if no new input is detected in time.</summary>
     [ObservableProperty]
     private int _captureCountdownSeconds;
 
@@ -121,23 +108,21 @@ public sealed partial class MappingRowViewModel : ObservableObject
     private object? _selectedTargetValue;
 
     /// <summary>
-    /// Einheitlicher Ziel-Wert fuer die (einzige) Ziel-Wert-ComboBox in der View. Je nach
-    /// <see cref="SelectedTargetKind"/> handelt es sich um einen <see cref="VirtualButton"/>,
-    /// <see cref="VirtualAxis"/>, <see cref="VirtualTrigger"/> oder <see cref="DPadDirection"/>.
-    /// Ersetzt vier fruehere, im gleichen Zellenbereich uebereinander liegende ComboBoxen
-    /// (eine pro Ziel-Typ), deren Dropdown-Popups sich beim schnellen Wechsel des Ziel-Typs
-    /// gegenseitig ueberlagern konnten und dadurch falsche/veraltete Werte anzeigten.
+    /// Unified target value for the view's single target-value ComboBox. Its type depends on
+    /// <see cref="SelectedTargetKind"/>: <see cref="VirtualButton"/>, <see cref="VirtualAxis"/>,
+    /// <see cref="VirtualTrigger"/>, or <see cref="DPadDirection"/>. Replaces four overlapping ComboBoxes
+    /// (one per target type) whose dropdowns could overlap and display stale values when switching quickly.
     /// </summary>
     public object? SelectedTargetValue
     {
         get => _selectedTargetValue;
         set
         {
-            DebugLog.Write($"[Row {RowId}] SelectedTargetValue SETTER aufgerufen: alt='{_selectedTargetValue}' neu='{value}' TargetKind={SelectedTargetKind}");
+            DebugLog.Write($"[Row {RowId}] SelectedTargetValue setter called: old='{_selectedTargetValue}' new='{value}' TargetKind={SelectedTargetKind}");
 
             if (!SetProperty(ref _selectedTargetValue, value))
             {
-                DebugLog.Write($"[Row {RowId}] SelectedTargetValue: SetProperty hat NICHT geaendert (Wert war bereits gleich) -> Abbruch.");
+                DebugLog.Write($"[Row {RowId}] SelectedTargetValue: SetProperty made no change (value was already equal); aborting.");
                 return;
             }
 
@@ -158,14 +143,14 @@ public sealed partial class MappingRowViewModel : ObservableObject
             }
 
             TargetDisplayName = BuildTargetDisplayName(Entry, _getLayout());
-            DebugLog.Write($"[Row {RowId}] SelectedTargetValue: uebernommen -> Entry.TargetButton={Entry.TargetButton} Entry.TargetAxis={Entry.TargetAxis} Entry.TargetTrigger={Entry.TargetTrigger} Entry.TargetDPadDirection={Entry.TargetDPadDirection} TargetDisplayName='{TargetDisplayName}'");
+            DebugLog.Write($"[Row {RowId}] SelectedTargetValue applied -> Entry.TargetButton={Entry.TargetButton} Entry.TargetAxis={Entry.TargetAxis} Entry.TargetTrigger={Entry.TargetTrigger} Entry.TargetDPadDirection={Entry.TargetDPadDirection} TargetDisplayName='{TargetDisplayName}'");
             Changed?.Invoke(this);
         }
     }
 
-    /// <summary>Die fuer den aktuellen <see cref="SelectedTargetKind"/> gueltigen Auswahlwerte fuer die Ziel-Wert-ComboBox,
-    /// mit layoutabhaengigen Anzeigenamen (siehe <see cref="VirtualControllerLabels"/>) passend zum aktuell gewaehlten
-    /// <see cref="ControllerLayout"/> des virtuellen Controllers.</summary>
+    /// <summary>Valid options for the target-value ComboBox for the current <see cref="SelectedTargetKind"/>,
+    /// labeled according to the virtual controller's current <see cref="ControllerLayout"/> (see
+    /// <see cref="VirtualControllerLabels"/>).</summary>
     public IReadOnlyList<TargetOptionItem> CurrentTargetOptions
     {
         get
@@ -182,16 +167,15 @@ public sealed partial class MappingRowViewModel : ObservableObject
         }
     }
 
-    /// <summary>Invertieren ist nur fuer analoge Achsen sinnvoll und wird nur dann in der View eingeblendet.</summary>
+    /// <summary>Inversion is meaningful only for analog axes and is shown in the view only for those targets.</summary>
     public bool IsAxisTarget => SelectedTargetKind == MappingTargetKind.Axis;
 
     [ObservableProperty]
     private bool _invert;
 
-    /// <summary>Bei Achsen-Zielen: nur die durch die erfasste Quelle (SourceKind: AxisPositive/AxisNegative)
-    /// festgelegte Haelfte der physischen Achse verwenden, statt des vollen bidirektionalen Bereichs -
-    /// ermoeglicht z.B. das Aufteilen von zwei unabhaengigen physischen Achsenhaelften auf zwei
-    /// unterschiedliche virtuelle Achsen mit jeweils eigenem Invertieren-Vorzeichen.</summary>
+    /// <summary>For axis targets, use only the half of the physical axis specified by the captured source
+    /// (SourceKind: AxisPositive/AxisNegative) instead of the full bidirectional range. This allows the two
+    /// halves of a physical axis to map to separate virtual axes with independent inversion settings.</summary>
     [ObservableProperty]
     private bool _directionalOnly;
 
@@ -222,7 +206,7 @@ public sealed partial class MappingRowViewModel : ObservableObject
         _invert = entry.Invert;
         _directionalOnly = entry.DirectionalOnly;
 
-        DebugLog.Write($"[Row {RowId}] Konstruktor: Source={entry.SourceDeviceId}|{entry.SourceKind}|{entry.SourceIndex} TargetKind={entry.TargetKind} TargetValue={_selectedTargetValue}");
+        DebugLog.Write($"[Row {RowId}] Constructor: Source={entry.SourceDeviceId}|{entry.SourceKind}|{entry.SourceIndex} TargetKind={entry.TargetKind} TargetValue={_selectedTargetValue}");
     }
 
     public void ApplyCapturedInput(PhysicalInputRef captured, IReadOnlyList<PhysicalDeviceInfo> knownDevices)
@@ -238,10 +222,9 @@ public sealed partial class MappingRowViewModel : ObservableObject
     }
 
     /// <summary>
-    /// Wird von <see cref="VirtualControllerViewModel"/> aufgerufen, wenn sich die Liste der aktuell
-    /// angeschlossenen physischen Geraete aendert (z.B. Geraet getrennt/wieder verbunden): aktualisiert
-    /// den Anzeigenamen und den "nicht verbunden"-Status dieser Zeile, ohne dass der Nutzer dafuer
-    /// erneut die "Erfassen"-Funktion benutzen muss.
+    /// Called by <see cref="VirtualControllerViewModel"/> when the list of connected physical devices changes
+    /// (e.g. a device disconnects or reconnects). Refreshes this row's display name and connection status
+    /// without requiring the user to capture the source again.
     /// </summary>
     public void RefreshSourceConnectionState(IReadOnlyList<PhysicalDeviceInfo> knownDevices)
     {
@@ -249,12 +232,10 @@ public sealed partial class MappingRowViewModel : ObservableObject
         IsSourceConnected = isConnected;
     }
 
-    /// <summary>Aktualisiert <see cref="IsSourceActive"/> anhand eines frisch gepollten <see cref="DeviceState"/>
-    /// eines bestimmten physischen Geraets - analog zu <see cref="PhysicalInputRowViewModel.UpdateActiveState"/>.
-    /// Wird von <see cref="VirtualControllerViewModel"/> fuer jede Mapping-Zeile aufgerufen, deren
-    /// <see cref="MappingEntry.SourceDeviceId"/> mit <paramref name="deviceId"/> uebereinstimmt; bei
-    /// abweichender DeviceId bleibt <see cref="IsSourceActive"/> unveraendert (ein anderes, gerade
-    /// gepolltes Geraet betrifft diese Zeile nicht).</summary>
+    /// <summary>Updates <see cref="IsSourceActive"/> from a freshly polled <see cref="DeviceState"/>, like
+    /// <see cref="PhysicalInputRowViewModel.UpdateActiveState"/>. Called by
+    /// <see cref="VirtualControllerViewModel"/> for rows whose <see cref="MappingEntry.SourceDeviceId"/> matches
+    /// <paramref name="deviceId"/>; rows for other devices remain unchanged.</summary>
     public void UpdateSourceActiveState(string deviceId, DeviceState state)
     {
         if (Entry.SourceDeviceId != deviceId)
@@ -276,9 +257,8 @@ public sealed partial class MappingRowViewModel : ObservableObject
         };
     }
 
-    /// <summary>Setzt <see cref="IsSourceActive"/> zurueck auf false - wird aufgerufen, wenn das
-    /// zugehoerige physische Geraet nicht (mehr) live ueberwacht wird (Geraeteliste eingeklappt,
-    /// Geraet getrennt), damit keine veraltete Hervorhebung stehen bleibt.</summary>
+    /// <summary>Resets <see cref="IsSourceActive"/> to false when the physical device is no longer monitored
+    /// (its list is collapsed or the device is disconnected), preventing a stale highlight.</summary>
     public void ResetSourceActiveState() => IsSourceActive = false;
 
     [RelayCommand]
@@ -306,12 +286,10 @@ public sealed partial class MappingRowViewModel : ObservableObject
 
     private bool CanCapture() => !IsCapturing;
 
-    /// <summary>Baut die vollstaendige Auswahlliste fuer den modalen "Zuweisen"-Dialog auf: alle
-    /// physischen Eingaben (Buttons, Achsen-Richtungen, D-Pad) der aktuell fuer diesen virtuellen
-    /// Controller ausgewaehlten Geraete, mit denselben (ggf. vom Nutzer umbenannten) Anzeigenamen wie
-    /// in der aufklappbaren Geraete-Eingabeliste. Im Konfigurationsdialog deaktivierte Eingaben werden -
-    /// analog zu <see cref="InputCaptureService"/> beim physischen Erfassen - konsequent ausgeschlossen,
-    /// da eine deaktivierte Eingabe ohnehin nie ausgewertet wird.</summary>
+    /// <summary>Builds the complete list for the modal Assign dialog: all physical inputs (buttons, axis
+    /// directions, and D-pad) on devices selected for this virtual controller, using the same display names
+    /// as the expandable device input list. Inputs disabled in the configuration dialog are excluded, just as
+    /// they are during physical capture in <see cref="InputCaptureService"/>, because disabled inputs are never evaluated.</summary>
     public IReadOnlyList<AssignableInputOption> BuildAssignableInputs()
     {
         var deviceSettings = _getDeviceSettings();
@@ -339,13 +317,12 @@ public sealed partial class MappingRowViewModel : ObservableObject
         return options;
     }
 
-    /// <summary>Wird vom modalen "Zuweisen"-Dialog (<see cref="Views.AssignInputDialog"/>) aufgerufen,
-    /// wenn der Nutzer dort eine physische Eingabe bestaetigt hat: uebernimmt sie exakt wie eine per
-    /// "Erfassen" physisch ausgeloeste Eingabe, ohne dass der Nutzer die Eingabe tatsaechlich
-    /// druecken/bewegen muss.</summary>
+    /// <summary>Called by the modal Assign dialog (<see cref="Views.AssignInputDialog"/>) when the user confirms
+    /// a physical input. Assigns it just like a physically captured input, without requiring the user to press
+    /// or move it.</summary>
     public void AssignInput(AssignableInputOption selected)
     {
-        DebugLog.Write($"[Row {RowId}] AssignInput: uebernehme '{selected.Label}' (Geraet '{selected.Device.DisplayName}') als neue physische Quelle (Zuweisen statt Erfassen).");
+        DebugLog.Write($"[Row {RowId}] AssignInput: using '{selected.Label}' (device '{selected.Device.DisplayName}') as the new physical source (assign instead of capture).");
         ApplyCapturedInput(selected.InputRef, _getAvailableDevices());
     }
 
@@ -353,33 +330,24 @@ public sealed partial class MappingRowViewModel : ObservableObject
 
     partial void OnSelectedTargetKindChanged(MappingTargetKind value)
     {
-        DebugLog.Write($"[Row {RowId}] OnSelectedTargetKindChanged: neuer TargetKind={value} (Entry.TargetKind vorher={Entry.TargetKind})");
+        DebugLog.Write($"[Row {RowId}] OnSelectedTargetKindChanged: new TargetKind={value} (previous Entry.TargetKind={Entry.TargetKind})");
         Entry.TargetKind = value;
         Changed?.Invoke(this);
 
-        // Die eigentliche Zuruecksetzung des Ziel-Werts (und die davon abhaengigen Aenderungen an
-        // CurrentTargetOptions/IsAxisTarget) wird bewusst NICHT synchron hier ausgefuehrt: Diese
-        // Aenderungen wirken sich auf das Layout der DataGrid-Zeile aus (Ziel-Wert-ComboBox tauscht
-        // ihre ItemsSource, Invertieren wird ein-/ausgeblendet -> Zeilenhoehe aendert sich).
-        // Wuerde das DataGrid dadurch die Zeile noch WAEHREND die vom Nutzer angeklickte
-        // "Ziel-Typ"-ComboBox ihren eigenen SelectionChanged/Binding-Update-Vorgang verarbeitet neu
-        // aufbauen, wird genau diese ComboBox mitten im Vorgang zerstoert und neu erzeugt - das
-        // fuehrt dazu, dass die gerade getroffene Auswahl verworfen wird und sichtbar auf den alten
-        // Wert zurueckspringt. Durch Verzoegern via Dispatcher.BeginInvoke laeuft der Auswahlvorgang
-        // der ComboBox vollstaendig zu Ende, bevor sich das Zeilenlayout aendert.
-        // WICHTIG: DispatcherPriority.Input statt .Background verwenden - Background liegt in der
-        // WPF-Prioritaetsreihenfolge UNTER Input. Bewegt der Nutzer nach der Auswahl die Maus direkt
-        // zum "Ziel-Wert"-Dropdown (der ueblichste naechste Schritt), erzeugt das fortlaufend
-        // Mausbewegungs-Ereignisse mit Input-Prioritaet, die eine Background-Aktion beliebig lange
-        // verhungern lassen koennen - die Ziel-Wert-ComboBox zeigt dann dauerhaft die alten Optionen
-        // des vorherigen Ziel-Typs. Input-Prioritaet laeuft weiterhin garantiert NACH der aktuellen
-        // Selektionsverarbeitung der Ziel-Typ-ComboBox, wird aber nicht mehr von neu eintreffenden
-        // Maus-Events gleicher Prioritaet ueberholt (FIFO innerhalb derselben Prioritaetsstufe).
+        // Defer resetting the target value and its dependent CurrentTargetOptions/IsAxisTarget updates because
+        // they affect the DataGrid row layout (the target ComboBox changes its ItemsSource and Invert appears
+        // or disappears, changing row height). Rebuilding the row while the clicked target-type ComboBox is
+        // processing its SelectionChanged/binding update would destroy and recreate that control mid-operation,
+        // discarding the selection. Dispatcher.BeginInvoke lets the selection finish before the layout changes.
+        // IMPORTANT: use DispatcherPriority.Input rather than Background. Background is below Input in WPF's
+        // priority order; continuous mouse movement toward the target-value dropdown could starve the action
+        // indefinitely, leaving the old options visible. Input priority still runs after the current selection
+        // processing and is not overtaken by later input events at the same priority (FIFO).
         System.Windows.Threading.Dispatcher.CurrentDispatcher.BeginInvoke(
             System.Windows.Threading.DispatcherPriority.Input,
             new Action(() =>
             {
-                DebugLog.Write($"[Row {RowId}] OnSelectedTargetKindChanged deferred BeginInvoke laeuft jetzt (setzt Ziel-Wert auf null zurueck).");
+                DebugLog.Write($"[Row {RowId}] OnSelectedTargetKindChanged deferred BeginInvoke running (resetting target value to null).");
 
                 Entry.TargetButton = null;
                 Entry.TargetAxis = null;
@@ -392,28 +360,28 @@ public sealed partial class MappingRowViewModel : ObservableObject
                 OnPropertyChanged(nameof(IsAxisTarget));
                 TargetDisplayName = BuildTargetDisplayName(Entry, _getLayout());
 
-                DebugLog.Write($"[Row {RowId}] OnSelectedTargetKindChanged deferred BeginInvoke fertig: SelectedTargetValue={SelectedTargetValue} TargetDisplayName='{TargetDisplayName}'");
+                DebugLog.Write($"[Row {RowId}] OnSelectedTargetKindChanged deferred BeginInvoke complete: SelectedTargetValue={SelectedTargetValue} TargetDisplayName='{TargetDisplayName}'");
             }));
     }
 
     partial void OnInvertChanged(bool value)
     {
-        DebugLog.Write($"[Row {RowId}] OnInvertChanged ausgeloest: value={value} (vorher Entry.Invert={Entry.Invert})");
+        DebugLog.Write($"[Row {RowId}] OnInvertChanged raised: value={value} (previous Entry.Invert={Entry.Invert})");
         Entry.Invert = value;
         Changed?.Invoke(this);
     }
 
     partial void OnDirectionalOnlyChanged(bool value)
     {
-        DebugLog.Write($"[Row {RowId}] OnDirectionalOnlyChanged ausgeloest: value={value} (vorher Entry.DirectionalOnly={Entry.DirectionalOnly})");
+        DebugLog.Write($"[Row {RowId}] OnDirectionalOnlyChanged raised: value={value} (previous Entry.DirectionalOnly={Entry.DirectionalOnly})");
         Entry.DirectionalOnly = value;
         Changed?.Invoke(this);
     }
 
     /// <summary>
-    /// Wird von <see cref="VirtualControllerViewModel"/> aufgerufen, wenn der Nutzer das Layout des
-    /// virtuellen Controllers aendert: die gespeicherten Ziel-Werte bleiben unveraendert, aber ihre
-    /// Anzeigenamen (z.B. "South" -> "A" bei Xbox bzw. "Kreuz" bei PlayStation) muessen neu ermittelt werden.
+    /// Called by <see cref="VirtualControllerViewModel"/> when the virtual controller layout changes. Stored
+    /// target values remain unchanged, but their labels (e.g. "South" -> "A" on Xbox or "Cross" on PlayStation)
+    /// must be refreshed.
     /// </summary>
     public void RefreshForLayoutChange()
     {

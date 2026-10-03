@@ -1,26 +1,25 @@
 namespace VirtualController.Core.Devices;
 
 /// <summary>
-/// Wendet die in <see cref="InputSettings"/> hinterlegte Kalibrierung (Min/Max/Center) und
-/// Antwortkurve (<see cref="AxisCurveType"/>) auf einen bereits vom jeweiligen <see cref="IDeviceReader"/>
-/// grundnormalisierten Achsen-Rohwert an, bevor dieser an die Mapping-Auswertung weitergegeben wird.
-/// Reine, zustandslose Umrechnung - unabhaengig davon, ob die Achse bidirektional (Stick, -1.0 .. 1.0)
-/// oder unidirektional (Trigger/Schieberegler, 0.0 .. 1.0) ist.
+/// Applies calibration (min/max/center) and a response curve (<see cref="AxisCurveType"/>) from
+/// <see cref="InputSettings"/> to an axis raw value already normalized by its <see cref="IDeviceReader"/>,
+/// before passing it to mapping evaluation. This is a stateless conversion for both bidirectional axes
+/// (sticks, -1.0 .. 1.0) and unidirectional axes (triggers/sliders, 0.0 .. 1.0).
 /// </summary>
 public static class AxisSignalProcessor
 {
-    /// <summary>Mindest-Exponent/-Staerke, um Division-durch-0 bzw. undefinierte Potenzen bei
-    /// <see cref="AxisCurveType.Exponential"/>/<see cref="AxisCurveType.SCurve"/> zu vermeiden.</summary>
+    /// <summary>Minimum curve exponent/strength to avoid division by zero or undefined powers in
+    /// <see cref="AxisCurveType.Exponential"/>/<see cref="AxisCurveType.SCurve"/>.</summary>
     private const float MinCurveStrength = 0.01f;
 
     /// <summary>
-    /// Wendet Kalibrierung, geraeteweite Deadzone und Antwortkurve (in dieser Reihenfolge) auf einen
-    /// Achsen-Rohwert an. <paramref name="settings"/> == null bedeutet "keine Einstellungen vorhanden"
-    /// -> der Rohwert wird unveraendert durchgereicht (Standardverhalten fuer nicht konfigurierte Achsen).
+    /// Applies calibration, device-wide deadzone, and response curve, in that order, to an axis raw value.
+    /// If <paramref name="settings"/> is null, passes the raw value through unchanged (the default for
+    /// unconfigured axes).
     /// </summary>
-    /// <param name="raw">Bereits vom Reader normalisierter Rohwert (-1.0 .. 1.0 bzw. 0.0 .. 1.0).</param>
-    /// <param name="settings">Kalibrierungs-/Kurveneinstellungen dieser physischen Achse, oder null.</param>
-    /// <param name="bidirectional">true fuer Stick-artige Achsen (-1.0 .. 1.0), false fuer Trigger/Slider (0.0 .. 1.0).</param>
+    /// <param name="raw">Raw value already normalized by the reader (-1.0 .. 1.0 or 0.0 .. 1.0).</param>
+    /// <param name="settings">Calibration/curve settings for this physical axis, or null.</param>
+    /// <param name="bidirectional">True for stick-like axes (-1.0 .. 1.0); false for triggers/sliders (0.0 .. 1.0).</param>
     public static float Process(float raw, InputSettings? settings, bool bidirectional)
     {
         if (settings is null)
@@ -35,21 +34,19 @@ public static class AxisSignalProcessor
     }
 
     /// <summary>
-    /// Wendet ausschliesslich die Kalibrierung (Min/Max/Center) auf einen Achsen-Rohwert an, ohne
-    /// Deadzone oder Antwortkurve. Wird von der Live-Achsenvisualisierung im Konfigurationsdialog
-    /// genutzt, damit sich der angezeigte Zeiger/Marker fluessig durch die Deadzone hindurch bewegt
-    /// (die Deadzone wird dort separat als eigener, hervorgehobener Bereich dargestellt, statt den
-    /// Wert wie bei der eigentlichen Mapping-Auswertung auf 0 zu klemmen).
+    /// Applies only min/max/center calibration to an axis raw value, without deadzone or response curve. Used
+    /// by the live axis visualization so the marker moves smoothly through the deadzone, which is shown as a
+    /// separate highlighted region instead of clamping the value to zero as mapping evaluation does.
     /// </summary>
     public static float Calibrate(float raw, InputSettings? settings, bool bidirectional)
         => settings is null ? raw : ApplyCalibration(raw, settings, bidirectional);
 
     /// <summary>
-    /// Skaliert den beobachteten, kalibrierten Wertebereich (<see cref="InputSettings.CalibratedMin"/>/
-    /// <see cref="InputSettings.CalibratedMax"/>, optional um <see cref="InputSettings.CalibratedCenter"/>
-    /// verschoben) linear auf den vollen Zielbereich (-1.0 .. 1.0 bzw. 0.0 .. 1.0), damit ein Stick, der
-    /// wegen Bauteiltoleranz/Verschleiss seine physischen Enden nicht exakt erreicht, trotzdem den vollen
-    /// virtuellen Ausschlag liefert. Ohne Kalibrierung (Min/Max nicht gesetzt) bleibt der Wert unveraendert.
+    /// Linearly scales the observed calibrated range (<see cref="InputSettings.CalibratedMin"/>/
+    /// <see cref="InputSettings.CalibratedMax"/>, optionally centered around
+    /// <see cref="InputSettings.CalibratedCenter"/>) to the full target range (-1.0 .. 1.0 or 0.0 .. 1.0). This
+    /// lets a stick reach full virtual deflection even if component tolerances or wear prevent it from reaching
+    /// physical limits. Without min/max calibration, leaves the value unchanged.
     /// </summary>
     private static float ApplyCalibration(float raw, InputSettings settings, bool bidirectional)
     {
@@ -72,10 +69,9 @@ public static class AxisSignalProcessor
         return Math.Clamp(shifted / scale, -1f, 1f);
     }
 
-    /// <summary>Werte innerhalb des Deadzone-Radius um 0 werden zu 0; ausserhalb wird linear von der
-    /// Deadzone-Grenze bis zum jeweiligen Extremwert neu skaliert, damit kein Sprung am Deadzone-Rand entsteht.
-    /// Funktioniert unveraendert fuer bidirektionale (-1..1) und unidirektionale (0..1) Werte, da bei
-    /// letzteren der Ruhepunkt ebenfalls bei 0 liegt.</summary>
+    /// <summary>Values inside the deadzone radius around zero become zero. Values outside are linearly rescaled
+    /// from the deadzone boundary to the respective extreme to avoid a jump at the edge. Works for both
+    /// bidirectional (-1..1) and unidirectional (0..1) values because the latter also rest at zero.</summary>
     private static float ApplyDeadzone(float value, float deadzone)
     {
         if (deadzone <= 0f)
@@ -94,7 +90,7 @@ public static class AxisSignalProcessor
         return sign * Math.Clamp(scaled, 0f, 1f);
     }
 
-    /// <summary>Wendet die gewaehlte Antwortkurve auf den bereits kalibrierten/deadzone-bereinigten Wert an.</summary>
+    /// <summary>Applies the selected response curve to the calibrated, deadzone-adjusted value.</summary>
     private static float ApplyCurve(float value, AxisCurveType curveType, float curveStrength)
     {
         if (curveType == AxisCurveType.Linear || value == 0f)
@@ -108,13 +104,13 @@ public static class AxisSignalProcessor
 
         return curveType switch
         {
-            // Reine Potenzfunktion: bei Staerke > 1 nahe 0 unempfindlicher (feinfuehliger), an den
-            // Extremen zunehmend steiler (Ableitung von t^n bei t=1 ist n).
+            // Pure power function: strength > 1 makes values near zero less sensitive and the curve steeper
+            // near the extremes (the derivative of t^n at t=1 is n).
             AxisCurveType.Exponential => sign * MathF.Pow(magnitude, strength),
 
-            // Generalisierte logistische S-Kurve: bei Staerke=1 exakt linear (t/(t+(1-t)) = t), bei
-            // Staerke > 1 nahe 0 unempfindlicher und kurz vor dem Extremwert (t=1) zunehmend steiler,
-            // dabei stets streng monoton und exakt auf [0,1] begrenzt.
+            // Generalized logistic S-curve: exactly linear at strength=1 (t/(t+(1-t)) = t); strength > 1
+            // reduces sensitivity near zero and steepens near the extreme (t=1), while remaining strictly
+            // monotonic and bounded to [0,1].
             AxisCurveType.SCurve => sign * SCurve(magnitude, strength),
 
             _ => value

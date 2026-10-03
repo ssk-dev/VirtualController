@@ -1,16 +1,14 @@
 namespace VirtualController.Core.Benchmark.Metrics;
 
-/// <param name="EstimatedDroppedReports">Naeherungsweise Anzahl "verpasster" Reports, geschaetzt aus
-/// Zeitluecken, die deutlich groesser als das nominale Intervall sind (siehe Klassendokumentation von
-/// <see cref="ReliabilityMetrics"/>). Eine HEURISTIK, keine exakte Zaehlung.</param>
-/// <param name="ConsecutiveDuplicateReportCount">Anzahl aufeinanderfolgender, byte-identischer Reports -
-/// REIN INFORMATIV, siehe Klassendokumentation: bei den meisten HID-Gamepads/Joysticks ist dies
-/// NORMALES Verhalten (kontinuierlicher Report-Strom unabhaengig von Zustandsaenderung), kein Fehlerindikator.</param>
-/// <param name="SequenceErrorsSupported">Immer false - siehe Klassendokumentation: echte HID-Sequenznummern
-/// existieren nicht generisch/herstellerunabhaengig, daher wird dieser Wert nicht berechnet.</param>
-/// <param name="UsbErrorsSupported">Immer false - siehe Klassendokumentation: USB-Bus-Fehler (CRC/STALL/etc.)
-/// werden vom Host-Controller-Treiber behandelt und sind auf User-Mode-HID-Ebene nicht auslesbar.</param>
-/// <param name="TotalReportCount">Gesamtzahl der waehrend der Messung empfangenen Reports.</param>
+/// <param name="EstimatedDroppedReports">Approximate number of missed reports, estimated from time gaps much
+/// larger than the nominal interval (see <see cref="ReliabilityMetrics"/> docs). This is a heuristic, not an exact count.</param>
+/// <param name="ConsecutiveDuplicateReportCount">Number of consecutive byte-identical reports. Informational only:
+/// this is normal for most HID gamepads/joysticks, which report continuously even when the state does not change.</param>
+/// <param name="SequenceErrorsSupported">Always false. Generic, vendor-independent HID sequence numbers do not
+/// exist, so this value is not calculated.</param>
+/// <param name="UsbErrorsSupported">Always false. USB bus errors (CRC/STALL/etc.) are handled by the host
+/// controller driver and cannot be read from user-mode HID.</param>
+/// <param name="TotalReportCount">Total reports received during the measurement.</param>
 public sealed record ReliabilityResult(
     long EstimatedDroppedReports,
     long ConsecutiveDuplicateReportCount,
@@ -19,32 +17,27 @@ public sealed record ReliabilityResult(
     long TotalReportCount);
 
 /// <summary>
-/// Berechnet die Reliability-Kennzahlen aus einem Strom von <see cref="Devices.Hid.HidReportSample"/>.
+/// Computes reliability metrics from a stream of <see cref="Devices.Hid.HidReportSample"/> values.
 ///
-/// EHRLICHE EINSCHRAENKUNGEN (bewusst nicht verschleiert, siehe Session-weite Vorgabe, reale statt
-/// vorgetaeuschte Werte zu liefern):
+/// Limitations (reported transparently rather than presenting unsupported values as real measurements):
 ///
-/// - <b>Dropped Reports</b>: HID kennt keine generische, herstellerunabhaengige Sequenznummer in den
-///   Report-Rohdaten. "Verpasste" Reports werden daher NUR HEURISTISCH aus auffaelligen Zeitluecken
-///   erkannt (ein beobachtetes Intervall deutlich groesser als das nominale Polling-Intervall deutet
-///   auf einen oder mehrere ausgebliebene Polls hin). Dies ist eine Naeherung, keine exakte Zaehlung -
-///   und ohne bekanntes nominales Intervall (z.B. weil die USB-Topologie-Abfrage aus Phase 2 fehlschlug)
-///   ueberhaupt nicht moeglich (siehe <see cref="ReliabilityMetrics(double?, double)"/>).
+/// - <b>Dropped reports</b>: HID report data has no generic, vendor-independent sequence number. Missed reports
+///   are estimated heuristically from unusually large time gaps; a report interval much larger than nominal may
+///   indicate one or more missed polls. This is an estimate, not an exact count, and is impossible without a
+///   known nominal interval (e.g. when phase 2 USB topology lookup fails; see
+///   <see cref="ReliabilityMetrics(double?, double)"/>).
 ///
-/// - <b>Duplicate Reports</b>: byte-identische aufeinanderfolgende Reports werden zwar gezaehlt, sind
-///   bei den meisten HID-Gamepads/Joysticks aber KEIN Fehlerzustand: viele Geraete senden kontinuierlich
-///   einen Report je Polling-Intervall, unabhaengig davon, ob sich der Zustand seit dem letzten Report
-///   geaendert hat (z.B. ein ruhig liegender Analogstick). Dieser Wert ist daher rein informativ und
-///   darf in der Benchmark-Anzeige NICHT als Fehlerindikator dargestellt werden.
+/// - <b>Duplicate reports</b>: consecutive byte-identical reports are counted but are not an error for most HID
+///   gamepads/joysticks. Many devices send one report per polling interval whether or not the state changed
+///   (e.g. while an analog stick is at rest). This value is informational and must not be presented as an error.
 ///
-/// - <b>Sequence Errors</b>: nicht implementiert (<see cref="ReliabilityResult.SequenceErrorsSupported"/> = false) -
-///   es existiert kein standardisiertes, herstellerunabhaengiges HID-Sequenzzaehler-Feld, das zuverlaessig
-///   ausgelesen werden koennte, ohne das konkrete Report-Format jedes einzelnen Geraetemodells zu kennen.
+/// - <b>Sequence errors</b>: not implemented (<see cref="ReliabilityResult.SequenceErrorsSupported"/> = false)
+///   because HID has no standardized, vendor-independent sequence counter that can be read without knowing
+///   each device model's report format.
 ///
-/// - <b>USB Errors</b>: nicht implementiert (<see cref="ReliabilityResult.UsbErrorsSupported"/> = false) -
-///   USB-Bus-Fehler (CRC-Fehler, STALL-Bedingungen, Timeout-Retries) werden vollstaendig vom
-///   USB-Host-Controller-Treiber im Kernel-Modus behandelt und sind fuer eine User-Mode-Anwendung ohne
-///   ETW-Kernel-Tracing oder einen eigenen Treiber nicht auslesbar.
+/// - <b>USB errors</b>: not implemented (<see cref="ReliabilityResult.UsbErrorsSupported"/> = false). USB bus
+///   errors (CRC errors, STALL conditions, timeout retries) are handled by the kernel-mode host controller
+///   driver and cannot be read by a user-mode app without ETW kernel tracing or a custom driver.
 /// </summary>
 public sealed class ReliabilityMetrics
 {
@@ -54,12 +47,11 @@ public sealed class ReliabilityMetrics
     private long _consecutiveDuplicateReportCount;
     private long _totalReportCount;
 
-    /// <param name="nominalIntervalMs">Siehe <see cref="LatencyMetrics"/> - nominales Polling-Intervall
-    /// in Millisekunden, oder null, falls nicht ermittelbar (dann bleibt <see cref="ReliabilityResult.EstimatedDroppedReports"/> stets 0).</param>
-    /// <param name="dropDetectionThresholdMultiplier">Ein beobachtetes Intervall muss mindestens das
-    /// so-vielfache des nominalen Intervalls betragen, um als (ein oder mehrere) verpasste Reports
-    /// gewertet zu werden. Standardmaessig 1,5 - bewusst deutlich ueber 1,0, um normale Jitter-Schwankungen
-    /// (siehe <see cref="LatencyMetrics"/>) nicht faelschlich als Drop zu werten.</param>
+    /// <param name="nominalIntervalMs">Nominal polling interval in milliseconds (see <see cref="LatencyMetrics"/>),
+    /// or null when unavailable; in that case <see cref="ReliabilityResult.EstimatedDroppedReports"/> remains zero.</param>
+    /// <param name="dropDetectionThresholdMultiplier">An observed interval must be at least this multiple of the
+    /// nominal interval to count as one or more missed reports. Defaults to 1.5, deliberately above 1.0 so normal
+    /// jitter (see <see cref="LatencyMetrics"/>) is not incorrectly counted as a drop.</param>
     public ReliabilityMetrics(double? nominalIntervalMs, double dropDetectionThresholdMultiplier = 1.5)
     {
         _nominalIntervalMs = nominalIntervalMs is > 0 ? nominalIntervalMs : null;
@@ -78,8 +70,8 @@ public sealed class ReliabilityMetrics
         if (_nominalIntervalMs is { } nominal && sample.IntervalMs is { } interval
             && interval >= nominal * _dropDetectionThresholdMultiplier)
         {
-            // Grobe Schaetzung, wie viele zusaetzliche Polling-Zyklen in diese Luecke gepasst haetten -
-            // "-1", da der eine tatsaechlich empfangene Report bereits mitgezaehlt ist.
+            // Estimate how many additional polling cycles fit into the gap. Subtract one because the received
+            // report is already counted.
             long estimatedMissed = (long)Math.Round(interval / nominal) - 1;
             if (estimatedMissed > 0)
             {

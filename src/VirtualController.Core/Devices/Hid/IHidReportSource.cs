@@ -1,51 +1,44 @@
 namespace VirtualController.Core.Devices.Hid;
 
 /// <summary>
-/// Ein einzelner, zeitgestempelter roher HID-Input-Report. Der Zeitstempel wird bewusst als
-/// <see cref="System.Diagnostics.Stopwatch"/>-Tick (<see cref="System.Diagnostics.Stopwatch.GetTimestamp"/>)
-/// erfasst statt als <see cref="DateTime"/> - fuer die geplanten Timing-/Latenz-Kennzahlen (Jitter,
-/// Intervall-Statistik) ist ausschliesslich die relative, monotone und hochaufloesende Differenz
-/// zwischen zwei Reports relevant, keine Wanduhrzeit.
+/// One timestamped raw HID input report. The timestamp uses <see cref="System.Diagnostics.Stopwatch"/> ticks
+/// (<see cref="System.Diagnostics.Stopwatch.GetTimestamp"/>) rather than <see cref="DateTime"/> because timing
+/// metrics (jitter and interval statistics) need only the relative, monotonic, high-resolution difference
+/// between reports, not wall-clock time.
 /// </summary>
-/// <param name="Data">Die rohen Report-Bytes, exakt so lang wie tatsaechlich gelesen (siehe
-/// <see cref="IHidReportSource.InputReportLength"/> fuer die vom Geraet gemeldete Nominal-Laenge).</param>
-/// <param name="TimestampTicks">Erfassungszeitpunkt in Stopwatch-Ticks, unmittelbar nach Rueckkehr
-/// des zugrunde liegenden blockierenden Lesevorgangs erfasst (siehe <see cref="CaptureTimestampTicks"/>).</param>
+/// <param name="Data">Raw report bytes, exactly as many as were read; see
+/// <see cref="IHidReportSource.InputReportLength"/> for the nominal length reported by the device.</param>
+/// <param name="TimestampTicks">Capture time in Stopwatch ticks, recorded immediately after the blocking read
+/// returns (see <see cref="CaptureTimestampTicks"/>).</param>
 public sealed record HidReport(byte[] Data, long TimestampTicks)
 {
-    /// <summary>Erfasst den aktuellen Zeitstempel fuer einen soeben gelesenen Report - zentrale Stelle,
-    /// falls sich die verwendete Zeitquelle spaeter einmal aendern sollte.</summary>
+    /// <summary>Captures the timestamp for a newly read report in one place, in case the time source changes later.</summary>
     public static long CaptureTimestampTicks() => System.Diagnostics.Stopwatch.GetTimestamp();
 }
 
 /// <summary>
-/// Liefert zeitgestempelte, rohe HID-Input-Reports eines konkreten physischen Eingabegeraets -
-/// bewusst als schmale Abstraktion ueber der tatsaechlich verwendeten Zugriffsbibliothek (aktuell
-/// <c>HidSharp</c>, siehe <see cref="HidDeviceInfoReader"/>/<see cref="HidSharpReportSource"/>).
+/// Provides timestamped raw HID input reports from a physical device through a narrow abstraction over the
+/// current access library (<c>HidSharp</c>; see <see cref="HidDeviceInfoReader"/>/<see cref="HidSharpReportSource"/>).
 ///
-/// Diese Trennung ist bewusst so gewaehlt, dass die geplante Benchmark-/Metrics-Schicht (Timing,
-/// Latenz, Reliability - siehe zukuenftiges <c>VirtualController.Core.Benchmark</c>) niemals direkt
-/// gegen HidSharp-Typen programmiert. Ein spaeterer Wechsel der zugrunde liegenden Implementierung
-/// (z.B. auf eigenes natives P/Invoke) würde dadurch keine Aenderungen oberhalb dieser Schnittstelle
-/// erfordern.
+/// This separation keeps benchmark/metrics code (timing, latency, reliability in
+/// <c>VirtualController.Core.Benchmark</c>) independent of HidSharp types. Replacing the underlying
+/// implementation later, e.g. with native P/Invoke, would not require changes above this interface.
 ///
-/// Implementierungen muessen fuer wiederholte <see cref="ReadReport"/>-Aufrufe aus einem einzigen
-/// dedizierten Hintergrund-Thread sicher sein (analog zu <see cref="IDeviceReader.Poll"/>), aber NICHT
-/// notwendigerweise von mehreren Threads gleichzeitig aufrufbar sein - ein Benchmark liest stets
-/// sequenziell von genau einem Thread.
+/// Implementations must support repeated <see cref="ReadReport"/> calls from one dedicated background thread
+/// (like <see cref="IDeviceReader.Poll"/>), but need not be callable concurrently from multiple threads;
+/// a benchmark always reads sequentially from one thread.
 /// </summary>
 public interface IHidReportSource : IDisposable
 {
-    /// <summary>Vom Geraet gemeldete Nominal-Laenge eines Input-Reports in Byte (HidD_GetCaps/
-    /// <c>MaxInputReportLength</c>) - bereits vor dem ersten <see cref="ReadReport"/>-Aufruf bekannt,
-    /// fuer die Transport-Kennzahl "Report Size".</summary>
+    /// <summary>Nominal input report length in bytes reported by the device (HidD_GetCaps/
+    /// <c>MaxInputReportLength</c>), available before the first <see cref="ReadReport"/> call for the "Report Size" metric.</summary>
     int InputReportLength { get; }
 
     /// <summary>
-    /// Blockiert, bis der naechste Input-Report eintrifft (oder <paramref name="cancellationToken"/>
-    /// abgebrochen wird), und liefert ihn zeitgestempelt zurueck.
+    /// Blocks until the next input report arrives or <paramref name="cancellationToken"/> is canceled, then
+    /// returns the report with a timestamp.
     /// </summary>
-    /// <exception cref="OperationCanceledException">Bei Abbruch ueber <paramref name="cancellationToken"/>.</exception>
-    /// <exception cref="IOException">Bei Verbindungsverlust waehrend des Lesens (Geraet getrennt).</exception>
+    /// <exception cref="OperationCanceledException">If canceled through <paramref name="cancellationToken"/>.</exception>
+    /// <exception cref="IOException">If the connection is lost while reading (device disconnected).</exception>
     HidReport ReadReport(CancellationToken cancellationToken);
 }

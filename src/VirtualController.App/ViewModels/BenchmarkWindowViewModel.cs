@@ -9,34 +9,33 @@ using VirtualController.Core.Devices.Hid;
 namespace VirtualController.App.ViewModels;
 
 /// <summary>
-/// ViewModel des Echtzeit-Anzeigefensters fuer den Hardware-Benchmark eines einzelnen Geraets (siehe
-/// <see cref="Views.BenchmarkWindow"/>). Enthaelt bewusst KEINE eigene Sitzungssteuerung - Start/Stop
-/// bleiben Sache des zugrunde liegenden <see cref="DeviceConfigDeviceViewModel"/> (<see cref="Device"/>,
-/// insbesondere <see cref="DeviceConfigDeviceViewModel.ToggleBenchmarkCommand"/> und
-/// <see cref="DeviceConfigDeviceViewModel.IsBenchmarking"/>), damit eine einmal gestartete Sitzung -
-/// wie bereits fuer den Inline-Button dokumentiert - unabhaengig davon weiterlaeuft, ob dieses Fenster
-/// gerade geoeffnet, geschlossen oder erneut geoeffnet wird. Dieses ViewModel beobachtet lediglich
-/// <see cref="DeviceConfigDeviceViewModel.IsBenchmarking"/> und pollt waehrenddessen periodisch
-/// <see cref="DeviceConfigDeviceViewModel.GetLiveBenchmarkSnapshot"/> fuer eine Echtzeit-Anzeige der
-/// bisher gemessenen Kennzahlen (Timing/Latenz/Reliability/Signal).
+/// ViewModel for the real-time hardware benchmark window for one device (see <see cref="Views.BenchmarkWindow"/>).
+/// It deliberately does not control the session; start/stop remain owned by
+/// <see cref="DeviceConfigDeviceViewModel"/> (<see cref="Device"/>, especially
+/// <see cref="DeviceConfigDeviceViewModel.ToggleBenchmarkCommand"/> and
+/// <see cref="DeviceConfigDeviceViewModel.IsBenchmarking"/>). A started session therefore continues whether
+/// this window is open, closed, or reopened. This view model observes
+/// <see cref="DeviceConfigDeviceViewModel.IsBenchmarking"/> and periodically polls
+/// <see cref="DeviceConfigDeviceViewModel.GetLiveBenchmarkSnapshot"/> to display the metrics measured so far
+/// (timing, latency, reliability, and signal).
 /// </summary>
 public sealed partial class BenchmarkWindowViewModel : ObservableObject, IDisposable
 {
-    /// <summary>Aktualisierungsrate der Live-Anzeige - bewusst deutlich langsamer als die tatsaechliche
-    /// Report-Rate des Geraets (die kann mehrere hundert Hz betragen), da hier lediglich eine fuer
-    /// Menschen lesbare Momentaufnahme der bisher akkumulierten Statistik gezeigt wird, kein Rohdatenstrom.</summary>
+    /// <summary>Refresh rate for the live display. Intentionally much slower than the device's report rate
+    /// (which can reach several hundred Hz), since this shows a readable snapshot of accumulated statistics,
+    /// not a raw data stream.</summary>
     private static readonly TimeSpan LiveRefreshInterval = TimeSpan.FromMilliseconds(250);
 
     private readonly DispatcherTimer _timer;
     private bool _disposed;
 
-    /// <summary>Das Geraet, dessen Benchmark hier in Echtzeit angezeigt wird - Start/Stop-Buttons der View
-    /// binden direkt gegen <see cref="DeviceConfigDeviceViewModel.ToggleBenchmarkCommand"/>/<see cref="DeviceConfigDeviceViewModel.IsBenchmarking"/>
-    /// dieser Instanz, analog zum bereits bestehenden Inline-Button in DeviceConfigTemplates.xaml.</summary>
+    /// <summary>Device whose benchmark is displayed in real time. The view's start/stop buttons bind directly
+    /// to this instance's <see cref="DeviceConfigDeviceViewModel.ToggleBenchmarkCommand"/> and
+    /// <see cref="DeviceConfigDeviceViewModel.IsBenchmarking"/>, like the existing inline button in DeviceConfigTemplates.xaml.</summary>
     public DeviceConfigDeviceViewModel Device { get; }
 
-    /// <summary>Ob bereits mindestens eine Momentaufnahme empfangen wurde - solange false, zeigt die View
-    /// einen Platzhaltertext statt (noch) bedeutungsloser Nullwerte.</summary>
+    /// <summary>Whether at least one snapshot has been received. Until then, the view shows a placeholder
+    /// instead of meaningless zero values.</summary>
     [ObservableProperty]
     private bool _hasSnapshot;
 
@@ -64,14 +63,14 @@ public sealed partial class BenchmarkWindowViewModel : ObservableObject, IDispos
     [ObservableProperty]
     private double _intervalStdDevMs;
 
-    /// <summary>Siehe <see cref="LatencyResult"/>/<see cref="LatencyMetrics"/> - false, solange kein
-    /// nominales Polling-Intervall ermittelbar war (dann bleibt die Latenz-Naeherung "nicht ermittelbar").</summary>
+    /// <summary>See <see cref="LatencyResult"/>/<see cref="LatencyMetrics"/>. False while no nominal polling
+    /// interval could be determined, in which case the latency estimate is unavailable.</summary>
     [ObservableProperty]
     private bool _latencySupported;
 
-    /// <summary>Latenz-Jitter: mittlere Abweichung jedes einzelnen beobachteten Report-Intervalls vom
-    /// nominalen USB-Polling-Intervall (siehe <see cref="LatencyMetrics"/>-Klassendokumentation) - NICHT
-    /// zu verwechseln mit einer echten Ende-zu-Ende-Latenz (dort nicht messbar, siehe Dokumentation).</summary>
+    /// <summary>Latency jitter: mean deviation of each observed report interval from the nominal USB polling
+    /// interval (see <see cref="LatencyMetrics"/> documentation). This is not an end-to-end latency measurement,
+    /// which cannot be measured here.</summary>
     [ObservableProperty]
     private double _latencyJitterMeanMs;
 
@@ -87,22 +86,20 @@ public sealed partial class BenchmarkWindowViewModel : ObservableObject, IDispos
     [ObservableProperty]
     private long _totalReportCount;
 
-    /// <summary>True, wenn mehr als ein HID-Interface mit passender Vendor-/Product-ID gefunden wurde
-    /// (siehe <see cref="HidCandidates"/>) - deutet auf ein Composite-Geraet hin, bei dem die Sitzung
-    /// versehentlich ein falsches (kein Reports liefernde) Interface geoeffnet haben könnte, falls trotz
-    /// Aktivitaet am Geraet <see cref="PollingSampleCount"/> bei 0 bleibt.</summary>
+    /// <summary>True when multiple HID interfaces with the matching vendor/product ID were found (see
+    /// <see cref="HidCandidates"/>). This may indicate a composite device where the session opened an interface
+    /// that produces no reports, especially if <see cref="PollingSampleCount"/> remains zero while the device is active.</summary>
     [ObservableProperty]
     private bool _hasMultipleHidCandidates;
 
-    /// <summary>Je Achse ein Eintrag mit den aktuell gemessenen Signal-Kennzahlen (siehe <see cref="SignalAxisResult"/>) -
-    /// leer, falls das Geraet keine erkannten Achsen hat oder noch keine Sitzung lief.</summary>
+    /// <summary>One entry per axis with its measured signal metrics (see <see cref="SignalAxisResult"/>); empty
+    /// if the device has no detected axes or no session has run yet.</summary>
     public ObservableCollection<SignalAxisResult> SignalAxes { get; } = new();
 
-    /// <summary>Alle bei der Sitzungserstellung gefundenen HID-Interfaces mit passender Vendor-/Product-ID
-    /// (siehe <see cref="BenchmarkDiagnosticsInfo"/>) - fuer die Fehlersuche sichtbar gemacht, falls eine
-    /// Sitzung trotz erfolgreich geoeffneter Report-Quelle durchgehend 0 Messwerte liefert: mehr als ein
-    /// Eintrag deutet auf ein Composite-Geraet hin, bei dem ggf. das falsche Interface geoeffnet wurde
-    /// (markiert per <see cref="BenchmarkHidCandidateInfo.IsResolved"/>).</summary>
+    /// <summary>All HID interfaces with the matching vendor/product ID found when the session was created
+    /// (see <see cref="BenchmarkDiagnosticsInfo"/>). Exposed for troubleshooting if a session reports zero
+    /// samples despite opening a report source; multiple entries may indicate a composite device where the
+    /// wrong interface was opened (marked by <see cref="BenchmarkHidCandidateInfo.IsResolved"/>).</summary>
     public ObservableCollection<BenchmarkHidCandidateInfo> HidCandidates { get; } = new();
 
     public BenchmarkWindowViewModel(DeviceConfigDeviceViewModel device)
@@ -114,9 +111,8 @@ public sealed partial class BenchmarkWindowViewModel : ObservableObject, IDispos
 
         Device.PropertyChanged += OnDevicePropertyChanged;
 
-        // Falls das Fenster (erneut) geoeffnet wird, waehrend bereits eine Sitzung laeuft, sofort die
-        // aktuelle Momentaufnahme anzeigen und die Live-Aktualisierung starten, statt bis zum ersten
-        // regulaeren Timer-Tick zu warten.
+        // If the window opens or reopens during a running session, show the current snapshot and start live
+        // updates immediately rather than waiting for the first timer tick.
         if (Device.IsBenchmarking)
         {
             RefreshSnapshot();
@@ -133,8 +129,8 @@ public sealed partial class BenchmarkWindowViewModel : ObservableObject, IDispos
 
         if (Device.IsBenchmarking)
         {
-            // Neue Sitzung gestartet: Anzeige einer eventuell noch sichtbaren vorherigen Sitzung zuruecksetzen,
-            // damit keine veralteten Werte mit denen der neuen Sitzung verwechselt werden koennen.
+            // A new session started; clear any previous session's display so stale values are not confused
+            // with the new results.
             SignalAxes.Clear();
             HasSnapshot = false;
             RefreshSnapshot();
@@ -142,10 +138,9 @@ public sealed partial class BenchmarkWindowViewModel : ObservableObject, IDispos
         }
         else
         {
-            // Sitzung beendet (regulaer gestoppt oder Fehler) - Timer anhalten, aber die zuletzt
-            // angezeigten Werte bewusst NICHT loeschen: sie entsprechen naeherungsweise dem soeben als
-            // JSON exportierten Endergebnis (siehe Device.LastBenchmarkFilePath) und bleiben so als letzter
-            // Stand sichtbar, bis der Nutzer eine neue Sitzung startet.
+            // The session ended, either normally or due to an error. Stop the timer but keep the displayed
+            // values: they approximate the final result just exported as JSON (see Device.LastBenchmarkFilePath)
+            // and remain visible until the user starts another session.
             _timer.Stop();
         }
     }
@@ -157,8 +152,7 @@ public sealed partial class BenchmarkWindowViewModel : ObservableObject, IDispos
         var snapshot = Device.GetLiveBenchmarkSnapshot();
         if (snapshot is null)
         {
-            // Keine laufende Sitzung (mehr) - letzte angezeigte Werte unveraendert stehen lassen (siehe
-            // OnDevicePropertyChanged).
+            // No session is running; keep the last displayed values (see OnDevicePropertyChanged).
             return;
         }
 

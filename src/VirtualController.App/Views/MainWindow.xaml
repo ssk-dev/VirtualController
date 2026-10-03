@@ -2,6 +2,7 @@
         xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         xmlns:vm="clr-namespace:VirtualController.App.ViewModels"
+        xmlns:loc="clr-namespace:VirtualController.App.Localization"
         xmlns:shell="clr-namespace:System.Windows.Shell;assembly=PresentationFramework"
         Title="{Binding WindowTitle}" Height="900" Width="1440"
         Icon="pack://application:,,,/Icons/VirtualController.ico"
@@ -9,27 +10,25 @@
         Topmost="{Binding AlwaysOnTop}"
         Closing="MainWindow_OnClosing">
 
-    <!-- Ersetzt die native, hell gerenderte und nicht themebare Windows-Titelleiste durch eine eigene,
-         dunkle Titelleiste (siehe DockPanel.Dock="Top" TitleBar-Border unten). WindowChrome (Standard-
-         WPF-Feature, keine zusaetzliche NuGet-Abhaengigkeit) uebernimmt dabei weiterhin das native
-         Verhalten fuer Resize an den Fensterkanten. CaptionHeight="32" markiert den obersten 32px-Streifen
-         (identisch zur Hoehe der eigenen TitleBar-Border unten) automatisch als Drag-/Doppelklick-
-         Maximieren-Bereich, analog zur nativen Titelleiste - einzelne interaktive Elemente darin (die drei
-         Fenstersteuerungs-Buttons) muessen daher explizit per WindowChrome.IsHitTestVisibleInChrome="True"
-         als klickbar markiert werden, sonst wuerden ihre Klicks vom Drag-Verhalten geschluckt. -->
+        <!-- Replaces the bright, unthemed native Windows title bar with a custom dark title bar (see the
+            TitleBar border with DockPanel.Dock="Top" below). WindowChrome is a built-in WPF feature and
+            adds no NuGet dependency; it preserves native resizing at the window edges. CaptionHeight="32"
+            marks the top 32-pixel strip (matching the custom TitleBar border below) as the drag and
+            double-click-to-maximize area, just like the native title bar. Interactive elements inside it
+            (the three window controls) must explicitly set WindowChrome.IsHitTestVisibleInChrome="True"
+            so their clicks are not consumed by the drag behavior. -->
     <WindowChrome.WindowChrome>
         <shell:WindowChrome CaptionHeight="32" ResizeBorderThickness="5" CornerRadius="0" GlassFrameThickness="0" />
     </WindowChrome.WindowChrome>
 
     <DockPanel Background="{StaticResource AppBackgroundBrush}">
-        <!-- Eigene, dunkle Titelleiste als Ersatz fuer die native Windows-Titelleiste (siehe
-             WindowStyle="None" oben): App-Icon + Titel links, Fenstersteuerung (Minimieren/Maximieren-
-             Wiederherstellen/Schliessen) rechts. Der gesamte Bereich fungiert dank WindowChrome
-             (CaptionHeight="32") automatisch als Drag-/Doppelklick-Maximieren-Zone; die drei Buttons
-             setzen daher explizit WindowChrome.IsHitTestVisibleInChrome="True", damit ihre Klicks nicht
-             vom Drag-Verhalten geschluckt werden. Das Maximieren/Wiederherstellen-Glyph wird ueber
-             MainWindow.xaml.cs (MaximizeRestoreGlyph) an den aktuellen WindowState angepasst, da ein
-             reiner XAML-Trigger auf Window.WindowState hierfuer nicht direkt am Button ansetzen kann. -->
+           <!-- Custom dark replacement for the native Windows title bar (see WindowStyle="None" above):
+               the app icon and title are on the left, and window controls (minimize/maximize-restore/close)
+               are on the right. WindowChrome (CaptionHeight="32") makes the whole area a drag and
+               double-click-to-maximize zone. The three buttons explicitly set
+               WindowChrome.IsHitTestVisibleInChrome="True" so their clicks are not consumed by dragging.
+               MainWindow.xaml.cs updates the maximize/restore glyph (MaximizeRestoreGlyph) for the current
+               WindowState because a plain XAML trigger cannot bind directly to Window.WindowState here. -->
         
         <Border x:Name="TitleBar" DockPanel.Dock="Top" Height="24" Background="{StaticResource AppBackgroundBrush}"
                 BorderBrush="{StaticResource PanelBorderBrush}" BorderThickness="0,0,0,0">
@@ -45,20 +44,20 @@
                 </StackPanel>
                -->
                 <StackPanel Grid.Column="1" Orientation="Horizontal" WindowChrome.IsHitTestVisibleInChrome="True">
-                    <Button Style="{StaticResource TitleBarButtonStyle}" Click="OnMinimizeButtonClicked" ToolTip="Minimieren">
+                    <Button Style="{StaticResource TitleBarButtonStyle}" Click="OnMinimizeButtonClicked" ToolTip="{loc:Loc window.minimize}">
                         <TextBlock Text="&#xE921;" />
                     </Button>
-                    <Button Style="{StaticResource TitleBarButtonStyle}" Click="OnMaximizeRestoreButtonClicked" ToolTip="Maximieren/Wiederherstellen">
+                    <Button Style="{StaticResource TitleBarButtonStyle}" Click="OnMaximizeRestoreButtonClicked" ToolTip="{loc:Loc window.maximize_restore}">
                         <TextBlock x:Name="MaximizeRestoreGlyph" Text="&#xE922;" />
                     </Button>
-                    <Button Style="{StaticResource TitleBarCloseButtonStyle}" Click="OnCloseButtonClicked" ToolTip="Schliessen">
+                    <Button Style="{StaticResource TitleBarCloseButtonStyle}" Click="OnCloseButtonClicked" ToolTip="{loc:Loc window.close}">
                         <TextBlock Text="&#xE8BB;" />
                     </Button>
                 </StackPanel>
             </Grid>
         </Border>
 
-        <!-- Kopfzeile: Treiber-Status + globale Aktionen -->
+        <!-- Header: driver status and global actions -->
         <Border DockPanel.Dock="Top" Background="Transparent" BorderBrush="{StaticResource PanelBorderBrush}" Padding="20,10,20,20">
             <Grid>
                 <Grid.ColumnDefinitions>
@@ -70,19 +69,17 @@
                     <Image Source="pack://application:,,,/Icons/logo.png" Height="60" Margin="0,0,0,0"
                            VerticalAlignment="Center" />
 
-                    <!-- Vertikale Trennlinie zwischen Logo und ViGEmBus-Status-Pille: Hoehe entspricht der
-                         global definierten Hoehe der Header-Aktions-Buttons (HeaderActionButtonHeight,
-                         siehe Themes/Styles.xaml), Abstand zu beiden Seiten (Logo links / ViGEmBus-Pille
-                         rechts) betraegt je 20px. -->
+                    <!-- Vertical divider between the logo and ViGEmBus status pill. Its height matches the
+                        shared HeaderActionButtonHeight for header actions (see Themes/Styles.xaml), with
+                        20 pixels of spacing on either side. -->
                     <Border Width="1" Margin="20,0" VerticalAlignment="Center"
                             Background="{StaticResource PanelBorderBrush}"
                             Height="{StaticResource HeaderActionButtonHeight}" />
 
-                    <!-- ViGEmBus-Status als eigene "Pille": Punkt-Indikator + zweizeiliger Text (Haupttext/
-                         Untertitel), angelehnt an die urspruengliche Design-Vorlage (assets/layout-mapping.html,
-                         ".header-vigembus-box"). Kein eigener Rahmen und identischer Hintergrund wie die
-                         Kopfzeile selbst (AppBackgroundBrush), damit sich die Pille optisch nicht von der
-                         Kopfzeile abhebt. -->
+                    <!-- ViGEmBus status pill with a dot indicator and two lines of text (main label and
+                        subtitle), based on the original design in assets/layout-mapping.html
+                        (".header-vigembus-box"). It has no separate border and shares the header's
+                        AppBackgroundBrush so it blends into the header. -->
                     <StackPanel Orientation="Vertical" VerticalAlignment="Center">
                 
                         <Border BorderThickness="0" Padding="10,4" Margin="0,0,12,0">
@@ -91,7 +88,7 @@
                                         Fill="{Binding DriverReady, Converter={StaticResource BoolToStatusBrushConverter}}" />
                                 <StackPanel VerticalAlignment="Center">
                                     <TextBlock Text="{Binding DriverStatusText}" FontWeight="Bold" Foreground="{StaticResource TextBrush}" />
-                                    <TextBlock Text="{Binding DriverReady, Converter={StaticResource BoolToDriverSubtextConverter}}"
+                                    <TextBlock Text="{loc:LocBool Value={Binding DriverReady}, WhenTrue=driver.subtext_active, WhenFalse=driver.subtext_unavailable}"
                                             FontSize="11" Foreground="{StaticResource MutedTextBrush}" />
                                 </StackPanel>
                             </StackPanel>
@@ -102,9 +99,8 @@
 
                 <StackPanel Grid.Column="1" Orientation="Vertical">
                     <StackPanel Orientation="Horizontal" Height="{StaticResource HeaderActionButtonHeight}">
-                        <!-- Platzhalter-Icons (Segoe MDL2 Assets) vor jeder Button-Beschriftung, angelehnt an die
-                            Icon-Vorlage in assets/layout-mapping.html; werden spaeter durch eigene Icon-Assets
-                            ersetzt. -->
+                            <!-- Placeholder icons (Segoe MDL2 Assets) before each button label, based on the
+                                icon design in assets/layout-mapping.html; replace these with custom assets later. -->
                         <Button Command="{Binding RefreshDevicesCommand}" Margin="4,0" Padding="8,4">
                                 <Button.Background>
         <LinearGradientBrush StartPoint="0,0" EndPoint="1,0">
@@ -115,58 +111,56 @@
 
                             <StackPanel Orientation="Horizontal">
                                 <TextBlock Text="&#xE72C;" FontFamily="Segoe MDL2 Assets" Margin="0,0,6,0" VerticalAlignment="Center" />
-                                <TextBlock Text="Geraete aktualisieren" VerticalAlignment="Center" />
+                                <TextBlock Text="{loc:Loc header.refresh_devices}" VerticalAlignment="Center" />
                             </StackPanel>
                         </Button>
                         <Button Command="{Binding LoadProfilesCommand}" Margin="4,0" Padding="8,4">
                             <StackPanel Orientation="Horizontal">
                                 <TextBlock Text="&#xE8B7;" FontFamily="Segoe MDL2 Assets" Margin="0,0,6,0" VerticalAlignment="Center" />
-                                <TextBlock Text="Profile laden" VerticalAlignment="Center" />
+                                <TextBlock Text="{loc:Loc header.load_profiles}" VerticalAlignment="Center" />
                             </StackPanel>
                         </Button>
                         <StackPanel Orientation="Horizontal" Margin="12,0,4,0"
                                     Visibility="{Binding HasUnsavedChanges, Converter={StaticResource BoolToVisibilityConverter}}">
                             <TextBlock Text="&#xE7BA;" FontFamily="Segoe MDL2 Assets" Foreground="#C00000" Margin="0,0,6,0" VerticalAlignment="Center" />
-                            <TextBlock Text="Ungespeicherte Aenderungen" Foreground="#C00000" FontWeight="Bold" VerticalAlignment="Center" />
+                            <TextBlock Text="{loc:Loc header.unsaved_changes}" Foreground="#C00000" FontWeight="Bold" VerticalAlignment="Center" />
                         </StackPanel>
                         <Button Command="{Binding SaveProfilesCommand}" Margin="4,0" Padding="8,4"
                                 Foreground="{Binding HasUnsavedChanges, Converter={StaticResource BoolToUnsavedForegroundConverter}}"
                                 FontWeight="{Binding HasUnsavedChanges, Converter={StaticResource BoolToFontWeightConverter}}">
                             <StackPanel Orientation="Horizontal">
                                 <TextBlock Text="&#xE74E;" FontFamily="Segoe MDL2 Assets" Margin="0,0,6,0" VerticalAlignment="Center" />
-                                <TextBlock Text="Profile speichern" VerticalAlignment="Center" />
+                                <TextBlock Text="{loc:Loc header.save_profiles}" VerticalAlignment="Center" />
                             </StackPanel>
                         </Button>
                         <Button Command="{Binding OpenWindowsGameControllersCommand}" Margin="4,0" Padding="8,4"
-                                ToolTip="Oeffnet die native Windows-Systemsteuerung fuer Gamecontroller (joy.cpl).">
+                                ToolTip="{loc:Loc header.gamecontrollers_tooltip}">
                             <StackPanel Orientation="Horizontal">
                                 <TextBlock Text="&#xE975;" FontFamily="Segoe MDL2 Assets" Margin="0,0,6,0" VerticalAlignment="Center" />
-                                <TextBlock Text="Windows Gamecontroller" VerticalAlignment="Center" />
+                                <TextBlock Text="{loc:Loc header.gamecontrollers}" VerticalAlignment="Center" />
                             </StackPanel>
                         </Button>
                     </StackPanel>
                     <StackPanel Orientation="Horizontal" HorizontalAlignment="Right" Margin="0,4,12,0">
-                                <TextBlock Text="{Binding Update.CurrentVersionText, StringFormat='Version: {0}'}" FontSize="10" VerticalAlignment="Center" Foreground="{StaticResource MutedTextBrush}" />
+                                <TextBlock Text="{loc:LocFormat Key=header.version_format, Value={Binding Update.CurrentVersionText}}" FontSize="10" VerticalAlignment="Center" Foreground="{StaticResource MutedTextBrush}" />
                     </StackPanel>
                 </StackPanel>
             </Grid>
         </Border>
 
-        <!-- Haupt-Tabbar: teilt die Funktionalitaet des Hauptfensters in die Bereiche "Mapping"
-             (bisherige Controller-/Modus-/Mapping-Verwaltung, unveraendert), "Gerätekonfiguration"
-             (bisheriger separater "Geraete konfigurieren"-Dialog, jetzt als eigener Tab mit einer
-             weiteren, inneren Tab-Leiste je Geraet) und "Einstellungen" (Platzhalter fuer zukuenftige,
-             globale Anwendungseinstellungen). -->
+           <!-- Main tab bar: divides the window into "Mapping" (existing controller, mode, and mapping
+               management), "Device Configuration" (the former separate device configuration dialog,
+               now a tab with an inner tab for each device), and "Settings" (for global app settings). -->
         <TabControl SelectedIndex="{Binding SelectedTabIndex}" Background="Transparent">
-            <TabItem Header="Mapping">
+            <TabItem Header="{loc:Loc tabs.mapping}">
                 <DockPanel>
-                    <!-- Linke Spalte: Liste der virtuellen Controller -->
+                    <!-- Left column: virtual controller list -->
                     <Border DockPanel.Dock="Left" Width="260" BorderBrush="{StaticResource PanelBorderBrush}" BorderThickness="0,0,1,0">
                         <DockPanel>
                             <Button DockPanel.Dock="Top" Margin="8" Padding="6" Command="{Binding AddControllerCommand}">
                                 <StackPanel Orientation="Horizontal">
                                     <TextBlock Text="&#xE710;" FontFamily="Segoe MDL2 Assets" Margin="0,0,6,0" VerticalAlignment="Center" />
-                                    <TextBlock Text="Neuer virtueller Controller" VerticalAlignment="Center" />
+                                    <TextBlock Text="{loc:Loc mapping.new_controller}" VerticalAlignment="Center" />
                                 </StackPanel>
                             </Button>
 
@@ -228,7 +222,7 @@
                         </DockPanel>
                     </Border>
 
-                    <!-- Rechte Seite: Details + Mapping-Tabelle des ausgewaehlten Controllers -->
+                    <!-- Right side: details and mapping table for the selected controller -->
                     <Grid x:Name="ControllerDetailGrid" DataContext="{Binding SelectedController}">
                         <Grid.RowDefinitions>
                             <RowDefinition Height="Auto" />
@@ -240,21 +234,21 @@
                         <Border Grid.Row="0" Padding="12" Background="{StaticResource AppBackgroundBrush}" BorderBrush="{StaticResource PanelBorderBrush}" BorderThickness="0,0,0,1">
                             <StackPanel>
                                 <StackPanel Orientation="Horizontal" Margin="0,0,0,6">
-                                    <TextBlock Text="Name:" VerticalAlignment="Center" Width="90" />
+                                    <TextBlock Text="{loc:Loc mapping.name}" VerticalAlignment="Center" Width="90" />
                                     <TextBox Text="{Binding Name, UpdateSourceTrigger=PropertyChanged}" Width="220" />
 
-                                    <TextBlock Text="Layout:" VerticalAlignment="Center" Width="60" Margin="16,0,0,0" />
+                                    <TextBlock Text="{loc:Loc mapping.layout}" VerticalAlignment="Center" Width="60" Margin="16,0,0,0" />
                                     <ComboBox ItemsSource="{x:Static vm:VirtualControllerViewModel.LayoutOptions}"
                                               SelectedItem="{Binding Layout}" Width="120"
                                               IsEnabled="{Binding IsRunning, Converter={StaticResource InverseBoolConverter}}"
-                                              ToolTip="Das Layout kann nicht geaendert werden, waehrend der Controller laeuft - bitte zuerst Stop klicken." />
+                                              ToolTip="{loc:Loc mapping.layout_locked_tooltip}" />
 
-                                    <TextBlock Text="Backend:" VerticalAlignment="Center" Width="70" Margin="16,0,0,0" />
+                                    <TextBlock Text="{loc:Loc mapping.backend}" VerticalAlignment="Center" Width="70" Margin="16,0,0,0" />
                                     <TextBlock Text="{Binding ResolvedBackend}" VerticalAlignment="Center" FontStyle="Italic" />
                                 </StackPanel>
 
                                 <StackPanel Orientation="Horizontal">
-                                    <TextBlock Text="Polling (Hz):" VerticalAlignment="Center" Width="90" />
+                                    <TextBlock Text="{loc:Loc mapping.polling}" VerticalAlignment="Center" Width="90" />
                                     <TextBox Text="{Binding PollingRateHz, UpdateSourceTrigger=PropertyChanged}" Width="80" />
 
                                     <TextBlock Text="{Binding StatusText}" Margin="20,0,0,0" VerticalAlignment="Center" FontWeight="Bold" />
@@ -268,47 +262,46 @@
                                             </Button.Background>
                                         <StackPanel Orientation="Horizontal">
                                             <TextBlock Text="&#xE768;" FontFamily="Segoe MDL2 Assets" Margin="0,0,6,0" VerticalAlignment="Center" />
-                                            <TextBlock Text="Start" VerticalAlignment="Center"/>
+                                            <TextBlock Text="{loc:Loc mapping.start}" VerticalAlignment="Center"/>
                                         </StackPanel>
                                     </Button>
                                     <Button Command="{Binding StopCommand}" Margin="12,0" Padding="24,12">
                                         <StackPanel Orientation="Horizontal">
                                             <TextBlock Text="&#xE71A;" FontFamily="Segoe MDL2 Assets" Margin="0,0,6,0" VerticalAlignment="Center" />
-                                            <TextBlock Text="Stop" VerticalAlignment="Center" />
+                                            <TextBlock Text="{loc:Loc mapping.stop}" VerticalAlignment="Center" />
                                         </StackPanel>
                                     </Button>
 
-                                    <!-- Sperrt die diesem Controller zugeordneten physischen Geraete per HidHide fuer alle
-                                         anderen Anwendungen, solange dieser virtuelle Controller laeuft (siehe
-                                         ControllerManager/HidHideController). Ausgegraut, falls der HidHide-Treiber nicht
-                                         installiert/betriebsbereit ist (siehe MainViewModel.IsHidHideAvailable) - der
-                                         DataContext dieses Bereichs ist bereits SelectedController, daher Zugriff auf das
-                                         Fenster-weite MainViewModel ueber den Window-DataContext. -->
+                                     <!-- Uses HidHide to block this controller's assigned physical devices from other
+                                         applications while the virtual controller is running (see
+                                         ControllerManager/HidHideController). Disabled when the HidHide driver is
+                                         unavailable (see MainViewModel.IsHidHideAvailable). This area already uses
+                                         SelectedController as its DataContext, so the window-level MainViewModel is
+                                         accessed through the Window DataContext. -->
                                     <CheckBox Content="HidHide" VerticalAlignment="Center" Margin="16,0,0,0"
                                               IsChecked="{Binding HidHideEnabled}"
                                               IsEnabled="{Binding DataContext.IsHidHideAvailable, RelativeSource={RelativeSource AncestorType=Window}}"
-                                              ToolTip="Physische Geraete dieses Controllers waehrend der Laufzeit fuer andere Anwendungen sperren (benoetigt den HidHide-Treiber)." />
+                                              ToolTip="{loc:Loc mapping.hidhide_tooltip}" />
 
                                     <Button Command="{Binding RemoveCommand}" Margin="16,0,0,0" Padding="10,4">
                                         <StackPanel Orientation="Horizontal">
                                             <TextBlock Text="&#xE74D;" FontFamily="Segoe MDL2 Assets" Margin="0,0,6,0" VerticalAlignment="Center" />
-                                            <TextBlock Text="Entfernen" VerticalAlignment="Center" />
+                                            <TextBlock Text="{loc:Loc mapping.remove}" VerticalAlignment="Center" />
                                         </StackPanel>
                                     </Button>
                                 </StackPanel>
 
-                                <!-- Automatischer Start/Stop dieses Controllers, gekoppelt an das Laufen eines vom
-                                     Nutzer ausgewaehlten Programms (Vollpfad-Abgleich per Hintergrund-Polling, siehe
-                                     MainViewModel.OnAutoStartTimerTick) - laeuft das Programm, wird der Controller
-                                     automatisch gestartet; wird es beendet, automatisch wieder gestoppt. -->
+                                  <!-- Automatically starts or stops this controller based on whether the selected
+                                      program is running. The process path is checked through background polling
+                                      (see MainViewModel.OnAutoStartTimerTick). -->
                                 <StackPanel Orientation="Horizontal" Margin="0,6,0,0">
-                                    <CheckBox Content="Controller automatisch starten" VerticalAlignment="Center"
+                                    <CheckBox Content="{loc:Loc mapping.auto_start}" VerticalAlignment="Center"
                                               IsChecked="{Binding AutoStartEnabled}"
-                                              ToolTip="Startet und stoppt diesen Controller automatisch, je nachdem ob das unten ausgewaehlte Programm laeuft." />
+                                              ToolTip="{loc:Loc mapping.auto_start_tooltip}" />
                                     <Button Command="{Binding ChooseAutoStartExecutableCommand}" Margin="16,0,4,0" Padding="10,4">
                                         <StackPanel Orientation="Horizontal">
                                             <TextBlock Text="&#xE8E5;" FontFamily="Segoe MDL2 Assets" Margin="0,0,6,0" VerticalAlignment="Center" />
-                                            <TextBlock Text="Programm auswählen" VerticalAlignment="Center" />
+                                            <TextBlock Text="{loc:Loc mapping.choose_program}" VerticalAlignment="Center" />
                                         </StackPanel>
                                     </Button>
                                     <TextBlock Text="{Binding AutoStartExecutableDisplayName}" VerticalAlignment="Center" FontStyle="Italic" Foreground="{StaticResource MutedTextBrush}" Margin="8,0,0,0" />
@@ -316,51 +309,50 @@
                             </StackPanel>
                         </Border>
 
-                        <!-- Modus-Umschaltmechanismus: entweder ein einziger, controller-weiter Toggle-Trigger, der
-                             bei jeder steigenden Flanke zum naechsten aktivierten Modus weiterschaltet, oder je Modus
-                             ein eigener Switch-Trigger, der diesen Modus direkt aktiviert (siehe Tab-Leiste unten).
-                             Beide Mechanismen sind immer vollstaendig konfiguriert vorhanden - dieser Schalter legt nur
-                             fest, welcher davon zur Laufzeit tatsaechlich ausgewertet wird (siehe ControllerSession). -->
+                            <!-- Mode switching uses either one controller-wide toggle trigger that advances to the next
+                                enabled mode on each rising edge, or a separate switch trigger for each mode that
+                                activates that mode directly (see the tab bar below). Both mechanisms are always fully
+                                configured; this selector determines which one ControllerSession evaluates at runtime. -->
                         <Border Grid.Row="1" Padding="12,8" Background="{StaticResource AppBackgroundBrush}" BorderBrush="{StaticResource PanelBorderBrush}" BorderThickness="0,0,0,1">
                             <StackPanel Orientation="Horizontal">
-                                <TextBlock Text="Modi Switch / Toggle:" VerticalAlignment="Center" FontWeight="Bold" Width="130" />
+                                <TextBlock Text="{loc:Loc mapping.mode_switch}" VerticalAlignment="Center" FontWeight="Bold" Width="130" />
                                 <ComboBox ItemsSource="{x:Static vm:VirtualControllerViewModel.ModeSwitchMechanismOptions}"
                                           SelectedItem="{Binding ModeSwitchMechanism}" Width="110" />
 
-                                <!-- Toggle-Trigger wird bewusst direkt neben dem Schalter definiert (nicht in der
-                                     Tab-Leiste), da er controller-weit (nicht modusspezifisch) gilt. -->
+                                  <!-- The toggle trigger is defined beside the selector, rather than in the tab bar,
+                                      because it applies to the whole controller, not to an individual mode. -->
                                 <StackPanel Orientation="Horizontal" Margin="16,0,0,0"
                                             Visibility="{Binding ModeSwitchMechanism, Converter={StaticResource EnumEqualsVisibilityConverter}, ConverterParameter=Toggle}">
                                     <Button Command="{Binding CaptureToggleTriggerCommand}" Padding="6,2" Margin="0,0,6,0">
                                         <StackPanel Orientation="Horizontal">
                                             <TextBlock Text="&#xE70F;" FontFamily="Segoe MDL2 Assets" Margin="0,0,4,0" VerticalAlignment="Center" />
-                                            <TextBlock Text="Erfassen" VerticalAlignment="Center" />
+                                            <TextBlock Text="{loc:Loc mapping.capture}" VerticalAlignment="Center" />
                                         </StackPanel>
                                     </Button>
                                     <Button Click="OnAssignToggleTriggerClicked" Padding="6,2" Margin="0,0,6,0"
-                                            ToolTip="Physische Eingabe aus einer Liste auswaehlen, statt sie zu druecken/bewegen.">
+                                            ToolTip="{loc:Loc mapping.assign_tooltip}">
                                         <StackPanel Orientation="Horizontal">
                                             <TextBlock Text="&#xE71B;" FontFamily="Segoe MDL2 Assets" Margin="0,0,4,0" VerticalAlignment="Center" />
-                                            <TextBlock Text="Zuweisen" VerticalAlignment="Center" />
+                                            <TextBlock Text="{loc:Loc mapping.assign}" VerticalAlignment="Center" />
                                         </StackPanel>
                                     </Button>
                                     <TextBlock Text="{Binding ToggleTriggerDisplayName}" VerticalAlignment="Center" />
-                                    <TextBlock Text="{Binding CaptureCountdownSeconds, StringFormat=' (druecke Taste... noch {0}s)'}" Foreground="OrangeRed" VerticalAlignment="Center"
+                                    <TextBlock Text="{loc:LocFormat Key=mapping.capture_countdown, Value={Binding CaptureCountdownSeconds}}" Foreground="OrangeRed" VerticalAlignment="Center"
                                                Visibility="{Binding IsCapturingToggleTrigger, Converter={StaticResource BoolToVisibilityConverter}}" />
                                 </StackPanel>
 
-                                <!-- Opt-in Bildschirmbenachrichtigung: zeigt bei jedem tatsaechlichen Moduswechsel
-                                     dieses Controllers (egal ob per Klick auf einen Tab oder per Trigger) kurz unten
-                                     links am Bildschirm den Controller- und Modusnamen an (siehe ModeChangeToast). -->
-                                <CheckBox Content="Bildschirmbenachrichtigung bei Moduswechsel" IsChecked="{Binding NotifyOnModeChange}"
+                                  <!-- Optional on-screen notification: briefly shows the controller and mode names in
+                                      the bottom-left corner for every mode change, whether triggered by a tab click
+                                      or an input trigger (see ModeChangeToast). -->
+                                  <CheckBox Content="{loc:Loc mapping.notify_mode_change}" IsChecked="{Binding NotifyOnModeChange}"
                                           VerticalAlignment="Center" Margin="24,0,0,0" />
                             </StackPanel>
                         </Border>
 
-                        <!-- Tab-Leiste der Modi: jeder Tab zeigt Name, gruenen Aktiv-Indikator (nur bei
-                             IsActive == true, siehe ModeViewModel), Enabled-Checkbox und Entfernen-Button. Ein Klick
-                             auf einen Tab (ausser auf Checkbox/Entfernen) waehlt ihn aus und aktiviert ihn damit
-                             sofort als aktiven Modus des Controllers (siehe VirtualControllerViewModel.SelectedMode). -->
+                            <!-- Mode tab bar: each tab shows its name, a green active indicator (only when
+                                IsActive == true; see ModeViewModel), an enabled checkbox, and a remove button.
+                                Clicking a tab outside the checkbox or remove button selects and immediately
+                                activates that controller mode (see VirtualControllerViewModel.SelectedMode). -->
                         <Border Grid.Row="2" Padding="8,6" BorderBrush="{StaticResource PanelBorderBrush}" BorderThickness="0,0,0,1">
                             <StackPanel Orientation="Horizontal">
                                 <ListBox ItemsSource="{Binding Modes}" SelectedItem="{Binding SelectedMode}"
@@ -403,30 +395,30 @@
                                                 <StackPanel Orientation="Horizontal">
                                                     <Ellipse Width="10" Height="10" Margin="0,0,6,0" VerticalAlignment="Center"
                                                              Fill="{Binding IsActive, Converter={StaticResource BoolToStatusBrushConverter}}"
-                                                             ToolTip="Gruen = dieser Modus ist aktuell der aktive Modus des Controllers." />
+                                                             ToolTip="{loc:Loc mapping.active_mode_tooltip}" />
                                                     <TextBox Text="{Binding Name, UpdateSourceTrigger=PropertyChanged}" Width="100"
                                                              VerticalAlignment="Center" Background="Transparent" BorderThickness="0" Padding="2,0" />
                                                     <CheckBox IsChecked="{Binding Enabled}" VerticalAlignment="Center" Margin="6,0,0,0"
-                                                              ToolTip="Deaktivierte Modi werden beim Toggle-/Switch-Wechsel uebersprungen." />
+                                                              ToolTip="{loc:Loc mapping.disabled_mode_tooltip}" />
 
-                                                    <!-- Nur bei Switch-Mechanismus relevant: eigener Ausloeser dieses Modus. -->
+                                                    <!-- Only used with the switch mechanism: this mode's individual trigger. -->
                                                     <StackPanel Orientation="Horizontal" Margin="8,0,0,0"
                                                                 Visibility="{Binding DataContext.ModeSwitchMechanism, ElementName=ControllerDetailGrid, Converter={StaticResource EnumEqualsVisibilityConverter}, ConverterParameter=Switch}">
                                                         <Button Command="{Binding CaptureSwitchTriggerCommand}" Padding="6,2" Margin="0,0,6,0">
                                                             <StackPanel Orientation="Horizontal">
                                                                 <TextBlock Text="&#xE70F;" FontFamily="Segoe MDL2 Assets" Margin="0,0,4,0" VerticalAlignment="Center" />
-                                                                <TextBlock Text="Erfassen" VerticalAlignment="Center" />
+                                                                <TextBlock Text="{loc:Loc mapping.capture}" VerticalAlignment="Center" />
                                                             </StackPanel>
                                                         </Button>
                                                         <Button Click="OnAssignSwitchTriggerClicked" Padding="6,2" Margin="0,0,6,0"
-                                                                ToolTip="Physische Eingabe aus einer Liste auswaehlen, statt sie zu druecken/bewegen.">
+                                                                ToolTip="{loc:Loc mapping.assign_tooltip}">
                                                             <StackPanel Orientation="Horizontal">
                                                                 <TextBlock Text="&#xE71B;" FontFamily="Segoe MDL2 Assets" Margin="0,0,4,0" VerticalAlignment="Center" />
-                                                                <TextBlock Text="Zuweisen" VerticalAlignment="Center" />
+                                                                <TextBlock Text="{loc:Loc mapping.assign}" VerticalAlignment="Center" />
                                                             </StackPanel>
                                                         </Button>
                                                         <TextBlock Text="{Binding SwitchTriggerDisplayName}" VerticalAlignment="Center" />
-                                                        <TextBlock Text="{Binding CaptureCountdownSeconds, StringFormat=' (druecke Taste... noch {0}s)'}" Foreground="OrangeRed" VerticalAlignment="Center"
+                                                        <TextBlock Text="{loc:LocFormat Key=mapping.capture_countdown, Value={Binding CaptureCountdownSeconds}}" Foreground="OrangeRed" VerticalAlignment="Center"
                                                                    Visibility="{Binding IsCapturingSwitchTrigger, Converter={StaticResource BoolToVisibilityConverter}}" />
                                                         <TextBlock Text="{Binding SwitchTriggerValidationError}" Foreground="Red" FontWeight="Bold"
                                                                    VerticalAlignment="Center" Margin="6,0,0,0" TextWrapping="Wrap" MaxWidth="220"
@@ -434,7 +426,7 @@
                                                     </StackPanel>
 
                                                     <Button Command="{Binding RemoveCommand}" Padding="4,0" Margin="8,0,0,0"
-                                                            ToolTip="Diesen Modus entfernen.">
+                                                            ToolTip="{loc:Loc mapping.remove_mode_tooltip}">
                                                         <TextBlock Text="&#xE74D;" FontFamily="Segoe MDL2 Assets" />
                                                     </Button>
                                                 </StackPanel>
@@ -446,7 +438,7 @@
                                 <Button Command="{Binding AddModeCommand}" Padding="24,12" Margin="24,0,0,0" VerticalAlignment="Center">
                                     <StackPanel Orientation="Horizontal">
                                         <TextBlock Text="&#xE710;" FontFamily="Segoe MDL2 Assets" Margin="0,0,12,0" VerticalAlignment="Center" />
-                                        <TextBlock Text="Neuer Modus" VerticalAlignment="Center" />
+                                        <TextBlock Text="{loc:Loc mapping.new_mode}" VerticalAlignment="Center" />
                                     </StackPanel>
                                 </Button>
                             </StackPanel>
@@ -458,39 +450,35 @@
                                 <ColumnDefinition Width="300" />
                             </Grid.ColumnDefinitions>
 
-                            <!-- Linke Spalte: Mapping-Tabelle des ausgewaehlten virtuellen Controllers -->
+                            <!-- Left column: mapping table for the selected virtual controller -->
                             <DockPanel Grid.Column="0" Margin="0,0,12,0">
                                 <Button DockPanel.Dock="Top" HorizontalAlignment="Left"
                                         Margin="0,0,0,8" Padding="6,4" Command="{Binding AddMappingCommand}">
                                     <StackPanel Orientation="Horizontal">
                                         <TextBlock Text="&#xE710;" FontFamily="Segoe MDL2 Assets" Margin="0,0,4,0" VerticalAlignment="Center" />
-                                        <TextBlock Text="Mapping-Zeile hinzufuegen" VerticalAlignment="Center" />
+                                        <TextBlock Text="{loc:Loc mapping.add_row}" VerticalAlignment="Center" />
                                     </StackPanel>
                                 </Button>
 
-                                <!-- Mapping-Tabelle gruppiert nach Ziel-Typ (Button/Achse/Trigger/D-Pad): statt einer
-                                     einzigen flachen DataGrid (frueher x:Name="MappingsDataGrid") wird hier je
-                                     Ziel-Typ eine eigene Ueberschrift + DataGrid gerendert (siehe
-                                     ModeViewModel.MappingGroups/RebuildMappingGroups). Eine Gruppe erscheint
-                                     ausschliesslich, solange ihr mindestens eine Mapping-Zeile zugeordnet ist;
-                                     die Reihenfolge der Gruppen entspricht der Reihenfolge der "Ziel-Typ"-
-                                     ComboBox-Optionen (MappingRowViewModel.TargetKindOptions). Gruppen sind
-                                     bewusst nicht ein-/ausklappbar. Der aeussere ScrollViewer trägt weiterhin
-                                     den Namen "MappingsScrollViewer", damit der bestehende Workaround fuer
-                                     ComboBox-SelectionChanged (siehe MainWindow.xaml.cs) unveraendert an einem
-                                     Vorfahren aller (nun mehreren) DataGrids registriert werden kann - das
-                                     Bubbling des Selector.SelectionChangedEvent funktioniert dabei unabhaengig
-                                     von der Anzahl/Verschachtelung der dazwischenliegenden ItemsControls. -->
+                                  <!-- The mapping table is grouped by target type (button/axis/trigger/D-pad). Instead of
+                                      one flat DataGrid (formerly named "MappingsDataGrid"), each target type gets its
+                                      own heading and DataGrid (see ModeViewModel.MappingGroups/RebuildMappingGroups).
+                                      A group is shown only while it contains at least one mapping row, and group order
+                                      follows the "Target type" ComboBox options (MappingRowViewModel.TargetKindOptions).
+                                      Groups are intentionally not expandable. The outer ScrollViewer keeps the name
+                                      "MappingsScrollViewer" so the existing ComboBox SelectionChanged workaround
+                                      (see MainWindow.xaml.cs) can remain registered on an ancestor of all DataGrids.
+                                      Selector.SelectionChangedEvent bubbles regardless of the number or nesting of
+                                      intervening ItemsControls. -->
                                 <ScrollViewer x:Name="MappingsScrollViewer" VerticalScrollBarVisibility="Auto"
                                               PreviewMouseWheel="OnMappingsScrollViewerPreviewMouseWheel">
                                     <StackPanel Orientation="Vertical">
-                                        <!-- Noch nicht zugewiesene Mapping-Zeilen (ModeViewModel.UnassignedMappings): frisch ueber
-                                             "+ Mapping-Zeile hinzufuegen" angelegte Zeilen, denen noch keine physische Quelle per
-                                             "Erfassen"/"Zuweisen" zugewiesen wurde. Werden bewusst OHNE Ueberschrift und AUSSERHALB
-                                             jeder Ziel-Typ-Gruppe ganz oben angezeigt, da sich eine solche Zeile noch nicht sinnvoll
-                                             nach Ziel-Typ einordnen laesst - vorher erschien hier stattdessen faelschlicherweise ein
-                                             bedeutungsloser Platzhalter wie "- Button 0 (nicht verbunden)" innerhalb der "Button"-
-                                             Gruppe. Der gesamte Bereich bleibt unsichtbar, solange keine derartige Zeile existiert. -->
+                                        <!-- Unassigned mapping rows (ModeViewModel.UnassignedMappings) are newly added rows that
+                                            do not yet have a physical source assigned through Capture or Assign. Show them at the
+                                            top without a heading and outside all target-type groups because they cannot yet be
+                                            meaningfully classified by target type. Previously, a useless placeholder such as
+                                            "- Button 0 (disconnected)" appeared in the Button group. Hide this entire section
+                                            when there are no unassigned rows. -->
                                         <DataGrid ItemsSource="{Binding SelectedMode.UnassignedMappings, NotifyOnTargetUpdated=True}"
                                                   AutoGenerateColumns="False" CanUserAddRows="False"
                                                   EnableRowVirtualization="False" Margin="0,0,0,16"
@@ -503,34 +491,34 @@
                                                 </Style>
                                             </DataGrid.RowStyle>
                                             <DataGrid.Columns>
-                                                <DataGridTemplateColumn Header="Physische Quelle" Width="220">
+                                                <DataGridTemplateColumn Header="{loc:Loc mapping.col_physical_source}" Width="220">
                                                     <DataGridTemplateColumn.CellTemplate>
                                                         <DataTemplate DataType="{x:Type vm:MappingRowViewModel}">
                                                             <StackPanel Orientation="Horizontal">
                                                                 <Button Command="{Binding CaptureCommand}" Padding="6,2" Margin="0,0,6,0">
                                                                     <StackPanel Orientation="Horizontal">
                                                                         <TextBlock Text="&#xE70F;" FontFamily="Segoe MDL2 Assets" Margin="0,0,4,0" VerticalAlignment="Center" />
-                                                                        <TextBlock Text="Erfassen" VerticalAlignment="Center" />
+                                                                        <TextBlock Text="{loc:Loc mapping.capture}" VerticalAlignment="Center" />
                                                                     </StackPanel>
                                                                 </Button>
                                                                 <Button Click="OnAssignInputClicked" Padding="6,2" Margin="0,0,6,0"
-                                                                        ToolTip="Physische Eingabe aus einer Liste auswaehlen, statt sie zu druecken/bewegen.">
+                                                                        ToolTip="{loc:Loc mapping.assign_tooltip}">
                                                                     <StackPanel Orientation="Horizontal">
                                                                         <TextBlock Text="&#xE71B;" FontFamily="Segoe MDL2 Assets" Margin="0,0,4,0" VerticalAlignment="Center" />
-                                                                        <TextBlock Text="Zuweisen" VerticalAlignment="Center" />
+                                                                            <TextBlock Text="{loc:Loc mapping.assign}" VerticalAlignment="Center" />
                                                                     </StackPanel>
                                                                 </Button>
                                                                 <TextBlock Text="{Binding SourceDisplayName}" VerticalAlignment="Center" />
-                                                                <TextBlock Text=" (nicht verbunden)" Foreground="Red" FontWeight="Bold" VerticalAlignment="Center"
+                                                                <TextBlock Text="{loc:Loc mapping.disconnected}" Foreground="Red" FontWeight="Bold" VerticalAlignment="Center"
                                                                            Visibility="{Binding IsSourceConnected, Converter={StaticResource BoolToVisibilityConverter}, ConverterParameter=Invert}" />
-                                                                <TextBlock Text="{Binding CaptureCountdownSeconds, StringFormat=' (druecke Taste... noch {0}s)'}" Foreground="OrangeRed"
+                                                                <TextBlock Text="{loc:LocFormat Key=mapping.capture_countdown, Value={Binding CaptureCountdownSeconds}}" Foreground="OrangeRed"
                                                                            Visibility="{Binding IsCapturing, Converter={StaticResource BoolToVisibilityConverter}}" />
                                                             </StackPanel>
                                                         </DataTemplate>
                                                     </DataGridTemplateColumn.CellTemplate>
                                                 </DataGridTemplateColumn>
 
-                                                <DataGridTemplateColumn Header="Ziel-Typ" Width="110">
+                                                <DataGridTemplateColumn Header="{loc:Loc mapping.col_target_type}" Width="110">
                                                     <DataGridTemplateColumn.CellTemplate>
                                                         <DataTemplate DataType="{x:Type vm:MappingRowViewModel}">
                                                             <ComboBox ItemsSource="{x:Static vm:MappingRowViewModel.TargetKindOptions}"
@@ -540,7 +528,7 @@
                                                     </DataGridTemplateColumn.CellTemplate>
                                                 </DataGridTemplateColumn>
 
-                                                <DataGridTemplateColumn Header="Ziel-Wert" Width="150">
+                                                <DataGridTemplateColumn Header="{loc:Loc mapping.col_target_value}" Width="150">
                                                     <DataGridTemplateColumn.CellTemplate>
                                                         <DataTemplate DataType="{x:Type vm:MappingRowViewModel}">
                                                             <ComboBox ItemsSource="{Binding CurrentTargetOptions}"
@@ -552,7 +540,7 @@
                                                     </DataGridTemplateColumn.CellTemplate>
                                                 </DataGridTemplateColumn>
 
-                                                <DataGridTemplateColumn Header="Invertieren" Width="80">
+                                                <DataGridTemplateColumn Header="{loc:Loc mapping.col_invert}" Width="80">
                                                     <DataGridTemplateColumn.CellTemplate>
                                                         <DataTemplate DataType="{x:Type vm:MappingRowViewModel}">
                                                             <CheckBox IsChecked="{Binding Invert}" HorizontalAlignment="Center"
@@ -561,11 +549,11 @@
                                                     </DataGridTemplateColumn.CellTemplate>
                                                 </DataGridTemplateColumn>
 
-                                                <DataGridTemplateColumn Header="Nur diese Richtung" Width="80">
+                                                <DataGridTemplateColumn Header="{loc:Loc mapping.col_directional}" Width="110">
                                                     <DataGridTemplateColumn.CellTemplate>
                                                         <DataTemplate DataType="{x:Type vm:MappingRowViewModel}">
                                                             <CheckBox IsChecked="{Binding DirectionalOnly}" HorizontalAlignment="Center"
-                                                                      ToolTip="Nur die erfasste Achsenhaelfte (z.B. Y+) auf diese Ziel-Achse anwenden, statt der vollen Achse - ermoeglicht das Aufteilen zweier physischer Achsenhaelften auf unterschiedliche virtuelle Achsen."
+                                                                      ToolTip="{loc:Loc mapping.directional_tooltip}"
                                                                       Visibility="{Binding IsAxisTarget, Converter={StaticResource BoolToVisibilityConverter}}" />
                                                         </DataTemplate>
                                                     </DataGridTemplateColumn.CellTemplate>
@@ -577,7 +565,7 @@
                                                             <Button Command="{Binding RemoveCommand}" Padding="6,2">
                                                                 <StackPanel Orientation="Horizontal">
                                                                     <TextBlock Text="&#xE74D;" FontFamily="Segoe MDL2 Assets" Margin="0,0,4,0" VerticalAlignment="Center" />
-                                                                    <TextBlock Text="Entfernen" VerticalAlignment="Center" />
+                                                                    <TextBlock Text="{loc:Loc mapping.remove}" VerticalAlignment="Center" />
                                                                 </StackPanel>
                                                             </Button>
                                                         </DataTemplate>
@@ -603,44 +591,43 @@
                                                                   HorizontalAlignment="Left"
                                                                   Binding.TargetUpdated="OnMappingsDataGridTargetUpdated">
                                                             <DataGrid.RowStyle>
-                                                                <!-- Live-Hervorhebung der Mapping-Zeile, waehrend ihre zugewiesene physische
-                                                                     Quelle gerade aktiv ist (Taste gedrueckt, Achse ausgeschlagen, D-Pad
-                                                                     gehalten) - identisches Verhalten wie in der Liste "Verfügbare Geräte"
-                                                                     (siehe PhysicalInputRowViewModel.IsActive), nur hier fuer die komplette
-                                                                 Zeile der Mapping-Tabelle statt fuer eine einzelne Eingabezeile. -->
+                                                                 <!-- Highlight the mapping row while its assigned physical source is active
+                                                                     (button pressed, axis moved, or D-pad held). This matches the behavior in
+                                                                     the "Available devices" list (see PhysicalInputRowViewModel.IsActive), but
+                                                                     highlights the entire mapping row instead of an individual input row. -->
                                                             <Style TargetType="DataGridRow">
                                                                 <Setter Property="Background" Value="{Binding IsSourceActive, Converter={StaticResource BoolToHighlightBrushConverter}}" />
                                                             </Style>
                                                         </DataGrid.RowStyle>
                                                         <DataGrid.Columns>
-                                                            <DataGridTemplateColumn Header="Physische Quelle" Width="220">
+                                                            <DataGridTemplateColumn Header="{loc:Loc mapping.col_physical_source}" Width="220">
                                                                 <DataGridTemplateColumn.CellTemplate>
                                                                     <DataTemplate DataType="{x:Type vm:MappingRowViewModel}">
                                                                         <StackPanel Orientation="Horizontal">
                                                                             <Button Command="{Binding CaptureCommand}" Padding="6,2" Margin="0,0,6,0">
                                                                                 <StackPanel Orientation="Horizontal">
                                                                                     <TextBlock Text="&#xE70F;" FontFamily="Segoe MDL2 Assets" Margin="0,0,4,0" VerticalAlignment="Center" />
-                                                                                    <TextBlock Text="Erfassen" VerticalAlignment="Center" />
+                                                                                    <TextBlock Text="{loc:Loc mapping.capture}" VerticalAlignment="Center" />
                                                                                 </StackPanel>
                                                                             </Button>
                                                                             <Button Click="OnAssignInputClicked" Padding="6,2" Margin="0,0,6,0"
-                                                                                    ToolTip="Physische Eingabe aus einer Liste auswaehlen, statt sie zu druecken/bewegen.">
+                                                                                    ToolTip="{loc:Loc mapping.assign_tooltip}">
                                                                                 <StackPanel Orientation="Horizontal">
                                                                                     <TextBlock Text="&#xE71B;" FontFamily="Segoe MDL2 Assets" Margin="0,0,4,0" VerticalAlignment="Center" />
-                                                                                    <TextBlock Text="Zuweisen" VerticalAlignment="Center" />
+                                                                                    <TextBlock Text="{loc:Loc mapping.assign}" VerticalAlignment="Center" />
                                                                                 </StackPanel>
                                                                             </Button>
                                                                             <TextBlock Text="{Binding SourceDisplayName}" VerticalAlignment="Center" />
-                                                                            <TextBlock Text=" (nicht verbunden)" Foreground="Red" FontWeight="Bold" VerticalAlignment="Center"
+                                                                            <TextBlock Text="{loc:Loc mapping.disconnected}" Foreground="Red" FontWeight="Bold" VerticalAlignment="Center"
                                                                                        Visibility="{Binding IsSourceConnected, Converter={StaticResource BoolToVisibilityConverter}, ConverterParameter=Invert}" />
-                                                                            <TextBlock Text="{Binding CaptureCountdownSeconds, StringFormat=' (druecke Taste... noch {0}s)'}" Foreground="OrangeRed"
+                                                                            <TextBlock Text="{loc:LocFormat Key=mapping.capture_countdown, Value={Binding CaptureCountdownSeconds}}" Foreground="OrangeRed"
                                                                                        Visibility="{Binding IsCapturing, Converter={StaticResource BoolToVisibilityConverter}}" />
                                                                         </StackPanel>
                                                                     </DataTemplate>
                                                                 </DataGridTemplateColumn.CellTemplate>
                                                             </DataGridTemplateColumn>
 
-                                                            <DataGridTemplateColumn Header="Ziel-Typ" Width="110">
+                                                            <DataGridTemplateColumn Header="{loc:Loc mapping.col_target_type}" Width="110">
                                                                 <DataGridTemplateColumn.CellTemplate>
                                                                     <DataTemplate DataType="{x:Type vm:MappingRowViewModel}">
                                                                         <ComboBox ItemsSource="{x:Static vm:MappingRowViewModel.TargetKindOptions}"
@@ -650,7 +637,7 @@
                                                                 </DataGridTemplateColumn.CellTemplate>
                                                             </DataGridTemplateColumn>
 
-                                                            <DataGridTemplateColumn Header="Ziel-Wert" Width="150">
+                                                            <DataGridTemplateColumn Header="{loc:Loc mapping.col_target_value}" Width="150">
                                                                 <DataGridTemplateColumn.CellTemplate>
                                                                     <DataTemplate DataType="{x:Type vm:MappingRowViewModel}">
                                                                         <ComboBox ItemsSource="{Binding CurrentTargetOptions}"
@@ -662,7 +649,7 @@
                                                                 </DataGridTemplateColumn.CellTemplate>
                                                             </DataGridTemplateColumn>
 
-                                                            <DataGridTemplateColumn Header="Invertieren" Width="80">
+                                                            <DataGridTemplateColumn Header="{loc:Loc mapping.col_invert}" Width="80">
                                                                 <DataGridTemplateColumn.CellTemplate>
                                                                     <DataTemplate DataType="{x:Type vm:MappingRowViewModel}">
                                                                         <CheckBox IsChecked="{Binding Invert}" HorizontalAlignment="Center"
@@ -671,11 +658,11 @@
                                                                 </DataGridTemplateColumn.CellTemplate>
                                                             </DataGridTemplateColumn>
 
-                                                            <DataGridTemplateColumn Header="Nur diese Richtung" Width="80">
+                                                            <DataGridTemplateColumn Header="{loc:Loc mapping.col_directional}" Width="110">
                                                                 <DataGridTemplateColumn.CellTemplate>
                                                                     <DataTemplate DataType="{x:Type vm:MappingRowViewModel}">
                                                                         <CheckBox IsChecked="{Binding DirectionalOnly}" HorizontalAlignment="Center"
-                                                                                  ToolTip="Nur die erfasste Achsenhaelfte (z.B. Y+) auf diese Ziel-Achse anwenden, statt der vollen Achse - ermoeglicht das Aufteilen zweier physischer Achsenhaelften auf unterschiedliche virtuelle Achsen."
+                                                                                  ToolTip="{loc:Loc mapping.directional_tooltip}"
                                                                                   Visibility="{Binding IsAxisTarget, Converter={StaticResource BoolToVisibilityConverter}}" />
                                                                     </DataTemplate>
                                                                 </DataGridTemplateColumn.CellTemplate>
@@ -687,7 +674,7 @@
                                                                         <Button Command="{Binding RemoveCommand}" Padding="6,2">
                                                                             <StackPanel Orientation="Horizontal">
                                                                                 <TextBlock Text="&#xE74D;" FontFamily="Segoe MDL2 Assets" Margin="0,0,4,0" VerticalAlignment="Center" />
-                                                                                <TextBlock Text="Entfernen" VerticalAlignment="Center" />
+                                                                                <TextBlock Text="{loc:Loc mapping.remove}" VerticalAlignment="Center" />
                                                                             </StackPanel>
                                                                         </Button>
                                                                     </DataTemplate>
@@ -703,10 +690,10 @@
                             </ScrollViewer>
                             </DockPanel>
 
-                            <!-- Rechte Spalte: vertikales Panel mit allen fuer diesen Controller verfuegbaren physischen Geraeten -->
+                            <!-- Right column: vertical panel listing all physical devices available to this controller -->
                             <Border Grid.Column="1" Background="{StaticResource AppBackgroundBrush}" BorderBrush="{StaticResource PanelBorderBrush}" BorderThickness="1,0,0,0" Padding="12,0,0,0">
                                 <DockPanel>
-                                    <TextBlock DockPanel.Dock="Top" Text="Verfügbare Geräte:" FontWeight="Bold" Margin="0,0,0,4" />
+                                    <TextBlock DockPanel.Dock="Top" Text="{loc:Loc mapping.available_devices}" FontWeight="Bold" Margin="0,0,0,4" />
                                     <ScrollViewer VerticalScrollBarVisibility="Auto">
                                         <StackPanel>
                                         <ItemsControl ItemsSource="{Binding AvailableDeviceSelections}">
@@ -737,7 +724,7 @@
                                                                                     HorizontalAlignment="Left" Padding="6,1" Margin="0,4,0,0">
                                                                                 <StackPanel Orientation="Horizontal">
                                                                                     <TextBlock Text="&#xE71B;" FontFamily="Segoe MDL2 Assets" Margin="0,0,4,0" VerticalAlignment="Center" />
-                                                                                    <TextBlock Text="Zuweisen" VerticalAlignment="Center" />
+                                                                                    <TextBlock Text="{loc:Loc mapping.assign}" VerticalAlignment="Center" />
                                                                                 </StackPanel>
                                                                             </Button>
                                                                         </StackPanel>
@@ -750,12 +737,11 @@
                                             </ItemsControl.ItemTemplate>
                                         </ItemsControl>
 
-                                        <!-- Zugewiesene, aber aktuell nicht angeschlossene Geraete: rein informativ und
-                                             ausgegraut (analog zur Live-Hervorhebung in "Verfügbare Geräte", nur invertiert
-                                             und dauerhaft), damit die bestehende Zuweisung sichtbar bleibt, ohne dass der
-                                             Nutzer sie mit tatsaechlich angeschlossenen Geraeten verwechseln kann. Nur
-                                             sichtbar, solange mindestens ein zugewiesenes Geraet getrennt ist. -->
-                                        <TextBlock Text="Zugewiesene Geräte:" FontWeight="Bold" Margin="0,12,0,4"
+                                        <!-- Assigned devices that are currently disconnected are shown dimmed for
+                                            information (the inverse of the live highlight in "Available devices"). This
+                                            keeps existing assignments visible without confusing them with connected
+                                            devices. Show this section only while at least one assigned device is disconnected. -->
+                                        <TextBlock Text="{loc:Loc mapping.assigned_devices}" FontWeight="Bold" Margin="0,12,0,4"
                                                    Visibility="{Binding AssignedDisconnectedDeviceSelections.Count, Converter={StaticResource CountToVisibilityConverter}}" />
                                         <ItemsControl ItemsSource="{Binding AssignedDisconnectedDeviceSelections}"
                                                       Visibility="{Binding AssignedDisconnectedDeviceSelections.Count, Converter={StaticResource CountToVisibilityConverter}}">
@@ -767,7 +753,7 @@
                                             <ItemsControl.ItemTemplate>
                                                 <DataTemplate DataType="{x:Type vm:AssignedDisconnectedDeviceViewModel}">
                                                     <TextBlock Text="{Binding DisplayName}" Margin="0,0,0,4" Opacity="0.4"
-                                                               ToolTip="Diesem Controller zugeordnet, aber aktuell nicht angeschlossen." />
+                                                               ToolTip="{loc:Loc mapping.assigned_disconnected_tooltip}" />
                                                 </DataTemplate>
                                             </ItemsControl.ItemTemplate>
                                         </ItemsControl>
@@ -780,32 +766,26 @@
                 </DockPanel>
             </TabItem>
 
-            <TabItem Header="Gerätekonfiguration">
-                <!-- DataContext dieses Tabs ist bewusst explizit auf DeviceConfig umgebogen (statt weiter
-                     auf MainViewModel zu zeigen wie die Tab-Leiste selbst), damit alle Bindings innerhalb
-                     dieses Tabs (Devices/SelectedDevice) direkt gegen das DeviceConfigViewModel aufloesen -
-                     analog dazu, wie zuvor DeviceConfigWindow.xaml komplett eigenstaendig an dieses
-                     ViewModel gebunden war. -->
+            <TabItem Header="{loc:Loc tabs.device_config}">
+                <!-- This tab explicitly switches its DataContext to DeviceConfig instead of inheriting
+                     MainViewModel from the tab bar. This lets its Devices and SelectedDevice bindings
+                     resolve directly against DeviceConfigViewModel, as they did when DeviceConfigWindow.xaml
+                     was bound to that view model independently. -->
                 <DockPanel DataContext="{Binding DeviceConfig}">
                     <TextBlock DockPanel.Dock="Top" Margin="12,12,12,8" TextWrapping="Wrap"
-                               Text="Deaktivierte Geraete erscheinen in keiner Geraeteauswahl mehr. Deaktivierte Eingaben werden von Erfassung und Mapping ignoriert, bleiben aber hier sichtbar. Ueber 'Ausblenden' laesst sich ein Geraet (z.B. ein eigener virtueller Controller dieser Anwendung) komplett aus dieser Liste entfernen - ausgeblendete Geraete koennen unten wieder eingeblendet werden." />
+                               Text="{loc:Loc devices.description}" />
 
-                    <!-- Linke Spalte: Liste aller bekannten physischen Geraete (verbunden + zuvor bekannte,
-                         aber aktuell getrennte - siehe MainViewModel.GetAllKnownDevices), analog zur
-                         Controller-Liste im "Mapping"-Tab. Ersetzt die fruehere innere Tab-Leiste
-                         (TabStripPlacement="Left") durch dasselbe Listen+Detail-Muster wie im Mapping-Tab,
-                         fuer ein konsistentes Erscheinungsbild. Der gruene/graue Status-Punkt zeigt
-                         Enabled+Connected (gruen) vs. deaktiviert/getrennt (grau); der Geraetename wird
-                         zusaetzlich ausgegraut, wenn das Geraet aktuell nicht angeschlossen ist - beide
-                         Zustaende sind unabhaengig voneinander und koennen sich ueberlagern. Unterhalb der
-                         Hauptliste ermoeglicht ein einklappbarer Bereich das Wiedereinblenden manuell
-                         ausgeblendeter Geraete (siehe DeviceSettings.Hidden) - notwendig, da z.B. die
-                         eigenen, per ViGEmBus emulierten virtuellen Controller dieser Anwendung von
-                         XInput/DirectInput nicht automatisch von echter Hardware unterschieden werden
-                         koennen und der Nutzer sie daher selbst dauerhaft ausblenden muss. -->
+                    <!-- Left column: all known physical devices, both connected and previously seen but now
+                        disconnected (see MainViewModel.GetAllKnownDevices). This replaces the former inner
+                        left-side tab strip with the same list-and-detail layout used in the Mapping tab.
+                        The green/gray status dot indicates enabled and connected vs. disabled or disconnected;
+                        the device name is also dimmed when disconnected. These states are independent and can
+                        overlap. The collapsible section below the main list restores manually hidden devices
+                        (see DeviceSettings.Hidden). This is needed because XInput/DirectInput cannot
+                        automatically distinguish this app's ViGEmBus-emulated virtual controllers from hardware. -->
                     <Border DockPanel.Dock="Left" Width="260" BorderBrush="{StaticResource PanelBorderBrush}" BorderThickness="0,0,1,0">
                         <DockPanel>
-                            <Expander DockPanel.Dock="Bottom" Header="Ausgeblendete Geräte" Margin="4"
+                            <Expander DockPanel.Dock="Bottom" Header="{loc:Loc devices.hidden}" Margin="4"
                                       Visibility="{Binding HiddenDevices.Count, Converter={StaticResource CountToVisibilityConverter}}">
                                 <ListBox ItemsSource="{Binding HiddenDevices}" MaxHeight="200" BorderThickness="0">
                                     <ListBox.ItemTemplate>
@@ -821,7 +801,7 @@
                                                         Command="{Binding ToggleHiddenCommand}">
                                                     <StackPanel Orientation="Horizontal">
                                                         <TextBlock Text="&#xE7B3;" FontFamily="Segoe MDL2 Assets" Margin="0,0,4,0" VerticalAlignment="Center" />
-                                                        <TextBlock Text="Einblenden" VerticalAlignment="Center" />
+                                                        <TextBlock Text="{loc:Loc devices.show}" VerticalAlignment="Center" />
                                                     </StackPanel>
                                                 </Button>
                                             </Grid>
@@ -841,15 +821,15 @@
                                             </Grid.ColumnDefinitions>
                                             <Ellipse Grid.Column="0" Width="10" Height="10" Margin="0,0,6,0" VerticalAlignment="Center"
                                                      Fill="{Binding IsActiveIndicator, Converter={StaticResource BoolToStatusBrushConverter}}"
-                                                     ToolTip="Gruen = aktiviert und angeschlossen. Grau = deaktiviert und/oder nicht angeschlossen." />
+                                                     ToolTip="{loc:Loc devices.status_tooltip}" />
                                             <TextBlock Grid.Column="1" Text="{Binding DisplayName}" VerticalAlignment="Center"
                                                        TextTrimming="CharacterEllipsis" />
                                             <Button Grid.Column="2" Padding="4,1" FontSize="11" Margin="4,0,0,0"
                                                     Command="{Binding ToggleHiddenCommand}"
-                                                    ToolTip="Dieses Geraet dauerhaft aus dieser Liste entfernen (z.B. einen eigenen virtuellen Controller) - jederzeit unten wieder einblendbar.">
+                                                    ToolTip="{loc:Loc devices.hide_tooltip}">
                                                 <StackPanel Orientation="Horizontal">
                                                     <TextBlock Text="&#xE894;" FontFamily="Segoe MDL2 Assets" Margin="0,0,4,0" VerticalAlignment="Center" />
-                                                    <TextBlock Text="Ausblenden" VerticalAlignment="Center" />
+                                                    <TextBlock Text="{loc:Loc devices.hide}" VerticalAlignment="Center" />
                                                 </StackPanel>
                                             </Button>
                                         </Grid>
@@ -859,58 +839,65 @@
                         </DockPanel>
                     </Border>
 
-                    <!-- Rechte Seite: Detailansicht des ausgewaehlten Geraets, ueber die implizite
-                         DeviceConfigDeviceViewModel-Vorlage (siehe DeviceConfigTemplates.xaml) dargestellt. -->
+                    <!-- Right side: details for the selected device, rendered through the implicit
+                        DeviceConfigDeviceViewModel template (see DeviceConfigTemplates.xaml). -->
                     <ContentPresenter Content="{Binding SelectedDevice}" Margin="8,0,8,8" />
                 </DockPanel>
             </TabItem>
 
-            <TabItem Header="Einstellungen">
+            <TabItem Header="{Binding SettingsTabHeaderText}">
                 <StackPanel Margin="12">
-                    <CheckBox Content="Automatische Geräteerkennung" IsChecked="{Binding AutoDeviceDetectionEnabled}"
-                              FontWeight="Bold" />
-                    <TextBlock Margin="24,4,0,0" Foreground="{StaticResource MutedTextBrush}" FontStyle="Italic" TextWrapping="Wrap" MaxWidth="500"
-                               Text="Erkennt neu angeschlossene oder getrennte Geräte automatisch im Hintergrund, ohne dass 'Geräte aktualisieren' geklickt werden muss. Deaktivieren stoppt den periodischen Scan vollständig." />
+                    <TextBlock Text="{Binding SettingsLanguageLabelText}" FontWeight="Bold" />
+                    <ComboBox Margin="0,6,0,0" Width="220" HorizontalAlignment="Left"
+                              ItemsSource="{Binding UiLanguageOptions}"
+                              SelectedValue="{Binding SelectedUiLanguage}"
+                              SelectedValuePath="Code"
+                              DisplayMemberPath="DisplayName" />
 
-                    <CheckBox Content="Mit Windows starten" IsChecked="{Binding StartWithWindows}"
+                    <CheckBox Content="{Binding SettingsAutoDeviceDetectionText}" IsChecked="{Binding AutoDeviceDetectionEnabled}"
                               FontWeight="Bold" Margin="0,12,0,0" />
                     <TextBlock Margin="24,4,0,0" Foreground="{StaticResource MutedTextBrush}" FontStyle="Italic" TextWrapping="Wrap" MaxWidth="500"
-                               Text="Startet Virtual Controller automatisch bei der Windows-Anmeldung." />
+                               Text="{Binding SettingsAutoDeviceDetectionHelpText}" />
 
-                    <CheckBox Content="Beim Windows-Start minimiert starten" IsChecked="{Binding StartMinimized}"
+                    <CheckBox Content="{Binding SettingsStartWithWindowsText}" IsChecked="{Binding StartWithWindows}"
+                              FontWeight="Bold" Margin="0,12,0,0" />
+                    <TextBlock Margin="24,4,0,0" Foreground="{StaticResource MutedTextBrush}" FontStyle="Italic" TextWrapping="Wrap" MaxWidth="500"
+                               Text="{Binding SettingsStartWithWindowsHelpText}" />
+
+                    <CheckBox Content="{Binding SettingsStartMinimizedText}" IsChecked="{Binding StartMinimized}"
                               IsEnabled="{Binding StartWithWindows}" FontWeight="Bold" Margin="0,8,0,0" />
                     <TextBlock Margin="24,4,0,0" Foreground="{StaticResource MutedTextBrush}" FontStyle="Italic" TextWrapping="Wrap" MaxWidth="500"
-                               Text="Öffnet das Hauptfenster beim automatischen Start minimiert. Diese Option ist nur mit aktiviertem Windows-Autostart verfügbar." />
+                               Text="{Binding SettingsStartMinimizedHelpText}" />
 
-                    <CheckBox Content="Immer im Vordergrund" IsChecked="{Binding AlwaysOnTop}"
+                    <CheckBox Content="{Binding SettingsAlwaysOnTopText}" IsChecked="{Binding AlwaysOnTop}"
                               FontWeight="Bold" Margin="0,12,0,0" />
                     <TextBlock Margin="24,4,0,0" Foreground="{StaticResource MutedTextBrush}" FontStyle="Italic" TextWrapping="Wrap" MaxWidth="500"
-                               Text="Hält das App-Fenster über anderen Fenstern. Standardmäßig aktiviert." />
+                               Text="{Binding SettingsAlwaysOnTopHelpText}" />
 
                     <Separator Margin="0,16,0,12" />
 
-                    <TextBlock Text="{Binding Update.CurrentVersionText, StringFormat='Aktuell installierte Version: {0}'}"
+                    <TextBlock Text="{loc:LocFormat Key=updates.current_version_format, Value={Binding Update.CurrentVersionText}}"
                                FontWeight="Bold" Margin="0,0,0,8" />
 
-                    <CheckBox Content="Automatisch auf Updates prüfen" IsChecked="{Binding Update.AutoCheckEnabled}"
+                    <CheckBox Content="{loc:Loc updates.auto_check}" IsChecked="{Binding Update.AutoCheckEnabled}"
                               FontWeight="Bold" />
                     <TextBlock Margin="24,4,0,0" Foreground="{StaticResource MutedTextBrush}" FontStyle="Italic" TextWrapping="Wrap" MaxWidth="500"
-                               Text="Prüft bei jedem Start der Anwendung automatisch, ob eine neuere Version verfügbar ist. Bei fehlender Internetverbindung wird die Anwendung dadurch nicht beeinträchtigt." />
+                               Text="{loc:Loc updates.auto_check_help}" />
 
-                    <CheckBox Content="Auch Vorabversionen berücksichtigen" IsChecked="{Binding Update.IncludePreReleases}"
+                    <CheckBox Content="{loc:Loc updates.include_prereleases}" IsChecked="{Binding Update.IncludePreReleases}"
                               FontWeight="Bold" Margin="0,12,0,0" />
                     <TextBlock Margin="24,4,0,0" Foreground="{StaticResource MutedTextBrush}" FontStyle="Italic" TextWrapping="Wrap" MaxWidth="500"
-                               Text="Bezieht bei der Update-Prüfung auch als Pre-release markierte Versionen ein (z.B. Tags mit dem Suffix '-alpha', '-beta' oder '-nightly'), statt ausschließlich vollwertige, stabile Versionen anzubieten." />
+                               Text="{loc:Loc updates.include_prereleases_help}" />
 
                     <StackPanel Orientation="Horizontal" Margin="0,12,0,0">
                         <Button Command="{Binding Update.CheckForUpdatesCommand}"
                                 Padding="8,4" IsEnabled="{Binding Update.IsCheckingForUpdates, Converter={StaticResource InverseBoolConverter}}">
                             <StackPanel Orientation="Horizontal">
                                 <TextBlock Text="&#xE72C;" FontFamily="Segoe MDL2 Assets" Margin="0,0,6,0" VerticalAlignment="Center" />
-                                <TextBlock Text="Auf Updates prüfen" VerticalAlignment="Center" />
+                                <TextBlock Text="{loc:Loc updates.check}" VerticalAlignment="Center" />
                             </StackPanel>
                         </Button>
-                        <TextBlock Text="Prüfung läuft..." Foreground="{StaticResource MutedTextBrush}" FontStyle="Italic"
+                        <TextBlock Text="{loc:Loc updates.checking}" Foreground="{StaticResource MutedTextBrush}" FontStyle="Italic"
                                    VerticalAlignment="Center" Margin="12,0,0,0"
                                    Visibility="{Binding Update.IsCheckingForUpdates, Converter={StaticResource BoolToVisibilityConverter}}" />
                     </StackPanel>
@@ -920,33 +907,33 @@
                             Margin="0,12,0,0" HorizontalAlignment="Left">
                         <StackPanel Orientation="Horizontal">
                             <TextBlock Text="&#xE81C;" FontFamily="Segoe MDL2 Assets" Margin="0,0,6,0" VerticalAlignment="Center" />
-                            <TextBlock Text="Version wechseln..." VerticalAlignment="Center" />
+                            <TextBlock Text="{loc:Loc updates.change_version}" VerticalAlignment="Center" />
                         </StackPanel>
                     </Button>
                     <TextBlock Margin="0,4,0,0" Foreground="{StaticResource MutedTextBrush}" FontStyle="Italic" TextWrapping="Wrap" MaxWidth="500"
-                               Text="Ermöglicht den gezielten Wechsel zu einer beliebigen verfügbaren Version, einschließlich älterer Versionen (Rollback)." />
+                               Text="{loc:Loc updates.change_version_help}" />
 
                     <Button Command="{Binding Update.OpenUpdateLogCommand}" Padding="8,4"
                             Margin="0,12,0,0" HorizontalAlignment="Left">
                         <StackPanel Orientation="Horizontal">
                             <TextBlock Text="&#xE8A5;" FontFamily="Segoe MDL2 Assets" Margin="0,0,6,0" VerticalAlignment="Center" />
-                            <TextBlock Text="Update-Log öffnen" VerticalAlignment="Center" />
+                            <TextBlock Text="{loc:Loc updates.open_log}" VerticalAlignment="Center" />
                         </StackPanel>
                     </Button>
                     <TextBlock Margin="0,4,0,0" Foreground="{StaticResource MutedTextBrush}" FontStyle="Italic" TextWrapping="Wrap" MaxWidth="500"
-                               Text="Öffnet das Update-Protokoll (Download, Kopieren der neuen Dateien, Neustart) zur genauen Analyse, falls ein Update-Vorgang unerwartet verlaufen ist." />
+                               Text="{loc:Loc updates.open_log_help}" />
 
                     <Button Command="{Binding Update.OpenAppDataFolderCommand}" Padding="8,4"
                             Margin="0,12,0,0" HorizontalAlignment="Left">
                         <StackPanel Orientation="Horizontal">
                             <TextBlock Text="&#xE8B7;" FontFamily="Segoe MDL2 Assets" Margin="0,0,6,0" VerticalAlignment="Center" />
-                            <TextBlock Text="AppData-Ordner öffnen" VerticalAlignment="Center" />
+                            <TextBlock Text="{loc:Loc updates.open_appdata}" VerticalAlignment="Center" />
                         </StackPanel>
                     </Button>
                     <TextBlock Margin="0,4,0,0" Foreground="{StaticResource MutedTextBrush}" FontStyle="Italic" TextWrapping="Wrap" MaxWidth="500"
-                               Text="Öffnet den Anwendungsdatenordner (%AppData%\VirtualController) im Explorer, mit allen gespeicherten Profilen, Geräte-Einstellungen und Protokolldateien." />
+                               Text="{loc:Loc updates.open_appdata_help}" />
 
-                    <TextBlock Margin="0,16,0,0" Text="Hier entstehen zukuenftig weitere globale Anwendungseinstellungen." Foreground="{StaticResource MutedTextBrush}" FontStyle="Italic" />
+                    <TextBlock Margin="0,16,0,0" Text="{loc:Loc settings.more_coming}" Foreground="{StaticResource MutedTextBrush}" FontStyle="Italic" />
                 </StackPanel>
             </TabItem>
         </TabControl>

@@ -6,7 +6,7 @@ using Brush = System.Windows.Media.Brush;
 
 namespace VirtualController.App.Converters;
 
-/// <summary>Wandelt einen bool-Zustand (laeuft/verbunden vs. nicht) in eine gruene/graue Statusfarbe fuer die kleinen Status-Punkte in der UI.</summary>
+/// <summary>Converts a boolean state (running/connected vs. not) into a green or gray status color for the small UI indicators.</summary>
 public sealed class BoolToStatusBrushConverter : IValueConverter
 {
     private static readonly Brush ActiveBrush = new SolidColorBrush(Color.FromRgb(0x2E, 0xA0, 0x43));

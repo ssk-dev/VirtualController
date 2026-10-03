@@ -4,30 +4,24 @@ using VirtualController.Core.Profiles;
 namespace VirtualController.Core.Logging;
 
 /// <summary>
-/// Protokolliert fortlaufend den Rohzustand eines einzelnen physischen Geraets in eine Textdatei, bis
-/// <see cref="Stop"/> aufgerufen wird oder das Geraet die Verbindung verliert - unabhaengig von jeglicher
-/// UI-Sichtbarkeit (kein Bezug zu einem ausgewaehlten Tab), analog zu <see cref="Devices.Hid.RawHidReportReader"/>
-/// fuer das Benchmark-Feature. Nutzt bewusst die bereits vorhandene, API-unabhaengige
-/// <see cref="Devices.IDeviceReader"/>/<see cref="Devices.DeviceState"/>-Abstraktion (nicht die
-/// HID-spezifische <see cref="Devices.Hid.IHidReportSource"/>-Ebene), da diese Logging-Funktion
-/// gleichermassen fuer XInput- wie fuer DirectInput-Geraete verfuegbar sein muss.
+/// Continuously logs one physical device's raw state to a text file until <see cref="Stop"/> is called or the
+/// device disconnects, independently of UI visibility or selected tab. Like
+/// <see cref="Devices.Hid.RawHidReportReader"/> for benchmarking, it uses the existing API-independent
+/// <see cref="Devices.IDeviceReader"/>/<see cref="Devices.DeviceState"/> abstraction rather than the HID-specific
+/// <see cref="Devices.Hid.IHidReportSource"/>, so logging works for both XInput and DirectInput devices.
 ///
-/// Protokolliert bewusst NUR tatsaechliche Aenderungen (Diff-Log) statt jeden einzelnen Poll-Zyklus,
-/// analog zum frueheren, temporaeren Debug-Logging in <c>DeviceConfigDeviceViewModel</c> (siehe
-/// Git-Historie) - andernfalls wuerde die Datei bei einer laengeren Sitzung unnoetig gross und
-/// unlesbar. Jede Zeile ist zeitgestempelt, damit sich zeitliche Zusammenhaenge (z.B. "Achse X bewegt
-/// sich kurz nach Knopfdruck Y") nachvollziehen lassen.
+/// Logs only actual changes (diff log), not every polling cycle, to keep long sessions from producing huge,
+/// unreadable files. Each line is timestamped so temporal relationships (e.g. axis X moving shortly after
+/// button Y is pressed) can be examined.
 /// </summary>
 public sealed class DeviceStateLogger : IDisposable
 {
-    /// <summary>Abfragerate, bewusst identisch zur Erfassungsrate in <c>InputCaptureService</c> (4ms,
-    /// entspricht 250Hz) - deutlich schneller als die 33ms-Live-Anzeige der UI, damit auch kurze
-    /// Eingaben (schnelle Knopfdruecke) nicht zwischen zwei Polls verloren gehen.</summary>
+    /// <summary>Polling interval matches <c>InputCaptureService</c> (4 ms, or 250 Hz), much faster than the
+    /// UI's 33 ms live display so short inputs such as quick button presses are not missed.</summary>
     private static readonly TimeSpan PollInterval = TimeSpan.FromMilliseconds(4);
 
-    /// <summary>Maximales Intervall zwischen zwei Datei-Flushes, damit bei einem Absturz waehrend einer
-    /// laufenden Sitzung hoechstens die letzten ~500ms an Log-Zeilen verloren gehen, ohne bei jeder
-    /// einzelnen Zeile einen teuren Flush durchzufuehren.</summary>
+    /// <summary>Maximum interval between file flushes, limiting log loss to about the last 500 ms if the app
+    /// crashes during a session without paying the cost of flushing every line.</summary>
     private static readonly TimeSpan FlushInterval = TimeSpan.FromMilliseconds(500);
 
     private readonly Devices.PhysicalDeviceInfo _device;
@@ -37,29 +31,28 @@ public sealed class DeviceStateLogger : IDisposable
     private volatile bool _running;
     private bool _disposed;
 
-    /// <summary>Wird genau einmal ausgeloest, wenn die Log-Schleife wegen eines Fehlers (z.B. Geraet
-    /// getrennt, Datei nicht schreibbar) vorzeitig beendet wurde - NICHT bei regulaerem <see cref="Stop"/>-Aufruf.
-    /// Wird NICHT auf dem UI-Thread ausgeloest.</summary>
+    /// <summary>Raised once if the logging loop exits early due to an error (e.g. device disconnected or file
+    /// is not writable), not during a normal <see cref="Stop"/> call. Runs off the UI thread.</summary>
     public event Action<Exception>? LogFailed;
 
-    /// <summary>Ob die Log-Schleife aktuell laeuft. Wird nach einem Fehler (siehe <see cref="LogFailed"/>) automatisch false.</summary>
+    /// <summary>Whether the logging loop is running. Automatically becomes false after an error (see
+    /// <see cref="LogFailed"/>).</summary>
     public bool IsRunning => _running;
 
-    /// <summary>Vollstaendiger Pfad der Log-Datei dieser Sitzung.</summary>
+    /// <summary>Full path to this session's log file.</summary>
     public string FilePath => _filePath;
 
-    /// <param name="device">Das zu protokollierende Geraet.</param>
-    /// <param name="filePath">Zieldatei, oder null fuer den Standardpfad (siehe <see cref="BuildDefaultFilePath"/>).</param>
+    /// <param name="device">Device to log.</param>
+    /// <param name="filePath">Destination file, or null to use the default path (see <see cref="BuildDefaultFilePath"/>).</param>
     public DeviceStateLogger(Devices.PhysicalDeviceInfo device, string? filePath = null)
     {
         _device = device;
         _filePath = filePath ?? BuildDefaultFilePath(device);
     }
 
-    /// <summary>Leitet den Standard-Dateipfad aus dem Anzeigenamen des Geraets ab:
-    /// "%AppData%\VirtualController\Logs\log-device-{marke}-{name}.txt" - dieselbe Marke/Name-Aufteilung
-    /// wie bei den Geraete-Einstellungsdateien (siehe <see cref="FileNaming.SplitBrandAndName"/>), damit
-    /// beide Dateiarten fuer denselben Geraetenamen konsistent benannt sind.</summary>
+    /// <summary>Builds the default file path from the device display name:
+    /// "%AppData%\VirtualController\Logs\log-device-{brand}-{name}.txt". Uses the same brand/name split as
+    /// device settings files (see <see cref="FileNaming.SplitBrandAndName"/>) for consistent naming.</summary>
     public static string BuildDefaultFilePath(Devices.PhysicalDeviceInfo device)
     {
         var (brand, name) = FileNaming.SplitBrandAndName(device.DisplayName);
@@ -109,11 +102,10 @@ public sealed class DeviceStateLogger : IDisposable
                 Directory.CreateDirectory(directory);
             }
 
-            // Bewusst kein Append: jede gestartete Sitzung beginnt mit einer frischen Datei, damit die
-            // Diff-Basis (siehe DiffState) nicht faelschlich an einen alten, moeglicherweise veralteten
-            // Endzustand einer fruehreren Sitzung anschliesst.
+            // Start a fresh file for every session so the diff baseline (see DiffState) does not continue from
+            // a potentially stale final state from an earlier session.
             writer = new StreamWriter(_filePath, append: false, Encoding.UTF8) { AutoFlush = false };
-            writer.WriteLine($"===== Log gestartet {DateTime.Now:yyyy-MM-dd HH:mm:ss} - Geraet: {_device.DisplayName} ({_device.Api}, Slot {_device.ApiSlot}) =====");
+            writer.WriteLine($"===== Log started {DateTime.Now:yyyy-MM-dd HH:mm:ss} - Device: {_device.DisplayName} ({_device.Api}, Slot {_device.ApiSlot}) =====");
             writer.Flush();
 
             reader = Devices.DeviceEnumerator.OpenReader(_device);
@@ -125,7 +117,7 @@ public sealed class DeviceStateLogger : IDisposable
             {
                 if (!reader.Poll(out var state))
                 {
-                    writer.WriteLine($"{DateTime.Now:HH:mm:ss.fff} [Geraet getrennt - Log beendet]");
+                    writer.WriteLine($"{DateTime.Now:HH:mm:ss.fff} [Device disconnected - logging stopped]");
                     writer.Flush();
                     break;
                 }
@@ -143,7 +135,7 @@ public sealed class DeviceStateLogger : IDisposable
         }
         catch (OperationCanceledException)
         {
-            // Regulaerer Stop() - kein Fehler.
+            // Normal Stop(); not an error.
         }
         catch (Exception ex)
         {
@@ -158,8 +150,8 @@ public sealed class DeviceStateLogger : IDisposable
             }
             catch
             {
-                // Datei ggf. nicht mehr schreibbar (z.B. Datentraeger entfernt) - beim Beenden der
-                // Sitzung darf dies keine weitere Ausnahme nach aussen werfen.
+                // The file may no longer be writable (e.g. drive removed); do not let this throw while ending
+                // the session.
             }
 
             writer?.Dispose();
@@ -168,13 +160,13 @@ public sealed class DeviceStateLogger : IDisposable
         }
     }
 
-    /// <summary>Haelt den zuletzt protokollierten Rohzustand fest, um bei jedem Poll nur tatsaechliche
-    /// Aenderungen zu schreiben (siehe Klassendokumentation von <see cref="DeviceStateLogger"/>).</summary>
+    /// <summary>Stores the last logged raw state so each poll writes only actual changes (see
+    /// <see cref="DeviceStateLogger"/> documentation).</summary>
     private sealed class DiffState
     {
         public float[]? LastAxes;
         public bool[]? LastButtons;
-        public int LastPov = -1; // -1 = zentriert/kein D-Pad, identisch zum Neutralwert von DeviceState.Empty.
+        public int LastPov = -1; // -1 = centered/no D-pad, matching the neutral value of DeviceState.Empty.
     }
 
     private static void WriteDiff(StreamWriter writer, Devices.DeviceState state, DiffState diff)

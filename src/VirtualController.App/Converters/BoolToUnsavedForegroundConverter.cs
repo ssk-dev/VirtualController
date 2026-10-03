@@ -6,10 +6,10 @@ using Brush = System.Windows.Media.Brush;
 
 namespace VirtualController.App.Converters;
 
-/// <summary>Wandelt den "Gibt es ungespeicherte Aenderungen?"-Zustand in eine Textfarbe fuer den
-/// Speichern-Button: rot bei ungespeicherten Aenderungen, sonst die normale Textfarbe. Bewusst
-/// ueber <c>Foreground</c> statt <c>Background</c> umgesetzt, damit dies nicht mit dem globalen
-/// Klick-Feedback-Style (der die Hintergrundfarbe beim Draufklicken kurz aendert) kollidiert.</summary>
+/// <summary>Converts whether there are unsaved changes into a text color for the save button:
+/// red when changes are unsaved, otherwise the default text color. Uses <c>Foreground</c> instead
+/// of <c>Background</c> to avoid conflicting with the global click-feedback style, which briefly
+/// changes the background color when clicked.</summary>
 public sealed class BoolToUnsavedForegroundConverter : IValueConverter
 {
     private static readonly Brush UnsavedBrush = new SolidColorBrush(Color.FromRgb(0xC0, 0x00, 0x00));

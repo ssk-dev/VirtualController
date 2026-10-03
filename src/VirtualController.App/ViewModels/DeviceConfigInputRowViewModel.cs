@@ -6,16 +6,15 @@ using VirtualController.Core.Virtual;
 namespace VirtualController.App.ViewModels;
 
 /// <summary>
-/// Eine einzelne Zeile im Geraete-Konfigurationsdialog: repraesentiert eine physische Eingabe
-/// (Button, Achsen-Richtung, Slider, D-Pad-Richtung) eines Geraets mit ihrem aktuellen Namen und
-/// Enable/Disable-Zustand. Schreibt Aenderungen direkt in die zugrunde liegende <see cref="InputSettings"/>,
-/// die Teil des insgesamt gespeicherten Profils ist. Bei Achsen zusaetzlich: Bereichskalibrierung
-/// (Min/Max/Zentrum), automatische Deadzone-Kalibrierung (Stickdrift-Messung) und Antwortkurve.
+/// One row in the device configuration dialog, representing a physical input (button, axis direction, slider,
+/// or D-pad direction) with its current name and enabled state. Writes changes directly to the underlying
+/// <see cref="InputSettings"/>, which is part of the saved profile. Axis rows also provide range calibration
+/// (min/max/center), automatic deadzone calibration (stick drift measurement), and response curves.
 /// </summary>
 public sealed partial class DeviceConfigInputRowViewModel : ObservableObject
 {
-    /// <summary>Ab diesem absoluten Achsenausschlag gilt eine Achsen-Richtung als "aktiv" (analog zu
-    /// <see cref="PhysicalInputRowViewModel"/>, fuer eine reaktionsfreudige Live-Anzeige in diesem Dialog).</summary>
+    /// <summary>An axis direction is considered active at this absolute deflection (matching
+    /// <see cref="PhysicalInputRowViewModel"/>) for responsive live feedback in this dialog.</summary>
     private const float AxisActiveThreshold = 0.3f;
 
     private static readonly TimeSpan RangeCalibrationDuration = TimeSpan.FromSeconds(5);
@@ -26,13 +25,13 @@ public sealed partial class DeviceConfigInputRowViewModel : ObservableObject
 
     public PhysicalInputRef Ref { get; }
 
-    /// <summary>Zugrunde liegende Einstellungen dieser Eingabe (Kalibrierung/Deadzone/Kurve/Enabled).
-    /// Oeffentlich zugaenglich, damit z.B. <see cref="DeviceConfigAxisPairViewModel"/> daraus die
-    /// eingebettete Live-Visualisierung (<see cref="AxisVisualizationViewModel"/>) mit derselben
-    /// Einstellungsinstanz aufbauen kann, statt eine zweite, unabhaengige Kopie zu verwalten.</summary>
+    /// <summary>Underlying settings for this input (calibration, deadzone, curve, and enabled state). Publicly
+    /// accessible so <see cref="DeviceConfigAxisPairViewModel"/>, for example, can build its embedded live
+    /// visualization (<see cref="AxisVisualizationViewModel"/>) from the same settings instance rather than
+    /// maintaining a separate copy.</summary>
     public InputSettings Settings => _settings;
 
-    /// <summary>Fuer ComboBox-Bindings in der View.</summary>
+    /// <summary>Options for ComboBox bindings in the view.</summary>
     public static IReadOnlyList<AxisCurveType> CurveTypeOptions { get; } = Enum.GetValues<AxisCurveType>();
 
     private readonly PhysicalDeviceInfo _device;
@@ -69,14 +68,14 @@ public sealed partial class DeviceConfigInputRowViewModel : ObservableObject
     [ObservableProperty]
     private string? _calibrationStatus;
 
-    /// <summary>Ob diese physische Eingabe aktuell aktiv ist (Live-Hervorhebung, analog zu
-    /// <see cref="PhysicalInputRowViewModel.IsActive"/>), waehrend das zugehoerige Geraet in diesem
-    /// Dialog aufgeklappt ist. Wird per <see cref="UpdateActiveState"/> vom Live-Polling der
-    /// uebergeordneten <see cref="DeviceConfigDeviceViewModel"/> aktualisiert.</summary>
+    /// <summary>Whether this physical input is currently active (live highlight, like
+    /// <see cref="PhysicalInputRowViewModel.IsActive"/>) while its device is expanded in this dialog.
+    /// Updated by <see cref="UpdateActiveState"/> from the parent
+    /// <see cref="DeviceConfigDeviceViewModel"/>'s live polling.</summary>
     [ObservableProperty]
     private bool _isActive;
 
-    /// <summary>Aktualisiert den Aktiv-Status anhand des aktuellen Geraetezustands, fuer die Live-Hervorhebung in der UI.</summary>
+    /// <summary>Updates the active state from the current device state for live highlighting in the UI.</summary>
     public void UpdateActiveState(DeviceState state)
     {
         IsActive = Ref.Kind switch
@@ -93,16 +92,14 @@ public sealed partial class DeviceConfigInputRowViewModel : ObservableObject
         };
     }
 
-    /// <summary>true fuer beide Achsen-Richtungseintraege (AxisPositive/AxisNegative), false fuer Button/DPad.</summary>
+    /// <summary>True for both axis direction entries (AxisPositive/AxisNegative); false for buttons and D-pad inputs.</summary>
     public bool IsAxis => Ref.Kind is PhysicalInputKind.AxisPositive or PhysicalInputKind.AxisNegative;
 
     /// <summary>
-    /// Eine physische Achse besitzt nur eine Kalibrierung/Deadzone/Kurve, obwohl sie im Katalog als
-    /// zwei getrennte Eintraege (je einer pro Ausschlagsrichtung fuer die Mapping-Zuordnung) auftritt.
-    /// <see cref="Mapping.MappingEngine"/> liest diese Einstellungen stets ueber den kanonischen
-    /// AxisPositive-Schluessel derselben Achsen-Nummer - Kalibrierungs-/Kurven-Steuerelemente werden
-    /// deshalb nur auf dem AxisPositive-Eintrag angezeigt, damit der Nutzer nicht versehentlich auf dem
-    /// wirkungslosen AxisNegative-Eintrag Einstellungen vornimmt.
+    /// A physical axis has one calibration, deadzone, and curve even though the catalog exposes two entries,
+    /// one for each deflection direction used by mapping. <see cref="Mapping.MappingEngine"/> always reads these
+    /// settings through the canonical AxisPositive key for that axis index, so calibration and curve controls
+    /// appear only on the AxisPositive entry and cannot be changed through the ineffective AxisNegative entry.
     /// </summary>
     public bool IsCalibratable => Ref.Kind == PhysicalInputKind.AxisPositive;
 
@@ -173,36 +170,36 @@ public sealed partial class DeviceConfigInputRowViewModel : ObservableObject
     [RelayCommand(CanExecute = nameof(CanCalibrate))]
     private async Task CalibrateRangeAsync()
     {
-        await RunCalibrationAsync("Bewege den Stick/die Achse jetzt mehrmals bis zu beiden Anschlaegen...", async reader =>
+        await RunCalibrationAsync("Move the stick/axis to both limits several times...", async reader =>
         {
             var sample = await AxisCalibrationService.SampleRangeAsync(reader, Ref.Index, RangeCalibrationDuration).ConfigureAwait(true);
             CalibratedMin = sample.Min;
             CalibratedMax = sample.Max;
-            return $"Bereich kalibriert: Min={sample.Min:F2}, Max={sample.Max:F2}";
+            return $"Range calibrated: min={sample.Min:F2}, max={sample.Max:F2}";
         });
     }
 
     [RelayCommand(CanExecute = nameof(CanCalibrate))]
     private async Task SetCenterAsync()
     {
-        await RunCalibrationAsync("Achse jetzt loslassen (Ruheposition wird gemessen)...", async reader =>
+        await RunCalibrationAsync("Release the axis (measuring its resting position)...", async reader =>
         {
             await Task.Delay(CenterGraceDuration).ConfigureAwait(true);
             float center = await AxisCalibrationService.SampleCenterAsync(reader, Ref.Index, CenterSampleDuration).ConfigureAwait(true);
             CalibratedCenter = center;
-            return $"Zentrum gesetzt: {center:F3}";
+            return $"Center set: {center:F3}";
         });
     }
 
     [RelayCommand(CanExecute = nameof(CanCalibrate))]
     private async Task CalibrateDeadzoneAsync()
     {
-        await RunCalibrationAsync("Achse jetzt loslassen (Stickdrift wird gemessen)...", async reader =>
+        await RunCalibrationAsync("Release the axis (measuring stick drift)...", async reader =>
         {
             float deadzone = await AxisCalibrationService.SampleDeadzoneAsync(
                 reader, Ref.Index, DeadzoneGraceDuration, DeadzoneSampleDuration).ConfigureAwait(true);
             Deadzone = deadzone;
-            return $"Deadzone kalibriert: {deadzone:F3}";
+            return $"Deadzone calibrated: {deadzone:F3}";
         });
     }
 
@@ -212,7 +209,7 @@ public sealed partial class DeviceConfigInputRowViewModel : ObservableObject
         CalibratedMin = null;
         CalibratedMax = null;
         CalibratedCenter = null;
-        CalibrationStatus = "Kalibrierung zurueckgesetzt.";
+        CalibrationStatus = "Calibration reset.";
     }
 
     private bool CanCalibrate() => !IsCalibrating;
@@ -224,8 +221,8 @@ public sealed partial class DeviceConfigInputRowViewModel : ObservableObject
         CalibrateDeadzoneCommand.NotifyCanExecuteChanged();
     }
 
-    /// <summary>Kapselt das gemeinsame Muster aller Kalibrierungsaktionen: Status setzen, kurzlebigen
-    /// Reader oeffnen, Messung durchfuehren, Reader wieder schliessen, Status/Fehler anzeigen.</summary>
+    /// <summary>Shared flow for calibration actions: set status, open a short-lived reader, perform the
+    /// measurement, dispose the reader, and show the result or error.</summary>
     private async Task RunCalibrationAsync(string startStatus, Func<IDeviceReader, Task<string>> action)
     {
         IsCalibrating = true;
@@ -238,7 +235,7 @@ public sealed partial class DeviceConfigInputRowViewModel : ObservableObject
         }
         catch (Exception ex)
         {
-            CalibrationStatus = $"Kalibrierung fehlgeschlagen: {ex.Message}";
+            CalibrationStatus = $"Calibration failed: {ex.Message}";
         }
         finally
         {

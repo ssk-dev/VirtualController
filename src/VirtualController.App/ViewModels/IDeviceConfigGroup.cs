@@ -1,19 +1,17 @@
 namespace VirtualController.App.ViewModels;
 
 /// <summary>
-/// Gemeinsame Schnittstelle fuer die beiden Arten von Eingabe-Gruppen im Geraete-Konfigurationsdialog:
-/// <see cref="DeviceConfigInputGroupViewModel"/> (flache Liste, fuer "Buttons"/"D-Pad") und
-/// <see cref="DeviceConfigAxisGroupViewModel"/> (paarweise Positiv-/Negativ-Achsen mit gemeinsamem
-/// Rahmen, fuer "Achsen"). Ermoeglicht es <see cref="DeviceConfigDeviceViewModel"/>, beide Gruppentypen
-/// generisch in einer einzigen <c>InputGroups</c>-Collection zu verwalten (Live-Update, Reset), ohne den
-/// konkreten Typ zu kennen; die View waehlt die passende Darstellung allein anhand des Laufzeittyps
-/// (implizite DataTemplates).
+/// Shared interface for the two input group types in the device configuration dialog:
+/// <see cref="DeviceConfigInputGroupViewModel"/> (flat Buttons/D-pad list) and
+/// <see cref="DeviceConfigAxisGroupViewModel"/> (framed positive/negative axis pairs). Lets
+/// <see cref="DeviceConfigDeviceViewModel"/> manage both types in one <c>InputGroups</c> collection for live
+/// updates and reset without knowing the concrete type. The view selects a template from the runtime type.
 /// </summary>
 public interface IDeviceConfigGroup
 {
     string GroupName { get; }
 
-    /// <summary>Alle in dieser Gruppe enthaltenen Eingabezeilen, unabhaengig von der internen
-    /// Verschachtelung (flach bzw. paarweise) - fuer generisches Live-Update/Reset.</summary>
+    /// <summary>All input rows in this group, regardless of flat or paired nesting, for generic live updates
+    /// and reset.</summary>
     IEnumerable<DeviceConfigInputRowViewModel> AllRows { get; }
 }

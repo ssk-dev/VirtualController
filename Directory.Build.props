@@ -1,10 +1,10 @@
 <Project>
 
   <!--
-    Zentrale Build-Einstellungen fuer alle Projekte dieser Solution.
-    MSBuild importiert diese Datei automatisch fuer jedes Projekt in diesem Verzeichnis
-    und allen Unterverzeichnissen - dadurch muessen TargetFramework, Nullable etc. nicht in
-    jeder einzelnen .csproj wiederholt werden.
+    Central build settings for all projects in this solution.
+    MSBuild automatically imports this file for every project in this directory
+    and its subdirectories, so TargetFramework, Nullable, etc. do not need to be repeated
+    in each .csproj file.
   -->
   <PropertyGroup>
     <TargetFramework>net8.0-windows</TargetFramework>
@@ -14,11 +14,10 @@
     <Platforms>x64</Platforms>
     <PlatformTarget>x64</PlatformTarget>
     <!--
-      Verhindert, dass der .NET SDK die per Directory.Build.targets ("ComputeVersionFromGitTag") aus dem
-      Git-Tag ermittelte Version (z.B. "1.4.2") automatisch um ein "+<Commit-SHA>"-Suffix im
-      AssemblyInformationalVersionAttribute ergaenzt. Ohne diese Einstellung wuerde die in der Titelzeile
-      angezeigte Version (siehe AppVersionProvider) je nach Commit variieren, obwohl sie fuer denselben
-      Git-Tag stets identisch sein soll.
+      Prevents the .NET SDK from appending a "+<Commit-SHA>" suffix to the version read from a Git tag
+      (e.g. "1.4.2") by Directory.Build.targets ("ComputeVersionFromGitTag") in the
+      AssemblyInformationalVersionAttribute. Without this setting, the version shown in the title bar
+      (see AppVersionProvider) would vary by commit, even though it should be identical for the same tag.
     -->
     <IncludeSourceRevisionInInformationalVersion>false</IncludeSourceRevisionInInformationalVersion>
   </PropertyGroup>

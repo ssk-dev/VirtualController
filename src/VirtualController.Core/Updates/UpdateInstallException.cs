@@ -1,11 +1,9 @@
 namespace VirtualController.Core.Updates;
 
 /// <summary>
-/// Signalisiert, dass die Vorbereitung oder der Start der eigentlichen Update-Installation
-/// fehlgeschlagen ist (Download fehlgeschlagen, Archiv beschaedigt/nicht extrahierbar, Updater-Prozess
-/// konnte nicht gestartet werden). Wird geworfen, BEVOR irgendeine bereits installierte Datei angefasst
-/// wurde (siehe <see cref="UpdateInstaller"/>-Klassendokumentation) - die aktuell installierte Version
-/// bleibt in jedem hierdurch abgedeckten Fehlerfall unveraendert lauffaehig.
+/// Indicates that preparing or starting update installation failed (download failed, archive is corrupted/not
+/// extractable, or updater process could not start). Thrown before any installed file is modified (see
+/// <see cref="UpdateInstaller"/> docs), so the current version remains usable for these failures.
 /// </summary>
 public sealed class UpdateInstallException : Exception
 {

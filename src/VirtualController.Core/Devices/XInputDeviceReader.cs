@@ -3,25 +3,23 @@ using Vortice.XInput;
 namespace VirtualController.Core.Devices;
 
 /// <summary>
-/// Liest einen physischen Controller ueber XInput aus (User-Index 0-3). XInput ist die von
-/// Xbox-kompatiblen Controllern genutzte API und bietet die geringste Abfrage-Latenz.
+/// Reads a physical controller through XInput (user index 0-3). XInput is used by Xbox-compatible controllers
+/// and provides the lowest polling latency.
 /// </summary>
 public sealed class XInputDeviceReader : IDeviceReader
 {
-    private const int ButtonCount = 14; // 10 XInput-Digitalbuttons + 4 DPad-Bits werden separat behandelt
+    private const int ButtonCount = 14; // 10 XInput digital buttons + 4 D-pad bits are handled separately.
 
     private readonly int _userIndex;
 
     public PhysicalDeviceInfo Info { get; }
 
     /// <summary>
-    /// XInput belegt immer genau die Slots 0-5 mit fester Bedeutung (0=LinkerStickX, 1=LinkerStickY,
-    /// 2=RechterStickX, 3=RechterStickY, 4=LinkerTrigger, 5=RechterTrigger) - unabhaengig vom generischen
-    /// PhysicalAxisId-Namen, der hier nur als Slot-Index verwendet wird. Die Slot-Indizes 3-5 nutzen
-    /// bewusst RotationX/RotationY/RotationZ (statt der frueheren, fehlerhaften Belegung RotationZ/
-    /// Slider0/Slider1), damit sie mit der tatsaechlichen Poll-Reihenfolge uebereinstimmen und sich
-    /// klar von DirectInputs eigener Slot-3-5-Bedeutung (echte X/Y/Z-Rotation) unterscheiden lassen -
-    /// siehe <see cref="Mapping.MappingEngine"/> fuer die API-abhaengige Trigger-Erkennung anhand dieser Slots.
+    /// XInput always uses slots 0-5 with fixed meanings (left/right stick axes and triggers), independent of
+    /// the generic PhysicalAxisId names, which are used here only as slot indices. Slots 3-5 intentionally use
+    /// RotationX/RotationY/RotationZ (instead of the earlier incorrect RotationZ/Slider0/Slider1 mapping) to
+    /// match polling order and distinguish them from DirectInput's actual X/Y/Z rotation slots. See
+    /// <see cref="Mapping.MappingEngine"/> for API-specific trigger detection based on these slots.
     /// </summary>
     private static readonly PhysicalAxisId[] FixedAvailableAxes =
     {
@@ -42,7 +40,7 @@ public sealed class XInputDeviceReader : IDeviceReader
             AvailableAxes: FixedAvailableAxes);
     }
 
-    /// <summary>Prueft ohne vollen State-Read, ob an diesem Slot ueberhaupt ein Geraet angeschlossen ist.</summary>
+    /// <summary>Checks whether a device is connected at this slot without reading the full state.</summary>
     public static bool IsConnected(int userIndex)
         => XInput.GetState(userIndex, out _);
 
@@ -94,6 +92,6 @@ public sealed class XInputDeviceReader : IDeviceReader
 
     public void Dispose()
     {
-        // XInput benoetigt kein Handle-Cleanup.
+        // XInput has no handles to clean up.
     }
 }

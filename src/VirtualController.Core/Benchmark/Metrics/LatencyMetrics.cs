@@ -2,45 +2,40 @@ using VirtualController.Core.Devices.Hid;
 
 namespace VirtualController.Core.Benchmark.Metrics;
 
-/// <param name="DeviationMs">Deskriptive Statistik ueber die absolute Abweichung jedes einzelnen
-/// beobachteten Intervalls vom nominalen/erwarteten Polling-Intervall (in Millisekunden) - siehe
-/// Klassendokumentation von <see cref="LatencyMetrics"/> fuer die Interpretation.</param>
-/// <param name="SampleCount">Anzahl der eingeflossenen Werte.</param>
+/// <param name="DeviationMs">Descriptive statistics for the absolute deviation of each observed interval
+/// from the nominal/expected polling interval, in milliseconds. See <see cref="LatencyMetrics"/> docs.</param>
+/// <param name="SampleCount">Number of included values.</param>
 /// <param name="DeviationPercentilesApproximate">Siehe <see cref="StreamingStatisticsAccumulator.AreDistributionPercentilesApproximate"/>.</param>
 public sealed record LatencyResult(DescriptiveStatisticsResult DeviationMs, long SampleCount, bool DeviationPercentilesApproximate);
 
 /// <summary>
-/// Berechnet eine Naeherung fuer "Latenz" aus einem Strom von <see cref="HidReportSample"/>.
+/// Estimates "latency" from a stream of <see cref="HidReportSample"/> values.
 ///
-/// WICHTIGE EINSCHRAENKUNG: Echte Ende-zu-Ende-Eingabelatenz (Zeit von der physischen Betaetigung
-/// eines Buttons/einer Achse bis zum Empfang durch die Anwendung) ist rein softwareseitig, ohne
-/// spezielle Referenzhardware (z.B. ein photodioden-/relaisbasiertes Mess-Rig, wie es dedizierte
-/// Latenz-Messgeraete verwenden), NICHT zuverlaessig messbar - dieser Software-Benchmark hat keinen
-/// unabhaengigen Zeitpunkt fuer "wann wurde tatsaechlich physisch etwas ausgeloest".
+/// Important limitation: true end-to-end input latency (time from physically pressing a button/moving an axis
+/// to the application receiving it) cannot be measured reliably in software alone without specialized reference
+/// hardware, such as photodiode/relay test rigs used by dedicated latency devices. This software benchmark has
+/// no independent timestamp for when a physical action actually occurred.
 ///
-/// Diese Klasse berechnet daher stattdessen eine ehrliche, tatsaechlich messbare Naeherung: die
-/// ABWEICHUNG jedes einzelnen beobachteten Report-Intervalls vom nominalen, vom USB-Endpoint-Deskriptor
-/// gemeldeten Polling-Intervall (siehe <see cref="Devices.Usb.UsbEndpointInfo.NominalPollingIntervalMs"/>,
-/// Phase 2). Ein Geraet, das exakt im nominalen Takt antwortet, hat eine Abweichung nahe 0; ein Geraet
-/// mit unregelmaessiger/verzoegerter Antwort (z.B. durch USB-Bus-Auslastung, Treiber-Overhead oder
-/// interne Verarbeitungsverzoegerung) zeigt hier hoehere Werte. Dies entspricht der in
-/// Eingabegeraete-Tests gebraeuchlichen Grosse "Jitter relativ zur Spezifikation", nicht einer
-/// End-zu-Ende-Latenzmessung - das Benchmark-Ergebnis muss dies entsprechend beschriften (siehe
-/// zukuenftige Benchmark-JSON-Ausgabe).
+/// Instead, this class computes an honest, measurable estimate: the deviation of each observed report
+/// interval from the nominal polling interval reported by the USB endpoint descriptor (see
+/// <see cref="Devices.Usb.UsbEndpointInfo.NominalPollingIntervalMs"/>, phase 2). A device responding exactly
+/// on schedule has a deviation near zero; irregular or delayed responses (e.g. due to USB bus load, driver
+/// overhead, or internal processing delays) produce larger values. This is "jitter relative to specification"
+/// as used in input-device tests, not end-to-end latency, and benchmark output must label it accordingly.
 ///
-/// Ohne bekanntes nominales Intervall (siehe <see cref="LatencyMetrics(double?)"/>) liefert
-/// <see cref="ComputeResult"/> stets <see cref="DescriptiveStatisticsResult.Empty"/> mit
-/// <see cref="LatencyResult.SampleCount"/> = 0 - die Benchmark-Ausgabe muss diesen Fall als
-/// "nicht ermittelbar" kennzeichnen, statt eine Null-Latenz vorzutaeuschen.
+/// Without a known nominal interval (see <see cref="LatencyMetrics(double?)"/>),
+/// <see cref="ComputeResult"/> returns <see cref="DescriptiveStatisticsResult.Empty"/> with
+/// <see cref="LatencyResult.SampleCount"/> = 0. Benchmark output should label this as unavailable rather than
+/// implying zero latency.
 /// </summary>
 public sealed class LatencyMetrics
 {
     private readonly double? _nominalIntervalMs;
     private readonly StreamingStatisticsAccumulator _deviationAccumulator = new();
 
-    /// <param name="nominalIntervalMs">Nominales Polling-Intervall in Millisekunden (siehe
-    /// <see cref="Devices.Usb.UsbEndpointInfo.NominalPollingIntervalMs"/>), oder null, falls die
-    /// USB-Topologie-Abfrage (Phase 2) fehlgeschlagen ist - siehe Klassendokumentation.</param>
+    /// <param name="nominalIntervalMs">Nominal polling interval in milliseconds (see
+    /// <see cref="Devices.Usb.UsbEndpointInfo.NominalPollingIntervalMs"/>), or null if USB topology lookup
+    /// (phase 2) failed; see the class documentation.</param>
     public LatencyMetrics(double? nominalIntervalMs)
     {
         _nominalIntervalMs = nominalIntervalMs is > 0 ? nominalIntervalMs : null;

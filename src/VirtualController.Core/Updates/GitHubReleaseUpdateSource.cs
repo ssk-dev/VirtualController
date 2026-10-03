@@ -3,27 +3,23 @@ using System.Text.Json;
 namespace VirtualController.Core.Updates;
 
 /// <summary>
-/// <see cref="IUpdateSource"/>-Implementierung gegen die GitHub-Releases-API des Projekts
-/// (https://api.github.com/repos/{owner}/{repo}/releases) - dieselbe Quelle, in die der
-/// bestehende Release-Workflow (.github/workflows/release.yml) bei jedem gepushten Git-Tag
-/// automatisch ein neues Release samt ZIP-Anhang veroeffentlicht. Bewusst wird die komplette
-/// Release-Liste abgefragt statt nur "/releases/latest" - letzteres liefert ausschliesslich das von
-/// GitHub mit dem Label "Latest" markierte Release und ignoriert alle als "Pre-release" markierten
-/// Eintraege (z.B. Tags mit Suffix "-alpha"/"-beta"/"-nightly", siehe release.yml). Ob solche
-/// Vorabversionen bei der Auswahl beruecksichtigt werden, steuert der Aufrufer explizit ueber den
-/// Parameter <see cref="GetLatestAsync"/>.includePreReleases (siehe <see cref="UpdateSettings.IncludePreReleases"/>) -
-/// aus allen dafuer in Frage kommenden (nicht als Entwurf/"draft" markierten) Releases wird dasjenige
-/// mit der hoechsten semantischen Versionsnummer ausgewaehlt. Liest daraus den Tag-Namen ("tag_name",
-/// z.B. "v1.5.0" -> Version "1.5.0") sowie die Download-URL des passenden ZIP-Assets aus.
+/// <see cref="IUpdateSource"/> implementation backed by the project's GitHub Releases API
+/// (https://api.github.com/repos/{owner}/{repo}/releases), where the existing release workflow
+/// (.github/workflows/release.yml) publishes a release with a ZIP asset for each pushed Git tag. Fetches the
+/// full release list rather than only "/releases/latest", which returns only the release GitHub marks "Latest"
+/// and ignores prereleases (e.g. tags ending in -alpha/-beta/-nightly). The caller controls whether prereleases
+/// are included through <see cref="GetLatestAsync"/>'s includePreReleases parameter (see
+/// <see cref="UpdateSettings.IncludePreReleases"/>). Of eligible, non-draft releases, selects the highest
+/// semantic version and reads its tag name ("tag_name", e.g. "v1.5.0" -> "1.5.0") and matching ZIP asset URL.
 /// </summary>
 public sealed class GitHubReleaseUpdateSource : IUpdateSource
 {
-    /// <summary>Name/Repository-Eigner auf GitHub, dessen Releases als Update-Quelle dienen.</summary>
+    /// <summary>GitHub account/repository owner providing releases as the update source.</summary>
     private const string RepositoryOwner = "ssk-dev";
     private const string RepositoryName = "VirtualController";
 
-    /// <summary>Name des Release-Assets, dessen Download-URL als Installationsquelle zurueckgegeben wird -
-    /// entspricht exakt dem vom Release-Workflow erzeugten Archiv (siehe release.yml, "Compress-Archive").</summary>
+    /// <summary>Release asset whose download URL is returned for installation; must match the archive created
+    /// by the release workflow (see "Compress-Archive" in release.yml).</summary>
     private const string AssetFileName = "VirtualController-win-x64.zip";
 
     private static readonly Uri ReleasesListUri =
@@ -40,8 +36,7 @@ public sealed class GitHubReleaseUpdateSource : IUpdateSource
 
         foreach (var (version, release) in eligibleReleases)
         {
-            // Entscheidend ist ausschliesslich die hoechste semantische Versionsnummer unter den
-            // dafuer in Frage kommenden Releases, nicht das von GitHub vergebene "Latest"-Label.
+            // Select solely by highest semantic version among eligible releases, not GitHub's "Latest" label.
             if (newestRelease is null || version.CompareTo(newestVersion) > 0)
             {
                 newestRelease = release;
@@ -75,11 +70,10 @@ public sealed class GitHubReleaseUpdateSource : IUpdateSource
         return result;
     }
 
-    /// <summary>Fragt die komplette Release-Liste ab und filtert daraus alle fuer eine Installation in
-    /// Frage kommenden Eintraege heraus: Entwuerfe ("draft": true) werden immer ausgeschlossen, als
-    /// "Pre-release" markierte Eintraege nur, falls <paramref name="includePreReleases"/> false ist -
-    /// gemeinsam genutzt von <see cref="GetLatestAsync"/> (waehlt daraus die hoechste Version) und
-    /// <see cref="GetAllAsync"/> (gibt alle davon zurueck, fuer den Versionswechsel-/Rollback-Dialog).</summary>
+    /// <summary>Fetches the full release list and filters out entries ineligible for installation: drafts are
+    /// always excluded, and prereleases are excluded unless <paramref name="includePreReleases"/> is true.
+    /// Shared by <see cref="GetLatestAsync"/> (selects the highest version) and <see cref="GetAllAsync"/> (returns
+    /// all eligible versions for the change-version/rollback dialog).</summary>
     private static async Task<List<(SemanticVersion Version, JsonElement Release)>> FetchEligibleReleasesAsync(
         bool includePreReleases, CancellationToken cancellationToken)
     {
@@ -98,16 +92,14 @@ public sealed class GitHubReleaseUpdateSource : IUpdateSource
 
         foreach (var release in document.RootElement.EnumerateArray())
         {
-            // Entwuerfe ("draft": true) sind noch nicht veroeffentlicht und duerfen nicht als
-            // installierbares Update angeboten werden.
+            // Drafts are not published and must not be offered as installable updates.
             if (release.TryGetProperty("draft", out var draftElement) && draftElement.ValueKind == JsonValueKind.True)
             {
                 continue;
             }
 
-            // Als "Pre-release" markierte Eintraege (siehe release.yml, "prerelease"-Flag) werden nur
-            // beruecksichtigt, wenn der Aufrufer dies ueber includePreReleases explizit angefordert hat -
-            // Standardverhalten ist, Nutzern ausschliesslich vollwertige, stabile Versionen anzubieten.
+            // Include prereleases (see the "prerelease" flag in release.yml) only when explicitly requested;
+            // by default, offer stable releases only.
             bool isPrerelease = release.TryGetProperty("prerelease", out var prereleaseElement)
                 && prereleaseElement.ValueKind == JsonValueKind.True;
             if (isPrerelease && !includePreReleases)
@@ -127,8 +119,8 @@ public sealed class GitHubReleaseUpdateSource : IUpdateSource
                 continue;
             }
 
-            // ACHTUNG: document wird am Ende dieser Methode disposed - JsonElement.Clone() erzeugt eine
-            // eigenstaendige Kopie, die unabhaengig vom JsonDocument weiterverwendet werden kann.
+            // The document is disposed when this method returns. Clone the JsonElement so it can be used
+            // independently of its JsonDocument.
             result.Add((version, release.Clone()));
         }
 
@@ -155,12 +147,9 @@ public sealed class GitHubReleaseUpdateSource : IUpdateSource
         return null;
     }
 
-    /// <summary>Liest das "body"-Feld eines GitHub-Releases aus - enthaelt den vom Release-Workflow
-    /// (siehe release.yml, Schritt "GitHub Release erstellen und Dateien anhaengen",
-    /// "softprops/action-gh-release" mit "body_path: release-notes.md") hinterlegten, Markdown-
-    /// formatierten Changelog-/Release-Notes-Text der Version (gruppiert in "## Features"/"## Fixes").
-    /// Gibt <c>null</c> zurueck, falls das Feld fehlt oder leer ist (z.B. bei manuell ohne Notizen
-    /// erstellten Releases).</summary>
+    /// <summary>Reads a release's "body" field, containing the Markdown changelog/release notes written by the
+    /// release workflow (see the "Create GitHub Release" step in release.yml, softprops/action-gh-release with
+    /// body_path: release-notes.md). Returns <c>null</c> if the field is missing or empty.</summary>
     private static string? FindReleaseNotes(JsonElement releaseElement)
     {
         if (!releaseElement.TryGetProperty("body", out var bodyElement) || bodyElement.ValueKind != JsonValueKind.String)
@@ -175,8 +164,7 @@ public sealed class GitHubReleaseUpdateSource : IUpdateSource
     private static HttpClient CreateHttpClient()
     {
         var client = new HttpClient { Timeout = TimeSpan.FromSeconds(10) };
-        // Die GitHub-API verlangt zwingend einen User-Agent-Header, sonst wird die Anfrage mit HTTP 403
-        // abgelehnt.
+        // The GitHub API requires a User-Agent header; otherwise it returns HTTP 403.
         client.DefaultRequestHeaders.UserAgent.ParseAdd($"{RepositoryName}-UpdateChecker");
         client.DefaultRequestHeaders.Accept.ParseAdd("application/vnd.github+json");
         return client;

@@ -4,44 +4,35 @@ using VirtualController.Core.Profiles;
 namespace VirtualController.Core.Logging;
 
 /// <summary>
-/// Einfaches, robustes Datei-Logging speziell fuer den Update-Installationsvorgang (siehe
-/// <see cref="Updates.UpdateInstaller"/> und das dort generierte PowerShell-Updater-Skript): schreibt
-/// zeitgestempelte Zeilen sofort (kein Buffering, kein async) in eine Log-Datei unter
-/// "%AppData%\VirtualController\update.log". Bewusst als eigene Datei getrennt von <c>DebugLog</c>
-/// (App-Projekt) angelegt, da <see cref="Updates.UpdateInstaller"/> im WPF-unabhaengigen Core-Projekt
-/// liegt und ausserdem NACH dem eigenen Beenden der Anwendung noch aus dem separaten,
-/// generierten PowerShell-Prozess heraus weiter protokollieren muss - genau der Zeitraum
-/// (Kopieren der neuen Dateien, Neustart der Anwendung), in dem ein Fehlschlag bislang vollstaendig
-/// unsichtbar war (siehe Klassendokumentation von <see cref="Updates.UpdateInstaller"/>).
+/// Simple, robust file logging for the update installation process (see <see cref="Updates.UpdateInstaller"/>
+/// and its generated PowerShell updater script). Writes timestamped lines immediately (no buffering or async)
+/// to "%AppData%\VirtualController\update.log". Kept separate from the app project's <c>DebugLog</c> because
+/// <see cref="Updates.UpdateInstaller"/> is in the WPF-independent Core project and must continue logging from
+/// the separate generated PowerShell process after the app exits. This covers the period when files are copied
+/// and the app restarts, which previously had no diagnostics (see <see cref="Updates.UpdateInstaller"/> docs).
 ///
-/// Schreibt bewusst NICHT bei jedem Aufruf/App-Start neu (kein <c>Reset</c> wie bei <c>DebugLog</c>),
-/// sondern haengt fortlaufend an: ein fehlgeschlagener Update-Versuch (App startet nicht neu) darf durch
-/// den naechsten manuellen Neustart/Update-Versuch nicht ueberschrieben werden, bevor der Nutzer die
-/// Datei einsehen konnte. Um dennoch nicht unbegrenzt zu wachsen, wird die Datei automatisch verworfen
-/// und neu begonnen, sobald sie eine Groesse von <see cref="MaxFileSizeBytes"/> überschreitet (siehe
-/// <see cref="TrimIfTooLarge"/>). Fehler beim Schreiben werden verschluckt - Logging darf weder die
-/// Anwendung noch das Updater-Skript jemals zum Absturz bringen.
+/// Does not reset the file on every call/app startup like <c>DebugLog</c>; it appends so a failed update
+/// attempt (where the app does not restart) is not overwritten by the next manual restart/update before the
+/// user can inspect it. To prevent unbounded growth, the file is discarded and restarted when it exceeds
+/// <see cref="MaxFileSizeBytes"/> (see <see cref="TrimIfTooLarge"/>). Write errors are swallowed; logging must
+/// never crash either the app or updater script.
 /// </summary>
 public static class UpdateLog
 {
-    /// <summary>Ab dieser Dateigroesse wird die Log-Datei bei der naechsten <see cref="WriteSessionStart"/>
-    /// verworfen und neu begonnen, damit sie bei vielen Update-Pruefungen ueber lange Zeit nicht
-    /// unbegrenzt waechst.</summary>
+    /// <summary>When the log exceeds this size, the next <see cref="WriteSessionStart"/> discards and recreates
+    /// it to prevent unbounded growth across many update checks.</summary>
     private const long MaxFileSizeBytes = 5 * 1024 * 1024;
 
     private static readonly object Lock = new();
 
-    /// <summary>Vollstaendiger Pfad der Update-Log-Datei - wird bewusst zusaetzlich in die Datei selbst
-    /// geschrieben (siehe <see cref="WriteSessionStart"/>) und kann z.B. im "Einstellungen"-Tab
-    /// angezeigt werden, damit der Nutzer die Datei nach einem fehlgeschlagenen Update-Versuch ohne
-    /// Suchen wiederfindet.</summary>
+    /// <summary>Full path to the update log. Also written to the log itself (see
+    /// <see cref="WriteSessionStart"/>) and can be shown on the Settings tab so users can find it after a failed
+    /// update without searching.</summary>
     public static string FilePath { get; } = Path.Combine(ProfileStore.BaseDirectory, "update.log");
 
-    /// <summary>Schreibt eine neue Zeile mit Zeitstempel an das Ende der Log-Datei. Kann sowohl aus der
-    /// laufenden Anwendung (C#) als auch - ueber die vom generierten PowerShell-Skript nachgebildete
-    /// Zeilenform (siehe <see cref="Updates.UpdateInstaller"/>) - aus dem separaten Updater-Prozess
-    /// aufgerufen werden, damit beide Seiten des Update-Vorgangs in derselben Datei chronologisch
-    /// nachvollziehbar sind.</summary>
+    /// <summary>Appends a timestamped line to the log. Called by both the running C# app and the separate
+    /// updater process using the same line format reproduced in the generated PowerShell script (see
+    /// <see cref="Updates.UpdateInstaller"/>), keeping both sides of the update chronological in one file.</summary>
     public static void Write(string message)
     {
         try
@@ -58,14 +49,13 @@ public static class UpdateLog
         }
         catch
         {
-            // Logging darf die Anwendung niemals zum Absturz bringen.
+            // Logging must never crash the application.
         }
     }
 
-    /// <summary>Schreibt eine gut sichtbare Trennzeile fuer den Beginn eines neuen Update-Versuchs, ohne
-    /// vorherige Versuche zu loeschen (siehe Klassendokumentation) - ausser die Datei ist bereits
-    /// unerwuenscht gross geworden (siehe <see cref="MaxFileSizeBytes"/>), dann wird sie an dieser Stelle
-    /// verworfen.</summary>
+    /// <summary>Appends a clear separator for a new update attempt without deleting previous attempts (see
+    /// class documentation), unless the file has exceeded <see cref="MaxFileSizeBytes"/>, in which case it is
+    /// discarded here.</summary>
     public static void WriteSessionStart(string sessionLabel)
     {
         try
@@ -83,7 +73,7 @@ public static class UpdateLog
         }
         catch
         {
-            // Logging darf die Anwendung niemals zum Absturz bringen.
+            // Logging must never crash the application.
         }
     }
 
@@ -105,13 +95,13 @@ public static class UpdateLog
             {
                 File.WriteAllText(
                     FilePath,
-                    $"===== Vorherige Update-Log-Datei wegen Groesse verworfen @ {DateTime.Now:yyyy-MM-dd HH:mm:ss} ====={Environment.NewLine}",
+                    $"===== Previous update log discarded because it exceeded the size limit @ {DateTime.Now:yyyy-MM-dd HH:mm:ss} ====={Environment.NewLine}",
                     Encoding.UTF8);
             }
         }
         catch
         {
-            // Best-effort - ein fehlgeschlagenes Kuerzen darf das eigentliche Logging nicht verhindern.
+            // Best effort; failure to trim must not prevent logging.
         }
     }
 }

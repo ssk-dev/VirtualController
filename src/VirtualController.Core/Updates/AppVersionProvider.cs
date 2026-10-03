@@ -3,33 +3,28 @@ using System.Reflection;
 namespace VirtualController.Core.Updates;
 
 /// <summary>
-/// Liest die zur Build-Zeit aus dem Git-Tag ermittelte App-Version (siehe
-/// Directory.Build.targets, Target "ComputeVersionFromGitTag") zur Laufzeit aus dem
-/// <see cref="AssemblyInformationalVersionAttribute"/> der aktuell laufenden Assembly aus. Dieses
-/// Attribut wird vom .NET SDK automatisch aus der MSBuild-Property "InformationalVersion" generiert -
-/// dadurch muss die Versionsnummer nirgends manuell im Quellcode gepflegt werden, sie ist vielmehr eine
-/// direkte Funktion des Git-Tags, mit dem gebaut wurde.
+/// Reads the app version derived from the Git tag at build time (see the ComputeVersionFromGitTag target in
+/// Directory.Build.targets) from the running assembly's <see cref="AssemblyInformationalVersionAttribute"/>.
+/// The .NET SDK generates this attribute from the MSBuild InformationalVersion property, so the version does
+/// not need to be maintained manually in source code; it is determined by the Git tag used for the build.
 /// </summary>
 public static class AppVersionProvider
 {
-    /// <summary>Fallback, falls das Attribut aus irgendeinem Grund fehlt oder keinen gueltigen Wert
-    /// enthaelt (sollte im Normalfall nie eintreten, da Directory.Build.targets bereits bei einem
-    /// fehlenden Git-Tag auf genau diesen Wert zurueckfaellt) - stellt sicher, dass <see cref="CurrentVersion"/>
-    /// niemals eine Ausnahme wirft, sondern die Update-Pruefung/Anzeige lediglich als Entwicklungsbuild
-    /// erkennt.</summary>
+    /// <summary>Fallback if the attribute is missing or invalid. This should not normally happen because
+    /// Directory.Build.targets uses the same value when no Git tag is available. Ensures
+    /// <see cref="CurrentVersion"/> never throws and update checks/display treat the build as a development build.</summary>
     public const string FallbackVersion = "0.0.0-dev";
 
     private static readonly Lazy<string> RawVersionLazy = new(ReadRawVersion);
     private static readonly Lazy<SemanticVersion> CurrentVersionLazy = new(() =>
         SemanticVersion.TryParse(RawVersionLazy.Value, out var version) ? version : SemanticVersion.Parse(FallbackVersion));
 
-    /// <summary>Roher Versions-String wie im Assembly-Attribut hinterlegt, z.B. "1.4.2" oder "0.0.0-dev" -
-    /// fuer Anzeige-Zwecke (Titelzeile, Update-Popup), bei denen der Text 1:1 ohne weitere Formatierung
-    /// benoetigt wird.</summary>
+    /// <summary>Raw version string from the assembly attribute, e.g. "1.4.2" or "0.0.0-dev", for display in
+    /// the title bar/update dialog without further formatting.</summary>
     public static string RawVersion => RawVersionLazy.Value;
 
-    /// <summary>Aktuell installierte Version als <see cref="SemanticVersion"/>, fuer den semantischen
-    /// Vergleich mit einer verfuegbaren Version (siehe <see cref="UpdateChecker"/>).</summary>
+    /// <summary>Currently installed version as <see cref="SemanticVersion"/>, for semantic comparison with an
+    /// available version (see <see cref="UpdateChecker"/>).</summary>
     public static SemanticVersion CurrentVersion => CurrentVersionLazy.Value;
 
     private static string ReadRawVersion()

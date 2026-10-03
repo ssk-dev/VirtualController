@@ -1,23 +1,22 @@
 namespace VirtualController.Core.Devices;
 
-/// <summary>Ergebnis einer Bereichskalibrierung (kleinster/groesster beobachteter Rohwert) einer einzelnen physischen Achse.</summary>
+/// <summary>Result of range calibration (smallest/largest observed raw value) for one physical axis.</summary>
 public readonly record struct AxisRangeSample(float Min, float Max);
 
 /// <summary>
-/// Fuehrt zeitlich begrenzte Messungen an einer einzelnen physischen Achse durch, um daraus
-/// Kalibrierungswerte (Min/Max/Mitte) sowie eine Deadzone abzuleiten. Wird vom Konfigurationsdialog
-/// genutzt, wenn der Nutzer auf "Bereich kalibrieren", "Zentrum setzen" oder "Deadzone kalibrieren"
-/// klickt. Arbeitet direkt auf einem bereits geoeffneten <see cref="IDeviceReader"/> (unabhaengig
-/// davon, ob das Geraet gerade auch von einer laufenden <see cref="Mapping.MappingEngine"/>-Session
-/// gelesen wird - DirectInput-Geraete werden non-exklusiv geoeffnet, siehe <see cref="DirectInputDeviceReader"/>).
+/// Performs timed measurements on one physical axis to derive calibration values (min/max/center) and a
+/// deadzone. Used by the configuration dialog for range calibration, setting the center, or deadzone
+/// calibration. Operates directly on an already-open <see cref="IDeviceReader"/>, independently of whether
+/// a running <see cref="Mapping.MappingEngine"/> session also reads the device; DirectInput devices are
+/// opened non-exclusively (see <see cref="DirectInputDeviceReader"/>).
 /// </summary>
 public static class AxisCalibrationService
 {
     private static readonly TimeSpan SamplingInterval = TimeSpan.FromMilliseconds(8);
 
     /// <summary>
-    /// Misst ueber <paramref name="duration"/> hinweg den kleinsten und groessten Rohwert einer Achse.
-    /// Der Nutzer soll die Achse waehrend dieser Zeit mehrmals bis zu allen physischen Anschlaegen bewegen.
+    /// Measures the minimum and maximum raw values of an axis over <paramref name="duration"/>. The user should
+    /// move the axis to each physical limit several times during this period.
     /// </summary>
     public static async Task<AxisRangeSample> SampleRangeAsync(
         IDeviceReader reader,
@@ -30,10 +29,9 @@ public static class AxisCalibrationService
     }
 
     /// <summary>
-    /// Wie <see cref="SampleRangeAsync(IDeviceReader,int,TimeSpan,CancellationToken)"/>, misst aber mehrere
-    /// Achsen gleichzeitig innerhalb desselben Poll-Durchlaufs (z.B. X/Y eines kombinierten Sticks), damit
-    /// der Nutzer den Stick nur einmal in alle Richtungen bewegen muss statt die Kalibrierung pro Achse
-    /// getrennt zu wiederholen.
+    /// Like <see cref="SampleRangeAsync(IDeviceReader,int,TimeSpan,CancellationToken)"/>, but measures several
+    /// axes in the same polling pass (e.g. X/Y of a combined stick) so the user moves the stick in all
+    /// directions once instead of calibrating each axis separately.
     /// </summary>
     public static async Task<AxisRangeSample[]> SampleRangeAsync(
         IDeviceReader reader,
@@ -68,8 +66,8 @@ public static class AxisCalibrationService
         for (int i = 0; i < axisSlots.Length; i++)
         {
             results[i] = float.IsInfinity(min[i]) || float.IsInfinity(max[i])
-                // Reader lieferte waehrend der gesamten Messung keinen einzigen gueltigen Wert
-                // (z.B. Geraet zwischenzeitlich getrennt) -> unveraendert lassen statt Unsinn zu speichern.
+                // The reader returned no valid values during the measurement (e.g. the device disconnected);
+                // use the default range rather than storing invalid values.
                 ? new AxisRangeSample(-1f, 1f)
                 : new AxisRangeSample(min[i], max[i]);
         }
@@ -77,8 +75,8 @@ public static class AxisCalibrationService
         return results;
     }
 
-    /// <summary>Misst den Mittelwert einer Achse ueber eine kurze Dauer (Ruheposition). Wird sowohl
-    /// direkt fuer "Zentrum setzen" als auch intern fuer die Deadzone-Kalibrierung verwendet.</summary>
+    /// <summary>Measures an axis's average over a short period (resting position). Used by Set center and
+    /// internally by deadzone calibration.</summary>
     public static async Task<float> SampleCenterAsync(
         IDeviceReader reader,
         int axisSlot,
@@ -89,8 +87,8 @@ public static class AxisCalibrationService
         return samples[0];
     }
 
-    /// <summary>Wie <see cref="SampleCenterAsync(IDeviceReader,int,TimeSpan,CancellationToken)"/>, misst aber
-    /// mehrere Achsen gleichzeitig innerhalb desselben Poll-Durchlaufs (z.B. X/Y eines kombinierten Sticks).</summary>
+    /// <summary>Like <see cref="SampleCenterAsync(IDeviceReader,int,TimeSpan,CancellationToken)"/>, but measures
+    /// several axes in the same polling pass (e.g. X/Y of a combined stick).</summary>
     public static async Task<float[]> SampleCenterAsync(
         IDeviceReader reader,
         int[] axisSlots,
@@ -127,12 +125,10 @@ public static class AxisCalibrationService
     }
 
     /// <summary>
-    /// Ermittelt automatisch eine sinnvolle Deadzone anhand des tatsaechlichen Stickdrifts/Rauschens:
-    /// wartet zunaechst <paramref name="graceDuration"/> (damit der Nutzer nach dem Klick noch Zeit hat,
-    /// die Achse loszulassen), misst dann die Ruheposition und beobachtet anschliessend ueber
-    /// <paramref name="sampleDuration"/> die maximale Abweichung von dieser Ruheposition. Die Deadzone
-    /// wird als diese maximale Abweichung zuzueglich Sicherheitsaufschlag (<paramref name="safetyFactor"/>)
-    /// festgelegt, damit normales Rauschen sicher innerhalb der Deadzone bleibt.
+    /// Automatically estimates a suitable deadzone from actual stick drift/noise. Waits for
+    /// <paramref name="graceDuration"/> so the user can release the axis, measures its resting position, then
+    /// observes the maximum deviation over <paramref name="sampleDuration"/>. Sets the deadzone to that
+    /// maximum deviation plus a safety margin (<paramref name="safetyFactor"/>) so normal noise remains inside it.
     /// </summary>
     public static async Task<float> SampleDeadzoneAsync(
         IDeviceReader reader,
@@ -147,9 +143,9 @@ public static class AxisCalibrationService
         return samples[0];
     }
 
-    /// <summary>Wie <see cref="SampleDeadzoneAsync(IDeviceReader,int,TimeSpan,TimeSpan,float,CancellationToken)"/>,
-    /// misst aber mehrere Achsen gleichzeitig innerhalb desselben Poll-Durchlaufs (z.B. X/Y eines kombinierten
-    /// Sticks), damit der Nutzer den Stick nur einmal loslassen muss statt die Messung pro Achse zu wiederholen.</summary>
+    /// <summary>Like <see cref="SampleDeadzoneAsync(IDeviceReader,int,TimeSpan,TimeSpan,float,CancellationToken)"/>,
+    /// but measures several axes in the same polling pass (e.g. X/Y of a combined stick) so the user only
+    /// releases the stick once.</summary>
     public static async Task<float[]> SampleDeadzoneAsync(
         IDeviceReader reader,
         int[] axisSlots,
@@ -185,8 +181,8 @@ public static class AxisCalibrationService
         var results = new float[axisSlots.Length];
         for (int i = 0; i < axisSlots.Length; i++)
         {
-            // Obergrenze 0.9 verhindert, dass eine waehrend der Messung versehentlich bewegte Achse
-            // die Deadzone auf einen praktisch nutzlosen Wert nahe 1.0 hochtreibt.
+            // Cap at 0.9 so accidental axis movement during measurement cannot increase the deadzone to a
+            // practically unusable value near 1.0.
             results[i] = Math.Clamp(maxDeviation[i] * safetyFactor, 0f, 0.9f);
         }
 

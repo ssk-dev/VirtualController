@@ -3,19 +3,17 @@ using VirtualController.Core.Devices;
 namespace VirtualController.App.ViewModels;
 
 /// <summary>
-/// Gemeinsame Hilfslogik fuer alle "Erfassen"-Funktionen (Mapping-Zeile, Modus-Switch-Trigger,
-/// controller-weiter Toggle-Trigger): wartet wie <see cref="InputCaptureService.WaitForNextInputAsync"/>
-/// auf die naechste physische Eingabe, meldet dabei aber zusaetzlich per Sekunden-Countdown (heruntergezaehlt
-/// bis 0) an die aufrufende View, wie lange noch auf eine Eingabe gewartet wird - damit der Nutzer sieht,
-/// dass der Erfassen-Modus automatisch endet, falls innerhalb der Zeit keine neue Eingabe erkannt wird.
+/// Shared helper for all Capture actions (mapping row, mode switch trigger, and controller-wide toggle trigger).
+/// Like <see cref="InputCaptureService.WaitForNextInputAsync"/>, it waits for the next physical input and also
+/// reports a per-second countdown to the calling view so users know Capture ends automatically if no input
+/// is detected before the timeout.
 /// </summary>
 public static class CaptureCountdownHelper
 {
-    /// <summary>Wartet auf die naechste physische Eingabe (siehe <see cref="InputCaptureService.WaitForNextInputAsync"/>)
-    /// und ruft parallel dazu <paramref name="setSecondsRemaining"/> einmal pro Sekunde mit der verbleibenden
-    /// Wartezeit auf (beginnend bei der vollen <paramref name="timeout"/>, heruntergezaehlt bis 0). Der Countdown
-    /// wird sofort beendet, sobald eine Eingabe erkannt wird oder die Zeit abgelaufen ist - in beiden Faellen
-    /// wird <paramref name="setSecondsRemaining"/> abschliessend mit 0 aufgerufen.</summary>
+    /// <summary>Waits for the next physical input (see <see cref="InputCaptureService.WaitForNextInputAsync"/>)
+    /// and calls <paramref name="setSecondsRemaining"/> once per second with the remaining time, counting down
+    /// from <paramref name="timeout"/> to zero. Stops as soon as an input is detected or the timeout expires;
+    /// in either case, makes a final call to <paramref name="setSecondsRemaining"/> with zero.</summary>
     public static async Task<PhysicalInputRef?> CaptureWithCountdownAsync(
         IReadOnlyList<PhysicalDeviceInfo> devices,
         TimeSpan timeout,
@@ -31,8 +29,8 @@ public static class CaptureCountdownHelper
         }
         finally
         {
-            // Eingabe wurde bereits erkannt (oder Timeout ist ohnehin abgelaufen) -> Countdown-Schleife
-            // nicht bis zum naechsten Sekundentick weiterlaufen lassen, sondern sofort beenden.
+            // An input was detected or the timeout expired; stop the countdown immediately instead of waiting
+            // for the next one-second tick.
             countdownCts.Cancel();
             setSecondsRemaining(0);
 
@@ -42,7 +40,7 @@ public static class CaptureCountdownHelper
             }
             catch (OperationCanceledException)
             {
-                // Erwartet, wenn die Eingabe vor Ablauf des Countdowns erkannt wurde.
+                // Expected when an input is detected before the countdown expires.
             }
         }
     }

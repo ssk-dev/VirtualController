@@ -3,13 +3,11 @@ using VirtualController.Core.Devices;
 namespace VirtualController.App.ViewModels;
 
 /// <summary>
-/// Baut aus der Achsen-Ausstattung eines physischen Geraets (<see cref="PhysicalDeviceInfo.AvailableAxes"/>
-/// bzw. der festen XInput-Belegung) die Liste generischer Visualisierungs-Items fuer den Geraete-
-/// Konfigurationsdialog auf: zusammengehoerige Stick-Achsenpaare (z.B. Linker/Rechter Stick) werden zu
-/// einer <see cref="Axis2DVisualizationViewModel"/> (quadratisches Koordinatenfeld) zusammengefasst,
-/// alle uebrigen Achsen (Rotationsachsen, Trigger, Schieberegler) bleiben als einzelne
-/// <see cref="AxisVisualizationViewModel"/> (horizontaler Slider) bestehen. Rein deklarativ/lesend -
-/// erzeugt keine eigenen Controllerwerte, sondern nur die Anzeige-Struktur darueber.
+/// Builds generic visualization items for the device configuration dialog from a physical device's available
+/// axes (<see cref="PhysicalDeviceInfo.AvailableAxes"/> or the fixed XInput layout). Related stick axis pairs
+/// (e.g. left/right sticks) become an <see cref="Axis2DVisualizationViewModel"/> (square coordinate field);
+/// other axes (rotation axes, triggers, sliders) remain individual <see cref="AxisVisualizationViewModel"/>
+/// instances (horizontal sliders). This is a read-only display structure and does not generate controller values.
 /// </summary>
 public static class AxisVisualizationFactory
 {
@@ -19,27 +17,24 @@ public static class AxisVisualizationFactory
 
         if (device.Api == InputApi.XInput)
         {
-            // Feste XInput-Belegung (siehe PhysicalInputCatalog/XInputDeviceReader): zwei vollwertige
-            // Analog-Sticks als 2D-Pad, zwei Trigger als einzelne, einseitige Slider. XInput liefert fuer
-            // beide Sticks positive Y-Werte bei Vorwaerts-/Aufwaertsbewegung -> invertYForDisplay: true.
-            items.Add(Build2DAxis(device, settings, "Linker Stick", PhysicalAxisId.X, PhysicalAxisId.Y, invertYForDisplay: true));
-            items.Add(Build2DAxis(device, settings, "Rechter Stick", PhysicalAxisId.Z, PhysicalAxisId.RotationX, invertYForDisplay: true));
-            items.Add(BuildSingleAxis(device, settings, "Linker Trigger", PhysicalAxisId.RotationY, bidirectional: false));
-            items.Add(BuildSingleAxis(device, settings, "Rechter Trigger", PhysicalAxisId.RotationZ, bidirectional: false));
+            // Fixed XInput layout (see PhysicalInputCatalog/XInputDeviceReader): two analog sticks as 2D pads
+            // and two triggers as unidirectional sliders. XInput reports positive Y when moving either stick
+            // forward/up, so invertYForDisplay is true.
+            items.Add(Build2DAxis(device, settings, "Left stick", PhysicalAxisId.X, PhysicalAxisId.Y, invertYForDisplay: true));
+            items.Add(Build2DAxis(device, settings, "Right stick", PhysicalAxisId.Z, PhysicalAxisId.RotationX, invertYForDisplay: true));
+            items.Add(BuildSingleAxis(device, settings, "Left trigger", PhysicalAxisId.RotationY, bidirectional: false));
+            items.Add(BuildSingleAxis(device, settings, "Right trigger", PhysicalAxisId.RotationZ, bidirectional: false));
             return items;
         }
 
-        // DirectInput: nur tatsaechlich vorhandene Achsen beruecksichtigen. X/Y werden - falls beide
-        // vorhanden - als ein gemeinsamer 2D-Stick dargestellt (typische Joystick-Grundachse); alle
-        // uebrigen Achsen (Rotationen, Z, Slider) bleiben einzelne Slider, gemaess Anforderung
-        // ("X-Rotation, Y-Rotation, Z-Rotation als horizontaler Slider").
+        // DirectInput: include only axes that are actually present. If both X and Y exist, display them as one
+        // 2D stick (the typical joystick primary axes); keep all other axes (rotation, Z, sliders) separate.
         var available = new HashSet<PhysicalAxisId>(device.AvailableAxes);
 
         if (available.Contains(PhysicalAxisId.X) && available.Contains(PhysicalAxisId.Y))
         {
-            // DirectInputDeviceReader negiert die Y-Achse bereits an der Quelle, sodass sie wie bei
-            // XInput positive Rohwerte bei Vorwaerts-/Aufwaertsbewegung liefert -> invertYForDisplay: true,
-            // identisch zu den XInput-Sticks oben.
+            // DirectInputDeviceReader already negates Y at the source, so forward/up movement produces
+            // positive raw values like XInput. Use the same display inversion as for XInput sticks.
             items.Add(Build2DAxis(device, settings, "Stick (X/Y)", PhysicalAxisId.X, PhysicalAxisId.Y, invertYForDisplay: true));
             available.Remove(PhysicalAxisId.X);
             available.Remove(PhysicalAxisId.Y);
@@ -49,7 +44,7 @@ public static class AxisVisualizationFactory
         {
             if (!available.Contains(axisId))
             {
-                continue; // Bereits als Teil des X/Y-2D-Pads oben verarbeitet.
+                continue; // Already processed above as part of the X/Y 2D pad.
             }
 
             bool isSlider = axisId is PhysicalAxisId.Slider0 or PhysicalAxisId.Slider1;
@@ -77,14 +72,14 @@ public static class AxisVisualizationFactory
 
     private static string DirectInputAxisName(PhysicalAxisId axisId) => axisId switch
     {
-        PhysicalAxisId.X => "X-Achse",
-        PhysicalAxisId.Y => "Y-Achse",
-        PhysicalAxisId.Z => "Z-Achse",
-        PhysicalAxisId.RotationX => "X-Rotation",
-        PhysicalAxisId.RotationY => "Y-Rotation",
-        PhysicalAxisId.RotationZ => "Z-Rotation",
-        PhysicalAxisId.Slider0 => "Schieberegler 1",
-        PhysicalAxisId.Slider1 => "Schieberegler 2",
+        PhysicalAxisId.X => "X axis",
+        PhysicalAxisId.Y => "Y axis",
+        PhysicalAxisId.Z => "Z axis",
+        PhysicalAxisId.RotationX => "X rotation",
+        PhysicalAxisId.RotationY => "Y rotation",
+        PhysicalAxisId.RotationZ => "Z rotation",
+        PhysicalAxisId.Slider0 => "Slider 1",
+        PhysicalAxisId.Slider1 => "Slider 2",
         _ => axisId.ToString()
     };
 }

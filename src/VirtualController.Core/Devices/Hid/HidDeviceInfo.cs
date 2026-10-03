@@ -1,27 +1,25 @@
 namespace VirtualController.Core.Devices.Hid;
 
 /// <summary>
-/// Statische, sich waehrend der Verbindungsdauer eines Geraets nicht mehr aendernde HID-Kenndaten -
-/// Grundlage fuer die Identification-/Transport-Kennzahlen des geplanten Geraete-Benchmarks (siehe
-/// <see cref="HidDeviceInfoReader"/>). Enthaelt bewusst ausschliesslich primitive Typen/Strings, damit
-/// diese Klasse ausserhalb dieses <c>Devices.Hid</c>-Unterordners verwendet werden kann, ohne dass die
-/// zugrunde liegende Zugriffsbibliothek (aktuell HidSharp) an anderer Stelle im Code sichtbar wird.
+/// Static HID metadata that does not change while a device remains connected, used by the benchmark's
+/// identification/transport metrics (see <see cref="HidDeviceInfoReader"/>). Contains only primitive types and
+/// strings so it can be used outside <c>Devices.Hid</c> without exposing the underlying HID library (currently HidSharp).
 /// </summary>
 /// <param name="VendorId">USB Vendor ID, siehe <see cref="PhysicalDeviceInfo.VendorId"/>.</param>
 /// <param name="ProductId">USB Product ID, siehe <see cref="PhysicalDeviceInfo.ProductId"/>.</param>
-/// <param name="Manufacturer">Hersteller-String-Deskriptor, falls vom Geraet bereitgestellt und lesbar - sonst null.</param>
-/// <param name="ProductName">Produkt-String-Deskriptor, falls vom Geraet bereitgestellt und lesbar - sonst null.</param>
-/// <param name="SerialNumber">Seriennummer-String-Deskriptor, falls vom Geraet bereitgestellt und lesbar - sonst null.</param>
-/// <param name="ReleaseNumberBcd">Vom Geraet gemeldete BCD-codierte Versionsnummer (<c>bcdDevice</c>) - naeherungsweise
-/// als "Firmware-Version" interpretierbar, ABER kein garantiert menschenlesbarer Firmware-String (siehe
-/// Klassendokumentation von <see cref="HidDeviceInfoReader"/> fuer die genaue Einschraenkung).</param>
-/// <param name="MaxInputReportLength">Nominal-Laenge eines Input-Reports in Byte (Transport-Kennzahl "Report Size").</param>
-/// <param name="MaxOutputReportLength">Nominal-Laenge eines Output-Reports in Byte.</param>
-/// <param name="MaxFeatureReportLength">Nominal-Laenge eines Feature-Reports in Byte.</param>
-/// <param name="DevicePath">Betriebssystem-Geraetepfad (fuer Diagnosezwecke/Weiterverarbeitung, z.B. <see cref="UsbTopologyResolver"/>).</param>
-/// <param name="UsbPortNumber">Physische Port-Nummer am uebergeordneten USB-Hub, falls ermittelbar - sonst null.</param>
-/// <param name="UsbHubDevicePath">Geraetepfad des uebergeordneten USB-Hubs, falls ermittelbar - sonst null. Grundlage
-/// fuer die spaeter geplante <see cref="UsbTopologyResolver"/>-Abfrage von USB-Speed/Endpoint/Polling-Intervall.</param>
+/// <param name="Manufacturer">Manufacturer string descriptor, if provided by the device and readable; otherwise null.</param>
+/// <param name="ProductName">Product string descriptor, if provided by the device and readable; otherwise null.</param>
+/// <param name="SerialNumber">Serial number string descriptor, if provided by the device and readable; otherwise null.</param>
+/// <param name="ReleaseNumberBcd">BCD-encoded version reported by the device (<c>bcdDevice</c>). It can be treated
+/// as an approximate firmware version, but is not guaranteed to be a human-readable firmware string (see
+/// <see cref="HidDeviceInfoReader"/> documentation).</param>
+/// <param name="MaxInputReportLength">Nominal input report length in bytes (transport metric "Report Size").</param>
+/// <param name="MaxOutputReportLength">Nominal output report length in bytes.</param>
+/// <param name="MaxFeatureReportLength">Nominal feature report length in bytes.</param>
+/// <param name="DevicePath">OS device path for diagnostics/further processing, e.g. <see cref="UsbTopologyResolver"/>.</param>
+/// <param name="UsbPortNumber">Physical port number on the parent USB hub, if available; otherwise null.</param>
+/// <param name="UsbHubDevicePath">Device path of the parent USB hub, if available; used by
+/// <see cref="UsbTopologyResolver"/> to query USB speed/endpoint/polling interval.</param>
 public sealed record HidDeviceInfo(
     ushort VendorId,
     ushort ProductId,

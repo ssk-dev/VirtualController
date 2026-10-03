@@ -3,37 +3,38 @@ using System.Text.Json;
 namespace VirtualController.Core.Profiles;
 
 /// <summary>
-/// Allgemeine, nicht geraete- oder controllerspezifische Einstellungen, gespeichert in settings.json
-/// (siehe <see cref="SettingsStore"/>).
+/// General settings that are not specific to a device or controller, stored in settings.json
+/// (see <see cref="SettingsStore"/>).
 /// </summary>
 public sealed class AppSettings
 {
-    /// <summary>Ob neu angeschlossene/getrennte physische Geraete automatisch (per Hintergrund-Polling,
-    /// siehe MainViewModel) erkannt werden sollen, ohne dass die App neu gestartet oder "Geraete
-    /// aktualisieren" manuell geklickt werden muss. Standard: aktiviert.</summary>
+    /// <summary>Whether connected/disconnected physical devices are detected automatically through background
+    /// polling (see MainViewModel), without restarting the app or manually clicking Refresh devices. Enabled by default.</summary>
     public bool AutoDeviceDetectionEnabled { get; set; } = true;
 
-    /// <summary>Ob die Anwendung bei der Windows-Anmeldung automatisch gestartet wird.</summary>
+    /// <summary>Whether the application starts automatically when signing in to Windows.</summary>
     public bool StartWithWindows { get; set; }
 
-    /// <summary>Ob das Hauptfenster beim Windows-Autostart minimiert angezeigt wird.</summary>
+    /// <summary>Whether the main window starts minimized when launched with Windows.</summary>
     public bool StartMinimized { get; set; }
 
-    /// <summary>Ob das Hauptfenster immer im Vordergrund bleibt. Standard: aktiviert.</summary>
+    /// <summary>Whether the main window stays on top. Enabled by default.</summary>
     public bool AlwaysOnTop { get; set; } = true;
 
-    /// <summary>Veraltet: vor Einfuehrung von <see cref="Devices.DeviceSettings"/> die einzige Persistenz
-    /// fuer benutzerdefinierte Eingabenamen, Key-Format "{DeviceId}|{PhysicalInputKind}|{Index}". Bleibt
-    /// hier nur uebergangsweise erhalten, damit sehr alte, bereits einmal migrierte Profile beim
-    /// wiederholten Laden weiterhin idempotent nach <see cref="Devices.DeviceSettings"/> ueberfuehrt
-    /// werden koennen (siehe <see cref="ProfileStore"/>).</summary>
+    /// <summary>UI language selection. Supported values are "system", "en", and "de". "system" uses the
+    /// current OS language when the app starts.</summary>
+    public string UiLanguage { get; set; } = "system";
+
+    /// <summary>Deprecated: before <see cref="Devices.DeviceSettings"/> was introduced, this was the only storage
+    /// for custom input names, keyed by "{DeviceId}|{PhysicalInputKind}|{Index}". Retained temporarily so very
+    /// old, already-migrated profiles can be migrated idempotently to <see cref="Devices.DeviceSettings"/> on
+    /// subsequent loads (see <see cref="ProfileStore"/>).</summary>
     public Dictionary<string, string> CustomInputNames { get; set; } = new();
 }
 
 /// <summary>
-/// Laedt/speichert die allgemeinen Einstellungen (<see cref="AppSettings"/>) als eigene, kleine
-/// settings.json - getrennt von den pro Geraet (<see cref="DeviceSettingsStore"/>) und pro Controller
-/// (<see cref="ControllerStore"/>) aufgeteilten Dateien.
+/// Loads/saves general <see cref="AppSettings"/> in a small settings.json file, separate from the per-device
+/// (<see cref="DeviceSettingsStore"/>) and per-controller (<see cref="ControllerStore"/>) files.
 /// </summary>
 internal static class SettingsStore
 {
@@ -53,8 +54,8 @@ internal static class SettingsStore
         }
         catch (JsonException)
         {
-            // Beschaedigte settings.json -> auf Standardwerte zurueckfallen statt das Laden der gesamten
-            // Konfiguration (Controller/Geraete) daran scheitern zu lassen.
+            // Fall back to defaults if settings.json is corrupted rather than failing to load the entire
+            // configuration (controllers/devices).
             return new AppSettings();
         }
     }

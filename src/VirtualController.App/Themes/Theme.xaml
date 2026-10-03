@@ -1,13 +1,11 @@
 <ResourceDictionary xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
                     xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml">
 
-    <!-- Zentrale Farbpalette des dunklen "Virtual Controller"-Designs. Angelehnt an die urspruengliche
-         HTML/CSS-Designvorlage (siehe assets/style.css, assets/layout-mapping.html): kraeftiger
-         Cyan-Akzent fuer primaere Aktionen, dunkle Panel-Flaeche etwas heller als der App-Hintergrund
-         (#010d19) fuer Karten/Eingabefelder, sowie ein blaeulicher Rahmenton fuer Konturen. Als
-         benannte Brushes ausgelagert, damit sowohl die globalen Basis-Styles (Button, TextBox, ...)
-         als auch zukuenftige, gezielte UI-Ueberarbeitungen (Header, Sidebar, Mapping-Tabelle) dieselbe
-         Palette referenzieren, ohne Farbwerte mehrfach zu duplizieren. -->
+    <!-- Central color palette for the dark "Virtual Controller" design, based on the original HTML/CSS
+         mockup (see assets/style.css and assets/layout-mapping.html): a strong cyan accent for primary
+         actions, a dark panel surface slightly lighter than the app background (#010d19) for cards/inputs,
+         and a blue-toned border. Named brushes let global base styles and future UI updates share the same
+         palette without duplicating color values. -->
 
     <SolidColorBrush x:Key="AccentBrush" Color="#02B4FE" />
     <SolidColorBrush x:Key="AccentLightBrush" Color="#11DBFE" />
@@ -16,12 +14,11 @@
         <GradientStop Color="#11DBFE" Offset="1" />
     </LinearGradientBrush>
 
-    <!-- Dunkelster Ton der Palette, identisch zum bisher nur als literaler Hex-Wert in App.xaml
-         (Style TargetType="Window") verwendeten App-Hintergrund. Als benannter Brush ausgelagert, damit
-         einzelne Bereiche (z.B. MainWindow.xaml, root DockPanel) ihren Hintergrund zusaetzlich explizit
-         darauf setzen koennen, statt sich ausschliesslich auf Background="Transparent" plus die von
-         aussen durchscheinende Window.Background zu verlassen - Letzteres fuehrte dazu, dass genau diese
-         Bereiche (z.B. die "Verfuegbare Geraete"-Liste) faelschlicherweise weiss statt dunkel erschienen. -->
+    <!-- Darkest palette tone, matching the app background previously defined as a literal hex value in
+         App.xaml's Window style. Named so individual regions (e.g. the root DockPanel in MainWindow.xaml)
+         can set it explicitly rather than relying on a transparent background and the parent Window's
+         background showing through. That approach caused some areas, such as the Available devices list,
+         to render white instead of dark. -->
     <SolidColorBrush x:Key="AppBackgroundBrush" Color="#010D19" />
 
     <SolidColorBrush x:Key="PanelBackgroundBrush" Color="#0B1626" />
@@ -46,19 +43,18 @@
 
 
 
-    <!-- Warnfarben (Hintergrund/Rahmen/Text) fuer nicht-kritische Hinweisboxen (z.B. HID-Diagnose in
-         BenchmarkWindow.xaml) - analog zu SuccessBrush, aber in Amber-Tonen. Bewusst dunkel/desaturiert
-         gehalten (statt der urspruenglich hellen #FFF3CD/#FFECB5/#856404-Kombination), damit die Box auch
-         auf dem dunklen App-Hintergrund als klar abgegrenzte, aber nicht grell wirkende Karte erscheint. -->
+    <!-- Warning colors (background/border/text) for non-critical notices, such as the HID diagnostics in
+         BenchmarkWindow.xaml. Similar to SuccessBrush but in amber tones. Kept dark and desaturated instead
+         of using the original bright #FFF3CD/#FFECB5/#856404 combination so the notice stands out without
+         appearing harsh against the dark app background. -->
     <SolidColorBrush x:Key="WarningBackgroundBrush" Color="#3D2E00" />
     <SolidColorBrush x:Key="WarningBorderBrush" Color="#C9962C" />
     <SolidColorBrush x:Key="WarningTextBrush" Color="#FFD666" />
 
-    <!-- Entspricht der globalen Window-Foreground (#F6FBFD, siehe App.xaml). Muss hier zusaetzlich als
-         benannter Brush existieren, da Standard-WPF-Controls wie Button/CheckBox/ComboBox einen eigenen,
-         vom System-Theme vorgegebenen Foreground-Default besitzen, der die reine Vererbung vom Window
-         ueberschreibt - die impliziten Styles in Styles.xaml muessen Foreground daher explizit auf
-         diesen Brush setzen, statt sich allein auf Property Value Inheritance zu verlassen. -->
+    <!-- Matches the global Window foreground (#F6FBFD; see App.xaml). Also needs to exist as a named brush
+         because standard WPF controls such as Button/CheckBox/ComboBox have system-theme foreground defaults
+         that override inheritance from Window. The implicit styles in Styles.xaml therefore set Foreground
+         explicitly instead of relying on property value inheritance. -->
     <SolidColorBrush x:Key="TextBrush" Color="#F6FBFD" />
 
     <SolidColorBrush x:Key="ButtonHoverBrush" Color="#14385C" />

@@ -5,50 +5,45 @@ using VirtualController.Core.Devices;
 namespace VirtualController.App.ViewModels;
 
 /// <summary>
-/// Wurzel-ViewModel des "Geraetekonfiguration"-Tabs: zeigt alle bekannten physischen Geraete (auch
-/// bereits deaktivierte, damit sie wieder aktiviert werden koennen, sowie aktuell getrennte, aber
-/// zuvor schon konfigurierte Geraete - siehe <see cref="MainViewModel.GetAllKnownDevices"/>) mit
-/// der Moeglichkeit, das gesamte Geraet oder einzelne Eingaben zu deaktivieren und Eingaben
-/// umzubenennen. Aenderungen wirken sofort auf die im <see cref="MainViewModel"/> gehaltenen
-/// <see cref="DeviceSettings"/> und werden per <see cref="MainViewModel.NotifyDeviceAvailabilityChanged"/>
-/// (fuer Aenderungen an <see cref="DeviceSettings.Enabled"/> bzw. <see cref="DeviceSettings.Hidden"/>, die einen
-/// vollstaendigen Refresh erfordern) sowie per <see cref="MainViewModel.NotifyDeviceSettingsChanged"/>
-/// (fuer reine Einstellungsaenderungen) an die Geraeteauswahl und alle laufenden Sessions weitergereicht.
-/// Die Geraete werden als Liste mit Detailbereich dargestellt (<see cref="SelectedDevice"/>, siehe MainWindow.xaml), analog zum
-/// Mapping-Tab. <see cref="UpdateDevices"/> gleicht die Liste bei jedem Geraete-Scan (inkl. dem
-/// periodischen Hotplug-Polling in <see cref="MainViewModel"/>) inkrementell ab, statt sie zu
-/// verwerfen und neu aufzubauen, damit laufende Bearbeitungen und die Live-Ueberwachung des
-/// ausgewaehlten Geraets dabei nicht unterbrochen werden.
+/// Root view model for the Device Configuration tab. Shows all known physical devices, including disabled
+/// devices that can be re-enabled and previously configured devices that are now disconnected (see
+/// <see cref="MainViewModel.GetAllKnownDevices"/>). Users can disable a device or individual inputs and rename
+/// inputs. Changes immediately update <see cref="DeviceSettings"/> held by <see cref="MainViewModel"/> and are
+/// propagated to device selection and running sessions through
+/// <see cref="MainViewModel.NotifyDeviceAvailabilityChanged"/> (for <see cref="DeviceSettings.Enabled"/> or
+/// <see cref="DeviceSettings.Hidden"/> changes that require a full refresh) and
+/// <see cref="MainViewModel.NotifyDeviceSettingsChanged"/> (for settings-only changes). Devices appear in a
+/// list-and-details layout (see <see cref="SelectedDevice"/> and MainWindow.xaml), like the Mapping tab.
+/// <see cref="UpdateDevices"/> incrementally reconciles the list on every device scan, including periodic
+/// hot-plug polling in <see cref="MainViewModel"/>, rather than rebuilding it and interrupting edits or live
+/// monitoring of the selected device.
 /// </summary>
 public sealed partial class DeviceConfigViewModel : ObservableObject, IDisposable
 {
     private readonly MainViewModel _mainViewModel;
 
-    /// <summary>Sichtbare (nicht ausgeblendete) Geraete, dargestellt in der Hauptliste dieses Tabs.</summary>
+    /// <summary>Visible (not hidden) devices shown in this tab's main list.</summary>
     public ObservableCollection<DeviceConfigDeviceViewModel> Devices { get; } = new();
 
-    /// <summary>Vom Nutzer manuell ausgeblendete Geraete (siehe <see cref="DeviceSettings.Hidden"/>), dargestellt
-    /// in einer separaten, einklappbaren Liste unterhalb der Hauptliste, mit der Moeglichkeit, sie jederzeit
-    /// wieder einzublenden (siehe MainWindow.xaml). Gedacht u.a. fuer die eigenen, per ViGEmBus emulierten
-    /// virtuellen Controller dieser Anwendung, die von XInput/DirectInput nicht von echter Hardware
-    /// unterschieden werden koennen und daher nicht automatisch gefiltert werden.</summary>
+    /// <summary>Devices manually hidden by the user (see <see cref="DeviceSettings.Hidden"/>), shown in a
+    /// separate collapsible list below the main list and available to restore at any time (see MainWindow.xaml).
+    /// This is useful for the app's ViGEmBus-emulated virtual controllers, which XInput/DirectInput cannot
+    /// distinguish from physical hardware and therefore cannot filter automatically.</summary>
     public ObservableCollection<DeviceConfigDeviceViewModel> HiddenDevices { get; } = new();
 
     [ObservableProperty]
     private DeviceConfigDeviceViewModel? _selectedDevice;
 
-    /// <summary>Ob der "Gerätekonfiguration"-Tab des Hauptfensters aktuell tatsaechlich sichtbar ist UND
-    /// das Fenster nicht minimiert ist (siehe <see cref="SetScreenActive"/>, gesetzt durch
-    /// <see cref="MainViewModel"/>). Wird an jedes <see cref="DeviceConfigDeviceViewModel"/> weitergereicht,
-    /// damit dessen Live-Polling (siehe <see cref="DeviceConfigDeviceViewModel.SetScreenActive"/>) nur
-    /// laeuft, waehrend dieser Tab tatsaechlich sichtbar ist - unabhaengig von <see cref="IsSelected"/>
-    /// (welches Geraet im Detailbereich angezeigt wird).</summary>
+    /// <summary>Whether the main window's Device Configuration tab is visible and the window is not minimized
+    /// (see <see cref="SetScreenActive"/>, set by <see cref="MainViewModel"/>). Propagated to every
+    /// <see cref="DeviceConfigDeviceViewModel"/> so its live polling (see
+    /// <see cref="DeviceConfigDeviceViewModel.SetScreenActive"/>) runs only while the tab is visible,
+    /// independently of <see cref="IsSelected"/> (the device shown in the details pane).</summary>
     private bool _isScreenActive;
 
-    /// <summary>Legt fest, ob dieser Tab aktuell tatsaechlich sichtbar ist UND das Fenster nicht minimiert
-    /// ist - wird von <see cref="MainViewModel"/> bei jedem Tab-Wechsel bzw. Minimieren/Wiederherstellen
-    /// aufgerufen und an alle bekannten Geraete (sichtbare und ausgeblendete) weitergereicht, da
-    /// <see cref="SelectedDevice"/> theoretisch auf ein beliebiges davon zeigen kann.</summary>
+    /// <summary>Sets whether this tab is visible and the window is not minimized. Called by
+    /// <see cref="MainViewModel"/> whenever the tab changes or the window is minimized/restored, and
+    /// propagated to all known devices (visible and hidden) because <see cref="SelectedDevice"/> can refer to any of them.</summary>
     public void SetScreenActive(bool value)
     {
         _isScreenActive = value;
@@ -65,14 +60,11 @@ public sealed partial class DeviceConfigViewModel : ObservableObject, IDisposabl
         UpdateDevices();
     }
 
-    /// <summary>Gleicht <see cref="Devices"/> und <see cref="HiddenDevices"/> anhand der aktuell bekannten
-    /// Geraete (verbunden + bereits zuvor bekannte, aber aktuell getrennte - siehe
-    /// <see cref="MainViewModel.GetAllKnownDevices"/>) ab, statt die Listen bei jedem Aufruf komplett zu
-    /// verwerfen und neu aufzubauen. Wird nicht nur beim erstmaligen Aufbau, sondern auch bei jedem
-    /// nachfolgenden Geraete-Scan aufgerufen (inkl. dem periodischen Hotplug-Polling in MainViewModel, ca.
-    /// alle paar Sekunden) - ein destruktiver Neuaufbau wuerde dabei staendig genau das Steuerelement
-    /// zerstoeren, das der Nutzer gerade bearbeitet (z.B. bei jedem Tastendruck in einem
-    /// Umbenennungs-Feld), sowie die laufende Live-Ueberwachung des ausgewaehlten Geraets unterbrechen.</summary>
+    /// <summary>Reconciles <see cref="Devices"/> and <see cref="HiddenDevices"/> with all known devices, both
+    /// connected and previously seen but currently disconnected (see <see cref="MainViewModel.GetAllKnownDevices"/>),
+    /// instead of rebuilding the lists on every call. Runs on initial setup and every later device scan,
+    /// including periodic hot-plug polling every few seconds. Rebuilding would repeatedly destroy controls
+    /// being edited (e.g. on each keystroke in a rename field) and interrupt live monitoring of the selected device.</summary>
     public void UpdateDevices()
     {
         var knownDevices = _mainViewModel.GetAllKnownDevices();
@@ -111,10 +103,9 @@ public sealed partial class DeviceConfigViewModel : ObservableObject, IDisposabl
         }
     }
 
-    /// <summary>Reagiert auf <see cref="DeviceConfigDeviceViewModel.Hidden"/>-Aenderungen (ausgeloest ueber
-    /// <see cref="DeviceConfigDeviceViewModel.ToggleHiddenCommand"/>) und verschiebt das betroffene Geraet
-    /// sofort zwischen <see cref="Devices"/> und <see cref="HiddenDevices"/>, ohne auf den naechsten
-    /// periodischen Geraete-Scan warten zu muessen.</summary>
+    /// <summary>Handles changes to <see cref="DeviceConfigDeviceViewModel.Hidden"/> (raised through
+    /// <see cref="DeviceConfigDeviceViewModel.ToggleHiddenCommand"/>) and immediately moves the device between
+    /// <see cref="Devices"/> and <see cref="HiddenDevices"/> without waiting for the next periodic scan.</summary>
     private void OnDevicePropertyChanged(object? sender, System.ComponentModel.PropertyChangedEventArgs e)
     {
         if (e.PropertyName != nameof(DeviceConfigDeviceViewModel.Hidden) || sender is not DeviceConfigDeviceViewModel device)

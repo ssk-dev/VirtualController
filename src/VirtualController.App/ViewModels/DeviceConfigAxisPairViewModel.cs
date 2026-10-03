@@ -6,20 +6,17 @@ using VirtualController.Core.Devices;
 namespace VirtualController.App.ViewModels;
 
 /// <summary>
-/// Ein zusammengehoeriges Paar aus Positiv- und Negativ-Eintrag derselben physischen Achse, damit die
-/// View beide (sowie die zugehoerigen Kalibrierungs-Einstellmoeglichkeiten, die stets nur auf dem
-/// Positiv-Eintrag angezeigt werden, siehe <see cref="DeviceConfigInputRowViewModel.IsCalibratable"/>)
-/// direkt untereinander in einem gemeinsamen Rahmen darstellen kann, statt sie - wie zuvor - lose
-/// hintereinander in einer flachen Liste zu zeigen. Bietet zusaetzlich ueber <see cref="Enabled"/> einen
-/// gemeinsamen Enable/Disable-Schalter fuer beide Richtungen zugleich, damit der Nutzer nicht mehr
-/// zwingend jede Richtung einzeln (de-)aktivieren muss, um eine komplette Achse stillzulegen.
+/// A related positive and negative entry for the same physical axis. The view displays both entries and their
+/// calibration controls (shown only on the positive entry; see <see cref="DeviceConfigInputRowViewModel.IsCalibratable"/>)
+/// together in a shared frame instead of as separate rows. <see cref="Enabled"/> also provides a shared
+/// enable/disable switch for both directions so users do not have to toggle each direction individually.
 /// </summary>
 public sealed partial class DeviceConfigAxisPairViewModel : ObservableObject, IDeviceConfigAxisItem
 {
     private DeviceConfigInputRowViewModel _positive = null!;
     private DeviceConfigInputRowViewModel? _negative;
 
-    /// <summary>Kanonischer Eintrag der Achse (fuer Mapping-Zwecke massgeblich) - stets vorhanden.</summary>
+    /// <summary>Canonical axis entry used for mapping; always present.</summary>
     public DeviceConfigInputRowViewModel Positive
     {
         get => _positive;
@@ -35,8 +32,8 @@ public sealed partial class DeviceConfigAxisPairViewModel : ObservableObject, ID
         }
     }
 
-    /// <summary>Gegenlaeufiger Eintrag derselben Achse. Bei physisch einseitigen Achsen (Trigger,
-    /// Schieberegler) existiert kein Negativ-Eintrag; die View blendet die entsprechende Zeile dann aus.</summary>
+    /// <summary>Opposite-direction entry for the same axis. Unidirectional physical axes (triggers and sliders)
+    /// have no negative entry, so the view hides that row.</summary>
     public DeviceConfigInputRowViewModel? Negative
     {
         get => _negative;
@@ -58,43 +55,36 @@ public sealed partial class DeviceConfigAxisPairViewModel : ObservableObject, ID
         }
     }
 
-    /// <summary>true, wenn diese Achse sowohl einen Positiv- als auch einen Negativ-Eintrag besitzt
-    /// (zentrierte Sticks/Rotationsachsen); false fuer einseitige Trigger/Schieberegler.</summary>
+    /// <summary>True when this axis has both positive and negative entries (centered sticks/rotation axes);
+    /// false for unidirectional triggers and sliders.</summary>
     public bool HasNegative => Negative is not null;
 
-    /// <summary>Eingebettete Live-Visualisierung dieser Achse (horizontaler Slider, siehe
-    /// <see cref="Views.Controls.AxisGaugeControl"/>), direkt in dieser Karte statt in einem separaten
-    /// globalen "Live-Vorschau"-Abschnitt dargestellt. Null, bis <see cref="BuildVisualization"/>
-    /// aufgerufen wurde (erst moeglich, sobald <see cref="Negative"/> final zugewiesen ist, da dies den
-    /// bidirektionalen Wertebereich bestimmt).</summary>
+    /// <summary>Embedded live visualization of this axis (a horizontal slider; see
+    /// <see cref="Views.Controls.AxisGaugeControl"/>), displayed in this card rather than a separate global
+    /// preview section. Null until <see cref="BuildVisualization"/> is called, which requires the final
+    /// <see cref="Negative"/> entry to determine the bidirectional range.</summary>
     public AxisVisualizationViewModel? Visualization { get; private set; }
 
-    /// <summary>true, wenn diese Achse Teil eines kombinierten Sticks ist (siehe
-    /// <see cref="DeviceConfigStickGroupViewModel"/>), dessen 2D-Pad die Werte beider Achsen bereits
-    /// gemeinsam darstellt - die eigene Einzelachsen-Anzeige wuerde den Wert dann redundant ein zweites
-    /// Mal (als separater Balken) zeigen und wird deshalb hier ausgeblendet, obwohl <see cref="Visualization"/>
-    /// selbst weiterhin existiert und live aktualisiert wird (sie liefert die Rohdaten fuer das 2D-Pad).</summary>
+    /// <summary>True when this axis belongs to a combined stick (see <see cref="DeviceConfigStickGroupViewModel"/>)
+    /// whose 2D pad already displays both axis values. Hides the redundant individual bar while keeping
+    /// <see cref="Visualization"/> alive and updated because it supplies raw data to the 2D pad.</summary>
     public bool SuppressOwnVisualizationDisplay { get; set; }
 
     public bool HasVisualization => Visualization is not null && !SuppressOwnVisualizationDisplay;
 
-    /// <summary>true, wenn diese Achse Teil eines kombinierten Sticks ist (siehe
-    /// <see cref="DeviceConfigStickGroupViewModel"/>), der im eigenen Kopfbereich bereits einen einzigen
-    /// Schalter fuer beide Achsen zugleich anbietet - der zusaetzliche, achseneigene Master-Schalter waere
-    /// dann redundant und wird deshalb ausgeblendet. Fuer eigenstaendige Achsen (Trigger, Schieberegler,
-    /// Rotationsachsen ohne Partner) bleibt <see cref="ShowMasterToggle"/> hingegen true, damit auch dort
-    /// eine komplette Achse ueber einen einzigen Schalter (de-)aktiviert werden kann, statt zwingend beide
-    /// Richtungen einzeln abhaken zu muessen.</summary>
+    /// <summary>True when this axis belongs to a combined stick (see <see cref="DeviceConfigStickGroupViewModel"/>),
+    /// which already provides one switch for both axes; the axis-level master switch would be redundant.
+    /// Standalone axes (triggers, sliders, and unpaired rotation axes) keep <see cref="ShowMasterToggle"/> enabled
+    /// so the whole axis can be toggled at once.</summary>
     public bool SuppressMasterToggle { get; set; }
 
     public bool ShowMasterToggle => !SuppressMasterToggle;
 
-    /// <summary>Erzeugt die eingebettete Live-Visualisierung anhand der bereits vorhandenen
-    /// <see cref="InputSettings"/> des Positiv-Eintrags. Wird von <see cref="DeviceConfigDeviceViewModel"/>
-    /// erst aufgerufen, nachdem sowohl <see cref="Positive"/> als auch ein etwaiger <see cref="Negative"/>
-    /// zugewiesen wurden, damit <see cref="HasNegative"/> zuverlaessig den korrekten Wertebereich
-    /// (bidirektional vs. einseitig) liefert. Name bleibt bewusst leer, da die Karte den (editierbaren)
-    /// Namen bereits selbst im Kopfbereich anzeigt.</summary>
+    /// <summary>Creates the embedded live visualization from the positive entry's existing
+    /// <see cref="InputSettings"/>. <see cref="DeviceConfigDeviceViewModel"/> calls this only after
+    /// <see cref="Positive"/> and any <see cref="Negative"/> entry are assigned, so <see cref="HasNegative"/>
+    /// provides the correct unidirectional or bidirectional range. The name is intentionally empty because
+    /// the card already displays the editable name in its header.</summary>
     public void BuildVisualization()
     {
         Visualization = new AxisVisualizationViewModel(string.Empty, Positive.Settings, Positive.Ref.Index, HasNegative);
@@ -108,15 +98,11 @@ public sealed partial class DeviceConfigAxisPairViewModel : ObservableObject, ID
 
     public void ResetVisualization() => Visualization?.Reset();
 
-    /// <summary>Tri-State-Ausleseweg fuer den gemeinsamen Master-Schalter im Kopfbereich: true, wenn beide
-    /// Richtungen aktiv sind, false, wenn beide deaktiviert sind, und null (unbestimmt), wenn sich die
-    /// beiden Richtungen unterscheiden - z.B. wenn der Nutzer nur die Negativ-Richtung einzeln deaktiviert
-    /// hat. Eine rein binaere Darstellung wuerde in diesem Mischfall faelschlich "komplett deaktiviert"
-    /// suggerieren, obwohl die andere Richtung weiterhin unveraendert aktiv bleibt. Nur zum Anzeigen
-    /// gedacht (ueber eine <see cref="System.Windows.Controls.CheckBox"/> mit IsThreeState="True" und
-    /// IsChecked im OneWay-Modus) - das tatsaechliche Umschalten erfolgt ausschliesslich ueber
-    /// <see cref="ToggleEnabledCommand"/>, damit ein einzelner Klick nicht versehentlich im dritten
-    /// (unbestimmten) Checkbox-Zustand haengen bleibt.</summary>
+    /// <summary>Tri-state value for the shared master switch: true when both directions are enabled, false when
+    /// both are disabled, and null when they differ (e.g. only the negative direction was disabled). A binary
+    /// display would incorrectly imply that the whole axis is disabled in that mixed state. This value is for
+    /// display only in a three-state, one-way-bound <see cref="System.Windows.Controls.CheckBox"/>; toggling
+    /// is handled exclusively by <see cref="ToggleEnabledCommand"/> to avoid getting stuck in the indeterminate state.</summary>
     public bool? EnabledState
     {
         get
@@ -127,15 +113,13 @@ public sealed partial class DeviceConfigAxisPairViewModel : ObservableObject, ID
         }
     }
 
-    /// <summary>Vereinfachter boolescher Ausleseweg fuer IsEnabled-Bindungen (z.B. auf die eingebettete
-    /// Visualisierung), die - anders als eine <see cref="System.Windows.Controls.CheckBox"/> - keinen
-    /// Tri-State-Wert entgegennehmen koennen: true, solange mindestens eine Richtung aktiv ist (deckt auch
-    /// den Mischfall ab), false nur, wenn beide Richtungen vollstaendig deaktiviert sind.</summary>
+    /// <summary>Simplified boolean value for IsEnabled bindings (e.g. the embedded visualization), which cannot
+    /// accept a tri-state value like a <see cref="System.Windows.Controls.CheckBox"/>: true while either
+    /// direction is enabled, false only when both are disabled.</summary>
     public bool IsAnyEnabled => EnabledState != false;
 
-    /// <summary>Setzt beim Anklicken der Master-Checkbox stets beide Richtungen explizit auf denselben
-    /// Wert: liegt aktuell kein einheitlicher "beide aktiv"-Zustand vor (also false oder unbestimmt/gemischt),
-    /// werden beide Richtungen eingeschaltet; waren zuvor bereits beide aktiv, werden beide ausgeschaltet.</summary>
+    /// <summary>Sets both directions to the same value when the master checkbox is clicked. If both are not
+    /// currently enabled (false or mixed), enables both; if both are enabled, disables both.</summary>
     [RelayCommand]
     private void ToggleEnabled()
     {

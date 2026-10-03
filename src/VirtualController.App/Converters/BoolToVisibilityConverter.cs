@@ -4,9 +4,9 @@ using System.Windows.Data;
 
 namespace VirtualController.App.Converters;
 
-/// <summary>Wandelt bool in Visibility (true = Visible, false = Collapsed). Optionaler ConverterParameter
-/// "Invert" dreht die Zuordnung um (true = Collapsed, false = Visible), z.B. um einen Hinweis nur
-/// anzuzeigen, wenn eine bool-Property false ist, ohne dafuer einen eigenen Converter zu brauchen.</summary>
+/// <summary>Converts a boolean to Visibility (true = Visible, false = Collapsed). The optional ConverterParameter
+/// "Invert" reverses the mapping (true = Collapsed, false = Visible), for example to show a hint only
+/// when a boolean property is false without needing a dedicated converter.</summary>
 public sealed class BoolToVisibilityConverter : IValueConverter
 {
     public object Convert(object? value, Type targetType, object? parameter, CultureInfo culture)

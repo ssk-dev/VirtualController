@@ -4,13 +4,11 @@ using VirtualController.Core.Devices;
 namespace VirtualController.App.ViewModels;
 
 /// <summary>
-/// Rein darstellendes Modell des aktuellen Live-Eingangswerts einer einzelnen physischen Achse fuer
-/// die generische Achsenvisualisierung im Geraete-Konfigurationsdialog (siehe
-/// <see cref="Views.Controls.AxisGaugeControl"/>). Enthaelt bewusst keine eigene Logik zur Erzeugung
-/// oder Veraenderung von Controllerwerten: die Kalibrierung (<see cref="AxisSignalProcessor.Calibrate"/>)
-/// ist rein lesend gegenueber den bereits vorhandenen <see cref="InputSettings"/> und dem zuletzt
-/// gepollten <see cref="DeviceState"/>; die Deadzone-Anzeige spiegelt lediglich den dort konfigurierten
-/// Wert wider.
+/// Display-only model of the current live input value for one physical axis in the generic device
+/// configuration visualization (see <see cref="Views.Controls.AxisGaugeControl"/>). It does not generate
+/// or modify controller values. Calibration (<see cref="AxisSignalProcessor.Calibrate"/>) reads existing
+/// <see cref="InputSettings"/> and the most recently polled <see cref="DeviceState"/>; the deadzone display
+/// simply reflects the configured value.
 /// </summary>
 public sealed partial class AxisVisualizationViewModel : ObservableObject, IAxisVisualizationItem
 {
@@ -18,42 +16,41 @@ public sealed partial class AxisVisualizationViewModel : ObservableObject, IAxis
     private readonly int _axisSlotIndex;
     private readonly bool _bidirectional;
 
-    /// <summary>Anzeigename der Achse (ohne Richtungssuffix "+"/"-", da diese Visualisierung stets
-    /// beide Richtungen derselben physischen Achse gemeinsam als einen Wert darstellt).</summary>
+    /// <summary>Axis display name without a direction suffix, since this visualization represents both
+    /// directions of the physical axis as one value.</summary>
     public string Name { get; }
 
-    /// <summary>Unterer Rand des vollstaendigen Wertebereichs dieser Achse: -1.0 fuer zentrierte
-    /// Sticks/Rotationsachsen, 0.0 fuer einseitige Trigger/Schieberegler.</summary>
+    /// <summary>Lower bound of this axis's full range: -1.0 for centered sticks/rotation axes, 0.0 for
+    /// unidirectional triggers/sliders.</summary>
     public float MinValue => _bidirectional ? -1f : 0f;
 
-    /// <summary>Oberer Rand des vollstaendigen Wertebereichs dieser Achse (stets 1.0).</summary>
+    /// <summary>Upper bound of this axis's full range (always 1.0).</summary>
     public float MaxValue => 1f;
 
-    /// <summary>true fuer zentrierte Sticks/Rotationsachsen (-1.0 .. 1.0, Nullpunkt liegt in der Mitte),
-    /// false fuer einseitige Trigger/Schieberegler (0.0 .. 1.0, Nullpunkt liegt am Rand). Steuert in der
-    /// View, ob eine zusaetzliche Nullpunkt-Markierung in der Mitte des Balkens sinnvoll ist.</summary>
+    /// <summary>True for centered sticks/rotation axes (-1.0 .. 1.0, with zero in the middle); false for
+    /// unidirectional triggers/sliders (0.0 .. 1.0, with zero at the edge). Controls whether the view shows
+    /// an additional center marker.</summary>
     public bool IsBidirectional => _bidirectional;
 
-    /// <summary>Aktueller, kalibrierter Live-Wert (siehe <see cref="AxisSignalProcessor.Calibrate"/>),
-    /// bewusst ohne Deadzone-/Kurven-Anwendung, damit sich der angezeigte Marker fluessig durch die
-    /// Deadzone hindurch bewegt - die Deadzone selbst wird separat visualisiert.</summary>
+    /// <summary>Current calibrated live value (see <see cref="AxisSignalProcessor.Calibrate"/>), deliberately
+    /// without applying the deadzone or curve so the marker moves smoothly through the deadzone, which is
+    /// visualized separately.</summary>
     [ObservableProperty]
     private float _value;
 
-    /// <summary>Aktuell konfigurierte geraeteweite Deadzone dieser Achse (siehe <see cref="InputSettings.Deadzone"/>).</summary>
+    /// <summary>Currently configured device-wide deadzone for this axis (see <see cref="InputSettings.Deadzone"/>).</summary>
     [ObservableProperty]
     private float _deadzone;
 
-    /// <summary>true, sobald der aktuelle Wert die konfigurierte Deadzone verlaesst. Wird von
-    /// <see cref="Views.Controls.AxisGaugeControl"/> genutzt, um beim Uebergang von innerhalb nach
-    /// ausserhalb kurz aufzuleuchten.</summary>
+    /// <summary>True when the current value leaves the configured deadzone. Used by
+    /// <see cref="Views.Controls.AxisGaugeControl"/> to briefly flash on the transition from inside to outside.</summary>
     [ObservableProperty]
     private bool _isOutsideDeadzone;
 
-    /// <param name="name">Anzeigename ohne Richtungssuffix.</param>
-    /// <param name="settings">Geraeteweite Einstellungen (Kalibrierung/Deadzone) der kanonischen AxisPositive-Eingabe.</param>
-    /// <param name="axisSlotIndex">Generischer Achsen-Slot-Index (siehe <see cref="PhysicalAxisId"/>), zum Auslesen aus <see cref="DeviceState.Axes"/>.</param>
-    /// <param name="bidirectional">true fuer zentrierte Sticks/Rotationsachsen (-1.0 .. 1.0), false fuer Trigger/Schieberegler (0.0 .. 1.0).</param>
+    /// <param name="name">Display name without a direction suffix.</param>
+    /// <param name="settings">Device-wide calibration/deadzone settings for the canonical AxisPositive input.</param>
+    /// <param name="axisSlotIndex">Generic axis slot index (see <see cref="PhysicalAxisId"/>) used to read <see cref="DeviceState.Axes"/>.</param>
+    /// <param name="bidirectional">True for centered sticks/rotation axes (-1.0 .. 1.0); false for triggers/sliders (0.0 .. 1.0).</param>
     public AxisVisualizationViewModel(string name, InputSettings settings, int axisSlotIndex, bool bidirectional)
     {
         Name = name;
@@ -67,28 +64,27 @@ public sealed partial class AxisVisualizationViewModel : ObservableObject, IAxis
 
     private static double Clamp01(float v) => Math.Clamp(v, 0f, 1f);
 
-    /// <summary>Position des aktuellen Werts als Anteil (0.0 = <see cref="MinValue"/>, 1.0 = <see cref="MaxValue"/>)
-    /// der gesamten Achsenbreite. Dient als Star-Gewicht der Spalte "vor dem Marker" in der View, damit der
-    /// Marker unabhaengig von der tatsaechlichen Pixelbreite des Steuerelements proportional positioniert wird.</summary>
+    /// <summary>Current value's position as a fraction of the full axis width (0.0 = <see cref="MinValue"/>,
+    /// 1.0 = <see cref="MaxValue"/>). Used as the star weight for the column before the marker so its position
+    /// remains proportional regardless of the control's pixel width.</summary>
     public double MarkerFraction => Clamp01((Value - MinValue) / Range);
 
-    /// <summary>Verbleibender Anteil nach dem Marker (1.0 - <see cref="MarkerFraction"/>), als Star-Gewicht der
-    /// dritten (rechten) Spalte.</summary>
+    /// <summary>Remaining fraction after the marker (1.0 - <see cref="MarkerFraction"/>), used as the star
+    /// weight for the third (right) column.</summary>
     public double AfterMarkerFraction => 1.0 - MarkerFraction;
 
-    /// <summary>Anteilige Position, an der das Deadzone-Band beginnt (linke Kante), unter Beruecksichtigung
-    /// des vollstaendigen Wertebereichs (z.B. bei einseitigen Triggern 0..1 kann die Deadzone nicht unter 0 reichen).</summary>
+    /// <summary>Fractional position where the deadzone band begins (left edge), accounting for the full range.
+    /// For example, a unidirectional trigger spans 0..1, so its deadzone cannot extend below zero.</summary>
     public double DeadzoneStartFraction => Clamp01((MathF.Max(MinValue, -Deadzone) - MinValue) / Range);
 
-    /// <summary>Anteilige Position, an der das Deadzone-Band endet (rechte Kante).</summary>
+    /// <summary>Fractional position where the deadzone band ends (right edge).</summary>
     private double DeadzoneEndFraction => Clamp01((MathF.Min(MaxValue, Deadzone) - MinValue) / Range);
 
-    /// <summary>Breite des Deadzone-Bands als Anteil der gesamten Achsenbreite - waechst proportional mit dem
-    /// konfigurierten Deadzone-Wert, wie in der Anforderung ("je groesser die Deadzone, desto groesser der
-    /// dargestellte Bereich") gefordert.</summary>
+    /// <summary>Deadzone band width as a fraction of the full axis width, growing in proportion to the
+    /// configured deadzone value.</summary>
     public double DeadzoneWidthFraction => Math.Max(0.0, DeadzoneEndFraction - DeadzoneStartFraction);
 
-    /// <summary>Verbleibender Anteil nach dem Deadzone-Band, als Star-Gewicht der dritten Spalte.</summary>
+    /// <summary>Remaining fraction after the deadzone band, used as the star weight for the third column.</summary>
     public double AfterDeadzoneFraction => 1.0 - DeadzoneStartFraction - DeadzoneWidthFraction;
 
     partial void OnValueChanged(float value)
@@ -104,20 +100,19 @@ public sealed partial class AxisVisualizationViewModel : ObservableObject, IAxis
         OnPropertyChanged(nameof(AfterDeadzoneFraction));
     }
 
-    /// <summary>Aktualisiert Wert und Deadzone-Zustand anhand des zuletzt gepollten Geraetezustands.
-    /// Wird vom Live-Polling der uebergeordneten <see cref="DeviceConfigDeviceViewModel"/> aufgerufen.</summary>
+    /// <summary>Updates the value and deadzone state from the most recently polled device state. Called by
+    /// the parent <see cref="DeviceConfigDeviceViewModel"/>'s live polling.</summary>
     public void UpdateFromState(DeviceState state)
     {
         float raw = state.GetAxisRaw(_axisSlotIndex);
         Value = AxisSignalProcessor.Calibrate(raw, _settings, _bidirectional);
-        // Deadzone wird bei jedem Tick frisch aus den Einstellungen gelesen, damit eine waehrend des
-        // geoeffneten Dialogs vom Nutzer angepasste Deadzone sofort in der Visualisierung sichtbar wird.
+        // Read the deadzone from settings on each tick so changes made while the dialog is open appear immediately.
         Deadzone = _settings.Deadzone;
         IsOutsideDeadzone = MathF.Abs(Value) > Deadzone;
     }
 
-    /// <summary>Setzt die Anzeige auf den Ruhezustand zurueck (z.B. beim Zuklappen des Geraets im
-    /// Konfigurationsdialog oder Trennen der Verbindung), damit keine veraltete Position stehen bleibt.</summary>
+    /// <summary>Resets the display to its resting state when the device is collapsed in the configuration
+    /// dialog or disconnected, preventing a stale position from remaining visible.</summary>
     public void Reset()
     {
         Value = 0f;

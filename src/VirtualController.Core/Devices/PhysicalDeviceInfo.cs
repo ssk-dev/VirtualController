@@ -1,8 +1,8 @@
 namespace VirtualController.Core.Devices;
 
 /// <summary>
-/// Beschreibt ein am System angeschlossenes physisches Eingabegeraet, unabhaengig davon
-/// ob es ueber XInput oder DirectInput angesprochen wird.
+/// Describes a physical input device connected to the system, regardless of whether it is accessed through
+/// XInput or DirectInput.
 /// </summary>
 public sealed record PhysicalDeviceInfo(
     string DeviceId,
@@ -15,17 +15,16 @@ public sealed record PhysicalDeviceInfo(
     ushort? VendorId = null,
     ushort? ProductId = null)
 {
-    /// <summary>Welche generischen Achsen-Slots (siehe <see cref="PhysicalAxisId"/>) dieses konkrete Geraet tatsaechlich liefert.</summary>
+    /// <summary>Generic axis slots actually provided by this device (see <see cref="PhysicalAxisId"/>).</summary>
     public IReadOnlyList<PhysicalAxisId> AvailableAxes { get; init; } = AvailableAxes ?? Array.Empty<PhysicalAxisId>();
 
-    /// <summary>USB-Hersteller-ID (Vendor ID), ermittelt aus DirectInputs <c>ProductGuid</c> (siehe
-    /// <see cref="DeviceEnumerator"/>). Null, falls nicht ermittelbar - z.B. bei einem XInput-Geraet,
-    /// zu dem sich kein passendes DirectInput-Gegenstueck finden liess (siehe <see cref="ProductId"/>).
-    /// Wird ausschliesslich fuer die HidHide-Geraetesperre (Aufloesung der PnP-Instanz-ID ueber
-    /// Vendor/Product-ID) benoetigt.</summary>
+    /// <summary>USB vendor ID, extracted from DirectInput's <c>ProductGuid</c> (see
+    /// <see cref="DeviceEnumerator"/>). Null if unavailable, e.g. when no matching DirectInput counterpart
+    /// can be found for an XInput device (see <see cref="ProductId"/>). Used only for HidHide device blocking
+    /// by resolving the PnP instance ID from the vendor/product IDs.</summary>
     public ushort? VendorId { get; init; } = VendorId;
 
-    /// <summary>USB-Produkt-ID (Product ID), siehe <see cref="VendorId"/> fuer Details zur Herkunft.</summary>
+    /// <summary>USB product ID; see <see cref="VendorId"/> for details about its source.</summary>
     public ushort? ProductId { get; init; } = ProductId;
 
     public override string ToString() => $"{DisplayName} ({Api}, Slot {ApiSlot})";

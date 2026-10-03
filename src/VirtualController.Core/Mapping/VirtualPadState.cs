@@ -3,9 +3,8 @@ using VirtualController.Core.Virtual;
 namespace VirtualController.Core.Mapping;
 
 /// <summary>
-/// Aggregierter Ziel-Zustand eines virtuellen Controllers, unabhaengig vom konkreten
-/// ViGEmBus-Backend. Wird von der Mapping-Engine erzeugt und von den Virtual-Wrappern
-/// (Xbox360/DualShock4) in das jeweilige natives Report-Format uebertragen.
+/// Aggregated output state for a virtual controller, independent of the specific ViGEmBus backend. Created by
+/// the mapping engine and converted by the virtual wrappers (Xbox 360/DualShock 4) to their native report format.
 /// </summary>
 public sealed class VirtualPadState
 {

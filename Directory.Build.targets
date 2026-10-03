@@ -1,29 +1,26 @@
 <Project>
 
   <!--
-    Ermittelt die App-Version automatisch aus dem Git-Tag, mit dem der aktuelle Checkout gebaut wird
-    (z.B. Tag "v1.4.2" -> Version "1.4.2"), statt sie manuell in jeder .csproj oder an mehreren Stellen
-    im Quellcode pflegen zu muessen. MSBuild importiert Directory.Build.targets automatisch NACH jeder
-    einzelnen .csproj (im Gegensatz zu Directory.Build.props, das VOR der .csproj importiert wird) - das
-    ist hier notwendig, damit dieses Target zuverlaessig vor GetAssemblyVersion/GenerateAssemblyInfo
-    laeuft und $(Version) noch rechtzeitig setzen kann.
+    Automatically derives the app version from the Git tag used to build the current checkout
+    (e.g. tag "v1.4.2" -> version "1.4.2"), avoiding manual updates in each .csproj or multiple source files.
+    MSBuild imports Directory.Build.targets after each .csproj (unlike Directory.Build.props, which is
+    imported before it). This ensures the target runs before GetAssemblyVersion/GenerateAssemblyInfo and
+    can set $(Version) in time.
 
-    Zur Laufzeit ist die ermittelte Version ueber
-    VirtualController.Core.Updates.AppVersionProvider.CurrentVersion abrufbar (liest das hier gesetzte
-    AssemblyInformationalVersionAttribute aus der kompilierten Assembly aus).
+    At runtime, the derived version is available through
+    VirtualController.Core.Updates.AppVersionProvider.CurrentVersion, which reads the
+    AssemblyInformationalVersionAttribute from the compiled assembly.
   -->
   <Target Name="ComputeVersionFromGitTag" BeforeTargets="GetAssemblyVersion;GenerateAssemblyInfo;CoreCompile" Condition="'$(VirtualControllerVersion)' == ''">
 
     <!--
-      Die Option "exact-match" (siehe Exec Command unten) liefert den Tag-Namen NUR, wenn der aktuelle
-      Commit (HEAD) exakt mit diesem Tag versehen ist (nicht bloss ein Nachfolge-Commit davon) - das
-      entspricht exakt "die Version, mit der dieser Build gebaut wurde" statt einer ungefaehren/abgeleiteten
-      Versionsnummer. Der Release-Workflow (.github/workflows/release.yml) checkt beim Bauen immer genau
-      den gepushten Tag aus, daher liefert dies dort zuverlaessig die korrekte Version. Bei lokalen
-      Entwicklungs-Builds (kein Tag auf dem aktuellen Commit, kein Git installiert, oder gar kein
-      Git-Repository, z.B. bei einem aus einem Quellcode-ZIP gebauten Checkout) schlaegt der Befehl
-      absichtlich fehl; ContinueOnError sorgt dafuer,
-      dass dies den Build niemals zum Scheitern bringt, der Fallback weiter unten greift dann stattdessen.
+      The "exact-match" option (see the Exec command below) returns a tag only when the current commit (HEAD)
+      is tagged directly, not merely descended from a tag. This yields the version used for this exact build
+      rather than an approximate/derived version. The release workflow (.github/workflows/release.yml) checks
+      out the pushed tag, so this reliably returns the correct version there. For local development builds
+      (no tag on the current commit, Git not installed, or no Git repository, such as a source ZIP checkout),
+      the command intentionally fails. ContinueOnError prevents that from failing the build, and the fallback
+      below is used instead.
     -->
     <Exec Command="git describe --tags --exact-match --match &quot;v[0-9]*.[0-9]*.[0-9]*&quot;"
           ConsoleToMSBuild="true"
@@ -39,15 +36,13 @@
     <PropertyGroup>
       <_GitTag>@(_GitDescribeOutput)</_GitTag>
       <_GitTagVersion>$(_GitTag.TrimStart('v'))</_GitTagVersion>
-      <!-- Zusaetzliche Validierung ueber das reine Glob-Match von "git describe" hinaus: stellt sicher,
-           dass wirklich eine gueltige SemVer-Version "Major.Minor.Patch" mit optionalem
-           "-PreRelease"-Suffix vorliegt (z.B. "1.2.0" oder "1.2.0-alpha" - Tags dieses Projekts nutzen
-           haeufig Suffixe wie "-alpha"), bevor daraus Version/InformationalVersion/AssemblyVersion/
-           FileVersion abgeleitet werden. Entspricht demselben Format wie SemanticVersion.cs. -->
+      <!-- Additional validation beyond git describe's glob match: ensure this is a valid SemVer
+           "Major.Minor.Patch" version with an optional "-PreRelease" suffix (e.g. "1.2.0" or "1.2.0-alpha";
+           this project frequently uses suffixes such as "-alpha") before deriving version and assembly
+           metadata. Uses the same format as SemanticVersion.cs. -->
       <_GitTagVersionIsValid Condition="$([System.Text.RegularExpressions.Regex]::IsMatch('$(_GitTagVersion)', '^\d+\.\d+\.\d+(?:-[0-9A-Za-z.\-]+)?$'))">true</_GitTagVersionIsValid>
-      <!-- Nur der numerische Major.Minor.Patch-Anteil ohne PreRelease-Suffix - AssemblyVersion/
-           FileVersion erfordern ein rein numerisches 4-Komponenten-Format und vertragen daher kein
-           "-alpha"-Suffix (siehe Verwendung weiter unten). -->
+      <!-- The numeric Major.Minor.Patch portion without a prerelease suffix. AssemblyVersion/FileVersion
+           require a numeric four-component format and cannot include an "-alpha" suffix (see below). -->
       <_GitTagVersionCore Condition="'$(_GitTagVersionIsValid)' == 'true'">$([System.Text.RegularExpressions.Regex]::Match('$(_GitTagVersion)', '^\d+\.\d+\.\d+').Value)</_GitTagVersionCore>
     </PropertyGroup>
 
@@ -55,7 +50,7 @@
       <VirtualControllerVersion>$(_GitTagVersion)</VirtualControllerVersion>
     </PropertyGroup>
 
-    <!-- Fallback fuer Entwicklungsbuilds ohne passenden Git-Tag auf dem aktuellen Commit. -->
+    <!-- Fallback for development builds without a matching Git tag on the current commit. -->
     <PropertyGroup Condition="'$(VirtualControllerVersion)' == ''">
       <VirtualControllerVersion>0.0.0-dev</VirtualControllerVersion>
     </PropertyGroup>
@@ -63,16 +58,15 @@
     <PropertyGroup>
       <Version>$(VirtualControllerVersion)</Version>
       <InformationalVersion>$(VirtualControllerVersion)</InformationalVersion>
-      <!-- AssemblyVersion/FileVersion erfordern ein rein numerisches 4-Komponenten-Format und vertragen
-           daher kein "-dev"-Suffix - werden nur bei einer tatsaechlich aus einem gueltigen Git-Tag
-           ermittelten Version gesetzt; im Dev-Fallback behaelt die Assembly die MSBuild-Standardversion
-           "1.0.0.0", waehrend die per AppVersionProvider ausgelesene InformationalVersion trotzdem
-           korrekt "0.0.0-dev" anzeigt. -->
+      <!-- AssemblyVersion/FileVersion require a numeric four-component format and cannot include a "-dev"
+           suffix. Set them only when the version comes from a valid Git tag. In the development fallback,
+           the assembly retains the MSBuild default version "1.0.0.0", while AppVersionProvider still reads
+           and displays the correct InformationalVersion, "0.0.0-dev". -->
       <AssemblyVersion Condition="'$(_GitTagVersionIsValid)' == 'true'">$(_GitTagVersionCore).0</AssemblyVersion>
       <FileVersion Condition="'$(_GitTagVersionIsValid)' == 'true'">$(_GitTagVersionCore).0</FileVersion>
     </PropertyGroup>
 
-    <Message Importance="high" Text="VirtualController-Version aus Git-Tag ermittelt: $(VirtualControllerVersion)" />
+    <Message Importance="high" Text="VirtualController version derived from Git tag: $(VirtualControllerVersion)" />
   </Target>
 
 </Project>

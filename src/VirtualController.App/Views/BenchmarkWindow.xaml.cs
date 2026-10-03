@@ -5,22 +5,18 @@ using VirtualController.App.ViewModels;
 namespace VirtualController.App.Views;
 
 /// <summary>
-/// Nicht-modales Echtzeit-Anzeigefenster fuer den Hardware-Benchmark eines einzelnen Geraets (siehe
-/// <see cref="BenchmarkWindowViewModel"/>). Enthaelt bewusst keine Geschaeftslogik - diese lebt komplett
-/// im <see cref="BenchmarkWindowViewModel"/> bzw. im zugrunde liegenden
-/// <see cref="DeviceConfigDeviceViewModel"/> (Start/Stop der Sitzung selbst).
+/// Non-modal real-time display window for one device's hardware benchmark (see
+/// <see cref="BenchmarkWindowViewModel"/>). Business logic lives in
+/// <see cref="BenchmarkWindowViewModel"/> and <see cref="DeviceConfigDeviceViewModel"/>, which owns session start/stop.
 ///
-/// Pro Geraet existiert hoechstens eine Instanz gleichzeitig (siehe <see cref="ShowFor"/>, analog zum
-/// Singleton-Muster von <see cref="ModeChangeToast"/>): ein erneuter Aufruf fuer dasselbe Geraet aktiviert
-/// lediglich das bereits offene Fenster, statt ein weiteres zu oeffnen. Schliessen des Fensters (Klick auf
-/// X oder erneuter Klick auf den zugehoerigen "Benchmark-Anzeige"-Button) beendet NICHT die laufende
-/// Benchmark-Sitzung - diese laeuft im Hintergrund weiter, bis der Nutzer sie explizit per Start/Stop-Button
-/// (auch innerhalb dieses Fensters vorhanden) stoppt.
+/// At most one instance exists per device (see <see cref="ShowFor"/>, like the singleton pattern in
+/// <see cref="ModeChangeToast"/>). Reopening it activates the existing window. Closing the window, either
+/// through X or the device's benchmark button, does not stop the session; it continues in the background
+/// until the user explicitly stops it with the Start/Stop button.
 /// </summary>
 public partial class BenchmarkWindow : Window
 {
-    /// <summary>Bereits offene Fenster, geschluesselt nach dem zugrunde liegenden Geraete-ViewModel -
-    /// siehe <see cref="ShowFor"/>.</summary>
+    /// <summary>Open windows keyed by their device view model; see <see cref="ShowFor"/>.</summary>
     private static readonly Dictionary<DeviceConfigDeviceViewModel, BenchmarkWindow> OpenWindows = new();
 
     private readonly BenchmarkWindowViewModel _viewModel;
@@ -32,8 +28,8 @@ public partial class BenchmarkWindow : Window
         DataContext = _viewModel;
     }
 
-    /// <summary>Oeffnet das Echtzeit-Anzeigefenster fuer <paramref name="device"/>, bzw. aktiviert (bringt
-    /// in den Vordergrund) ein fuer dieses Geraet bereits offenes Fenster.</summary>
+    /// <summary>Opens the real-time display for <paramref name="device"/>, or activates an existing window for
+    /// that device and brings it to the foreground.</summary>
     public static void ShowFor(DeviceConfigDeviceViewModel device, Window? owner)
     {
         if (OpenWindows.TryGetValue(device, out var existing))

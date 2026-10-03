@@ -3,28 +3,24 @@ using Vortice.DirectInput;
 namespace VirtualController.Core.Devices;
 
 /// <summary>
-/// Findet alle aktuell angeschlossenen physischen Controller ueber XInput (Slots 0-3) und
-/// DirectInput (alle uebrigen HID-Gamepads/Joysticks, inkl. der meisten PlayStation-Controller).
-/// Geraete, die bereits ueber XInput gefunden wurden, werden bei der DirectInput-Enumeration
-/// nicht doppelt aufgelistet (XInput-Controller melden sich auch als DirectInput-Geraet).
+/// Finds all currently connected physical controllers through XInput (slots 0-3) and DirectInput (other
+/// HID gamepads/joysticks, including most PlayStation controllers). Devices already found through XInput
+/// are not listed again during DirectInput enumeration because XInput controllers also appear as DirectInput devices.
 /// </summary>
 public static class DeviceEnumerator
 {
-    /// <summary>Einmal ermittelte Faehigkeiten eines DirectInput-Geraets, gecacht ueber die gesamte
-    /// Prozesslaufzeit (siehe <see cref="_capabilitiesCache"/> und dessen Nutzung in <see cref="EnumerateAll"/>).</summary>
+    /// <summary>Capabilities detected once for a DirectInput device and cached for the process lifetime
+    /// (see <see cref="_capabilitiesCache"/> and its use in <see cref="EnumerateAll"/>).</summary>
     private sealed record DirectInputCapabilities(int ButtonCount, bool HasPov, List<PhysicalAxisId> AvailableAxes);
 
     /// <summary>
-    /// Cache der Faehigkeiten (ButtonCount/HasPov/AvailableAxes) bereits erkannter DirectInput-Geraete,
-    /// Key = <see cref="DeviceInstance.InstanceGuid"/>. <see cref="EnumerateAll"/> wird periodisch alle
-    /// 2 Sekunden vom Hotplug-Timer aufgerufen (siehe <c>MainViewModel.HotplugPollInterval</c>); ohne
-    /// diesen Cache wuerde dabei fuer JEDES angeschlossene Geraet bei JEDEM Scan erneut ein
-    /// <see cref="Vortice.DirectInput.IDirectInputDevice8"/> per <c>CreateDevice()</c> erzeugt und
-    /// <c>Capabilities</c>/<c>GetObjects(Axis)</c> abgefragt - auch fuer Geraete, die seit dem letzten
-    /// Scan unveraendert angeschlossen sind. Das ist unnoetiger COM-Overhead und erzeugt nebenbei ein
-    /// zusaetzliches kurzlebiges Device-Objekt fuer ein Geraet, das ggf. gerade von einem laufenden
-    /// <see cref="DirectInputDeviceReader"/> aktiv gepollt wird. Die Faehigkeiten eines physischen
-    /// Geraets aendern sich waehrend es angeschlossen ist nicht, daher ist prozessweites Caching sicher.
+    /// Cache of capabilities (ButtonCount/HasPov/AvailableAxes) for detected DirectInput devices, keyed by
+    /// <see cref="DeviceInstance.InstanceGuid"/>. <see cref="EnumerateAll"/> runs every two seconds from the
+    /// hot-plug timer (see <c>MainViewModel.HotplugPollInterval</c>). Without this cache, every scan would create
+    /// a new <see cref="Vortice.DirectInput.IDirectInputDevice8"/> for every connected device and query its
+    /// capabilities/axes, even when nothing changed. This adds unnecessary COM overhead and creates a short-lived
+    /// device object while a <see cref="DirectInputDeviceReader"/> may already be polling it. Device capabilities
+    /// do not change while connected, so process-wide caching is safe.
     /// </summary>
     private static readonly Dictionary<Guid, DirectInputCapabilities> _capabilitiesCache = new();
 
@@ -52,15 +48,15 @@ public static class DeviceEnumerator
 
         using var directInput = DirectInputFactory.Create();
         int diSlot = 0;
-        // Sammelt Vendor-/Product-ID-Paare aller DirectInput-Geraete, die als XInput-artig erkannt wurden
-        // (siehe LooksLikeXInputDevice) - XInput selbst liefert keine VID/PID, benoetigt fuer die
-        // HidHide-Geraetesperre (siehe Zuweisung an die XInput-Eintraege nach dieser Schleife).
+        // Collect vendor/product IDs for DirectInput devices identified as XInput-like (see LooksLikeXInputDevice).
+        // XInput itself does not provide VID/PID, which is needed for HidHide device blocking (assigned to
+        // XInput entries after this loop).
         var xinputVidPidCandidates = new HashSet<(ushort VendorId, ushort ProductId)>();
         foreach (var deviceInstance in directInput.GetDevices(DeviceClass.GameControl, DeviceEnumerationFlags.AttachedOnly))
         {
-            // Geraete, die XInput bereits liefert, hier nicht zusaetzlich als DirectInput-Duplikat listen.
-            // Heuristik: XInput-faehige Geraete erkennt man zuverlaessig nur über den XInput-Slot selbst,
-            // daher wird bei aktiven XInput-Slots die Anzahl gleichnamiger DirectInput-Gamepads gedeckelt.
+            // Do not also list devices already exposed through XInput as DirectInput duplicates. XInput-capable
+            // devices can be identified reliably only through their XInput slot, so when XInput slots are active,
+            // limit matching DirectInput gamepads by name.
             if (xinputSlots.Count > 0 && LooksLikeXInputDevice(deviceInstance.InstanceName))
             {
                 if (TryGetVendorProductId(deviceInstance.ProductGuid, out var xVendorId, out var xProductId))
@@ -71,10 +67,9 @@ public static class DeviceEnumerator
                 continue;
             }
 
-            // Bereits bekannte, weiterhin angeschlossene Geraete direkt aus dem Cache bedienen -
-            // ihre Faehigkeiten aendern sich waehrend der Verbindung nicht, ein erneutes
-            // CreateDevice()/Capabilities/GetObjects(Axis) waere bei jedem periodischen Hotplug-Scan
-            // unnoetiger COM-Overhead (siehe _capabilitiesCache-Dokumentation).
+            // Use cached capabilities for already-known connected devices; their capabilities do not change
+            // while connected. Repeating CreateDevice()/Capabilities/GetObjects(Axis) on each hot-plug scan
+            // would add unnecessary COM overhead (see _capabilitiesCache documentation).
             if (!_capabilitiesCache.TryGetValue(deviceInstance.InstanceGuid, out var capabilities))
             {
                 using var device = directInput.CreateDevice(deviceInstance.InstanceGuid);
@@ -98,10 +93,9 @@ public static class DeviceEnumerator
                 ProductId: hasVidPid ? productId : null));
         }
 
-        // Nur bei genau einem eindeutigen VID/PID-Kandidaten zuweisen: bei mehreren gleichzeitig
-        // angeschlossenen, unterschiedlichen Controller-Modellen ist die Zuordnung XInput-Slot ->
-        // physisches Geraet nicht zuverlaessig moeglich (XInput selbst bietet dafuer keine API) -
-        // eine Fehlzuordnung (falsches Geraet gesperrt) waere riskanter als gar keine Sperre.
+        // Assign only when there is exactly one unique VID/PID candidate. With multiple different controller
+        // models connected, XInput provides no API to reliably map slots to physical devices; blocking the
+        // wrong device is riskier than not blocking any device.
         if (xinputVidPidCandidates.Count == 1)
         {
             var (resolvedVendorId, resolvedProductId) = xinputVidPidCandidates.Single();
@@ -118,18 +112,16 @@ public static class DeviceEnumerator
     }
 
     /// <summary>
-    /// Extrahiert Vendor-/Product-ID aus DirectInputs <see cref="DeviceInstance.ProductGuid"/>. DirectInput
-    /// kodiert USB-HID-Geraete standardmaessig als GUID der Form "ppppvvvv-0000-0000-0000-504944564944" -
-    /// die letzten 6 Bytes buchstabieren in ASCII "PIDVID" (0x50,0x49,0x44,0x56,0x49,0x44), was als
-    /// Erkennungsmerkmal fuer dieses feste Layout dient. <see cref="Guid.ToByteArray"/> liefert Data1 in
-    /// Little-Endian-Reihenfolge (Bytes 0-3), daher: VendorId = Bytes[0..1], ProductId = Bytes[2..3].
-    /// Nur fuer diese HidHide-Geraeteauflösung benoetigt, daher bewusst lokal und nicht ueber Vortice
-    /// selbst verfuegbar (dort existiert keine direkte VendorId/ProductId-Property).
+    /// Extracts the vendor/product IDs from DirectInput's <see cref="DeviceInstance.ProductGuid"/>. DirectInput
+    /// encodes USB HID devices using the GUID format "ppppvvvv-0000-0000-0000-504944564944"; the final six
+    /// bytes spell "PIDVID" in ASCII and identify this layout. <see cref="Guid.ToByteArray"/> returns Data1 in
+    /// little-endian order (bytes 0-3), so VendorId is bytes [0..1] and ProductId is bytes [2..3]. Kept local
+    /// for HidHide device resolution because Vortice provides no direct VendorId/ProductId properties.
     /// </summary>
     private static bool TryGetVendorProductId(Guid productGuid, out ushort vendorId, out ushort productId)
     {
         var bytes = productGuid.ToByteArray();
-        // Byte 10-15 muessen ASCII "PIDVID" sein, sonst folgt das Geraet nicht dem erwarteten Standard-Layout.
+        // Bytes 10-15 must spell "PIDVID" in ASCII; otherwise the device does not use the expected layout.
         ReadOnlySpan<byte> pidVidMarker = "PIDVID"u8;
         if (!bytes.AsSpan(10, 6).SequenceEqual(pidVidMarker))
         {
@@ -144,29 +136,22 @@ public static class DeviceEnumerator
     }
 
     /// <summary>
-    /// Ermittelt, welche der generischen Achsen-Slots (siehe <see cref="PhysicalAxisId"/>) ein konkretes
-    /// DirectInput-Geraet tatsaechlich besitzt. Dies geschieht ueber die stabile, herstellerunabhaengige
-    /// HID-<see cref="DeviceObjectInstance.Usage"/>-ID (Generic-Desktop-Page) jedes von
-    /// <see cref="Vortice.DirectInput.IDirectInputDevice8.GetObjects"/> gemeldeten Achsen-Objekts.
-    /// WICHTIG: <see cref="DeviceObjectInstance.Offset"/> ist hierfuer NICHT geeignet - DirectInput
-    /// vergibt diesen Offset vor einem SetDataFormat()-Aufruf nicht deterministisch (er wird nach der
-    /// internen Enumerationsreihenfolge lueckenlos ab 0 gepackt), wodurch Geraete mit Luecken im
-    /// Achsen-Layout (z.B. RzAxis + Slider, aber kein RxAxis/RyAxis) falsch zugeordnet wurden - ein
-    /// reiner Rohwert-Vergleich ("ist der Wert != 0?") schlaegt ebenfalls fehl, da nicht vorhandene
-    /// Achsen ebenfalls einen (falschen) Rohwert liefern.
+    /// Determines which generic axis slots (see <see cref="PhysicalAxisId"/>) a DirectInput device actually has.
+    /// Uses the stable, vendor-independent HID <see cref="DeviceObjectInstance.Usage"/> ID (Generic Desktop
+    /// page) reported for each axis object by <see cref="Vortice.DirectInput.IDirectInputDevice8.GetObjects"/>.
+    /// IMPORTANT: <see cref="DeviceObjectInstance.Offset"/> is unsuitable because DirectInput assigns it
+    /// nondeterministically before SetDataFormat(), packing objects from zero in enumeration order. Devices
+    /// with gaps in their axis layout (e.g. RzAxis + Slider but no RxAxis/RyAxis) were therefore mapped
+    /// incorrectly. Comparing raw values to zero also fails because absent axes can return misleading values.
     /// </summary>
     private static List<PhysicalAxisId> DetectAvailableAxes(Vortice.DirectInput.IDirectInputDevice8 device)
     {
-        // HID-Usage-IDs der "Generic Desktop"-Page sind - im Gegensatz zum von DirectInput vor
-        // SetDataFormat() nicht-deterministisch (gepackt nach interner Enumerationsreihenfolge)
-        // vergebenen Offset - fest und herstellerunabhaengig: 0x30=X, 0x31=Y, 0x32=Z, 0x33=RotationX,
-        // 0x34=RotationY, 0x35=RotationZ, 0x36=Slider, 0x37=Dial, 0x38=Wheel. Ein reiner Offset-Abgleich
-        // schlaegt bei Geraeten mit Luecken im Achsen-Layout (z.B. RzAxis + Slider, aber kein
-        // RxAxis/RyAxis) fehl, weil DirectInput die vorhandenen Achsen-Objekte dann lueckenlos ab
-        // Offset 0 packt - das fuehrt zu einer falschen Zuordnung (z.B. RzAxis wird faelschlich als
-        // RotationX erkannt), wodurch der eigentlich bewegte Wert nie ausgelesen wird, waehrend der
-        // falsch zugeordnete Slot (RotationX/RotationY) mangels Treiber-Daten dauerhaft bei Rohwert 0
-        // (normalisiert -1.0) verbleibt.
+        // Generic Desktop HID usage IDs are fixed and vendor-independent, unlike DirectInput offsets, which
+        // are nondeterministically packed in enumeration order before SetDataFormat(): 0x30=X, 0x31=Y, 0x32=Z,
+        // 0x33=RotationX, 0x34=RotationY, 0x35=RotationZ, 0x36=Slider, 0x37=Dial, 0x38=Wheel. Offset-only
+        // matching fails for devices with gaps (e.g. RzAxis + Slider but no RxAxis/RyAxis), where DirectInput
+        // packs existing objects from offset 0. This can misidentify RzAxis as RotationX, leaving the actual
+        // input unread while the incorrectly mapped slot remains at raw zero (-1.0 normalized).
         var primaryAxisUsages = new Dictionary<int, PhysicalAxisId>
         {
             [0x30] = PhysicalAxisId.X,
@@ -177,14 +162,11 @@ public static class DeviceEnumerator
             [0x35] = PhysicalAxisId.RotationZ,
         };
 
-        // DirectInput bildet JEDE zusaetzliche Analog-Achse jenseits der primaeren sechs (X/Y/Z/
-        // RotationX/Y/Z) positionsbasiert auf genau zwei generische "Slider"-Slots im
-        // DIJOYSTATE2.lSlider[]-Array ab - UNABHAENGIG von der konkreten HID-Usage-ID (0x36=Slider,
-        // 0x37=Dial, 0x38=Wheel). Manche Geraete (z.B. die Rotationsregler des Saitek X-56 Rhino
-        // Throttle) deklarieren ihre zweite Zusatzachse als Dial statt als zweiten Slider - ein reiner
-        // Abgleich auf 0x36 wuerde diese Achse dann faelschlich komplett ignorieren, obwohl
-        // DirectInput ihren Rohwert bereits zuverlaessig in Sliders[1] liefert (siehe
-        // <see cref="DirectInputDeviceReader.Poll"/>, das Slider0/Slider1 bereits generisch daraus liest).
+        // DirectInput maps each additional analog axis beyond the primary six (X/Y/Z/RotationX/Y/Z) by position
+        // to one of two generic Slider slots in DIJOYSTATE2.lSlider[], regardless of HID usage (0x36=Slider,
+        // 0x37=Dial, 0x38=Wheel). Some devices, such as the Saitek X-56 Rhino throttle, declare the second
+        // extra axis as Dial rather than a second Slider. Matching only 0x36 would ignore it even though
+        // DirectInput provides its raw value in Sliders[1] (see DirectInputDeviceReader.Poll).
         var extraAxisUsages = new HashSet<int> { 0x36, 0x37, 0x38 };
 
         var axes = new List<PhysicalAxisId>();
@@ -194,11 +176,11 @@ public static class DeviceEnumerator
             PhysicalAxisId axisId;
             if (primaryAxisUsages.TryGetValue(objectInfo.Usage, out axisId))
             {
-                // Primaerachse - direkt uebernehmen, keine Slider0/1-Zuordnung noetig.
+                // Primary axis; use directly without assigning a Slider0/1 slot.
             }
             else if (extraAxisUsages.Contains(objectInfo.Usage))
             {
-                // Erste gefundene Zusatzachse (egal welcher Usage) -> Slider0, zweite -> Slider1.
+                // First extra axis (any usage) maps to Slider0; second maps to Slider1.
                 axisId = slider0Assigned ? PhysicalAxisId.Slider1 : PhysicalAxisId.Slider0;
                 slider0Assigned = true;
             }
@@ -216,7 +198,7 @@ public static class DeviceEnumerator
         return axes;
     }
 
-    /// <summary>Oeffnet einen konkreten Reader fuer ein zuvor per <see cref="EnumerateAll"/> gefundenes Geraet.</summary>
+    /// <summary>Opens a reader for a device previously found by <see cref="EnumerateAll"/>.</summary>
     public static IDeviceReader OpenReader(PhysicalDeviceInfo info)
     {
         if (info.Api == InputApi.XInput)

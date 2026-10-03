@@ -2,25 +2,22 @@ using VirtualController.Core.Devices.Hid;
 
 namespace VirtualController.Core.Benchmark.Metrics;
 
-/// <param name="ActualPollingRateHz">Tatsaechlich beobachtete mittlere Abfragerate in Hz, aus dem
-/// Kehrwert von <see cref="IntervalMs"/>.Mean berechnet (1000 / MittleresIntervall). Zu unterscheiden
-/// von der NOMINALEN Polling-Rate, die der USB-Deskriptor meldet (siehe
-/// <see cref="Devices.Usb.UsbEndpointInfo.NominalPollingIntervalMs"/>) - dieser Wert hier ist das
-/// tatsaechlich waehrend der Messung gemessene Verhalten.</param>
-/// <param name="CurrentPollingRateHz">Aus dem ZULETZT beobachteten einzelnen Intervall berechnete
-/// "Momentan"-Rate (1000 / letztes Intervall) - fuer eine Echtzeit-Anzeige (siehe geplantes
-/// Benchmark-Popup-Fenster), die sich staerker/schneller aendert als der ueber die gesamte Sitzung
-/// gemittelte <see cref="ActualPollingRateHz"/>. 0, solange noch kein zweiter Report empfangen wurde.</param>
-/// <param name="MinPollingRateHz">Aus dem GROESSTEN beobachteten Intervall (<see cref="IntervalMs"/>.Max)
-/// berechnete niedrigste Rate - ACHTUNG Inversionsrichtung: das laengste Intervall ergibt die niedrigste Rate.</param>
-/// <param name="MaxPollingRateHz">Aus dem KLEINSTEN beobachteten Intervall (<see cref="IntervalMs"/>.Min)
-/// berechnete hoechste Rate - ACHTUNG Inversionsrichtung: das kuerzeste Intervall ergibt die hoechste Rate.</param>
-/// <param name="MedianPollingRateHz">Aus dem Median-Intervall (<see cref="IntervalMs"/>.Median) berechnete Rate.</param>
-/// <param name="IntervalMs">Deskriptive Statistik ueber alle beobachteten Zeitabstaende zwischen
-/// aufeinanderfolgenden Reports, in Millisekunden.</param>
-/// <param name="SampleCount">Anzahl der in diese Berechnung eingeflossenen Intervalle (= Report-Anzahl - 1).</param>
-/// <param name="IntervalPercentilesApproximate">Siehe <see cref="StreamingStatisticsAccumulator.AreDistributionPercentilesApproximate"/> -
-/// true, falls Median/P95/P99 auf einer Stichprobe statt der vollstaendigen Werteliste beruhen (bei sehr langen Sessions).</param>
+/// <param name="ActualPollingRateHz">Observed mean polling rate in Hz, calculated as the reciprocal of
+/// <see cref="IntervalMs"/>.Mean (1000 / mean interval). Unlike the nominal rate reported by the USB descriptor
+/// (see <see cref="Devices.Usb.UsbEndpointInfo.NominalPollingIntervalMs"/>), this is measured behavior.</param>
+/// <param name="CurrentPollingRateHz">"Instantaneous" rate calculated from the most recently observed interval
+/// (1000 / last interval), for a real-time display that changes more quickly than the session-wide
+/// <see cref="ActualPollingRateHz"/>. Zero until a second report is received.</param>
+/// <param name="MinPollingRateHz">Lowest rate calculated from the largest observed interval
+/// (<see cref="IntervalMs"/>.Max); note the inverse relationship between interval and rate.</param>
+/// <param name="MaxPollingRateHz">Highest rate calculated from the smallest observed interval
+/// (<see cref="IntervalMs"/>.Min); note the inverse relationship between interval and rate.</param>
+/// <param name="MedianPollingRateHz">Rate calculated from the median interval (<see cref="IntervalMs"/>.Median).</param>
+/// <param name="IntervalMs">Descriptive statistics for all observed intervals between consecutive reports,
+/// in milliseconds.</param>
+/// <param name="SampleCount">Number of intervals included (= report count - 1).</param>
+/// <param name="IntervalPercentilesApproximate">See <see cref="StreamingStatisticsAccumulator.AreDistributionPercentilesApproximate"/>;
+/// true when median/P95/P99 use a sample rather than the full value list (for very long sessions).</param>
 public sealed record PollingRateResult(
     double ActualPollingRateHz,
     double CurrentPollingRateHz,
@@ -32,18 +29,18 @@ public sealed record PollingRateResult(
     bool IntervalPercentilesApproximate);
 
 /// <summary>
-/// Berechnet die Timing-Kennzahlen (tatsaechliche Polling-Rate, Intervall-Statistik) aus einem Strom
-/// von <see cref="HidReportSample"/> (siehe <see cref="RawHidReportReader"/>). Reine Konsumenten-Klasse -
-/// kennt weder HidSharp noch die zugrunde liegende Report-Quelle, ausschliesslich das bereits von der
-/// HID-Ebene vorberechnete <see cref="HidReportSample.IntervalMs"/>.
+/// Computes timing metrics (observed polling rate and interval statistics) from a stream of
+/// <see cref="HidReportSample"/> values (see <see cref="RawHidReportReader"/>). This consumer knows neither
+/// HidSharp nor the underlying report source; it uses only <see cref="HidReportSample.IntervalMs"/>, already
+/// computed by the HID layer.
 /// </summary>
 public sealed class PollingRateMetrics
 {
     private readonly StreamingStatisticsAccumulator _intervalAccumulator = new();
     private double? _lastIntervalMs;
 
-    /// <summary>Muss fuer jeden empfangenen <see cref="HidReportSample"/> aufgerufen werden (z.B. direkt
-    /// im <see cref="RawHidReportReader.SampleReceived"/>-Handler).</summary>
+    /// <summary>Must be called for each received <see cref="HidReportSample"/>, e.g. from the
+    /// <see cref="RawHidReportReader.SampleReceived"/> handler.</summary>
     public void Add(HidReportSample sample)
     {
         if (sample.IntervalMs is { } interval)
@@ -62,8 +59,8 @@ public sealed class PollingRateMetrics
         return new PollingRateResult(
             ActualPollingRateHz: ToHz(stats.Mean),
             CurrentPollingRateHz: _lastIntervalMs is { } last ? ToHz(last) : 0,
-            // Inversionsrichtung beachten: das laengste Intervall (Max) ergibt die niedrigste Rate,
-            // das kuerzeste Intervall (Min) die hoechste Rate.
+            // Interval and rate are inversely related: the longest interval (Max) gives the lowest rate, and
+            // the shortest interval (Min) gives the highest rate.
             MinPollingRateHz: ToHz(stats.Max),
             MaxPollingRateHz: ToHz(stats.Min),
             MedianPollingRateHz: ToHz(stats.Median),

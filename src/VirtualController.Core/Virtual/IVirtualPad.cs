@@ -3,20 +3,20 @@ using VirtualController.Core.Mapping;
 namespace VirtualController.Core.Virtual;
 
 /// <summary>
-/// Einheitliche Schreib-Schnittstelle fuer einen beim ViGEmBus-Treiber angemeldeten virtuellen
-/// Controller. Implementierungen uebersetzen den generischen <see cref="VirtualPadState"/> in
-/// das native Report-Format des jeweiligen Backends (Xbox360 = XInput, DualShock4 = HID).
+/// Unified output interface for a virtual controller registered with the ViGEmBus driver. Implementations
+/// translate the generic <see cref="VirtualPadState"/> to the backend's native report format
+/// (Xbox 360 = XInput, DualShock 4 = HID).
 /// </summary>
 public interface IVirtualPad : IDisposable
 {
     VirtualBackend Backend { get; }
 
-    /// <summary>Meldet den virtuellen Controller beim ViGEmBus-Treiber an. Wirft, falls der Treiber nicht installiert ist.</summary>
+    /// <summary>Registers the virtual controller with ViGEmBus. Throws if the driver is not installed.</summary>
     void Connect();
 
-    /// <summary>Meldet den virtuellen Controller wieder ab (Windows entfernt das Geraet sofort).</summary>
+    /// <summary>Unregisters the virtual controller; Windows removes the device immediately.</summary>
     void Disconnect();
 
-    /// <summary>Uebertraegt den aktuellen Zustand als einzelnen HID/XInput-Report an den Treiber.</summary>
+    /// <summary>Sends the current state to the driver as one HID/XInput report.</summary>
     void Submit(VirtualPadState state);
 }

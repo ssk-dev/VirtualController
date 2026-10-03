@@ -3,15 +3,14 @@ using HidSharp;
 namespace VirtualController.Core.Devices.Hid;
 
 /// <summary>
-/// <see cref="IHidReportSource"/>-Implementierung auf Basis eines bereits geoeffneten
-/// <see cref="HidSharp.HidStream"/> (siehe <see cref="HidDeviceInfoReader.TryOpenReportSource"/>) - die
-/// einzige Stelle, an der <see cref="HidSharp.HidStream"/> direkt verwendet wird (siehe Kapselungs-Hinweis
-/// in <see cref="IHidReportSource"/>).
+/// <see cref="IHidReportSource"/> implementation backed by an already-open
+/// <see cref="HidSharp.HidStream"/> (see <see cref="HidDeviceInfoReader.TryOpenReportSource"/>). This is the
+/// only place that directly uses <see cref="HidSharp.HidStream"/> (see the encapsulation note in
+/// <see cref="IHidReportSource"/>).
 ///
-/// <see cref="HidStream.Read(byte[])"/> blockiert bereits nativ, bis ein Report eintrifft oder der Stream
-/// geschlossen wird - es ist daher KEIN eigenes Polling/Timeout-Handling notwendig. Der uebergebene
-/// <see cref="CancellationToken"/> wird ausschliesslich ueber das Schliessen des Streams wirksam (siehe
-/// <see cref="ReadReport"/>), da <see cref="HidStream.Read(byte[])"/> selbst keinen Token annimmt.
+/// <see cref="HidStream.Read(byte[])"/> blocks natively until a report arrives or the stream is closed, so no
+/// custom polling or timeout handling is needed. The supplied <see cref="CancellationToken"/> takes effect
+/// only by closing the stream (see <see cref="ReadReport"/>), because HidStream.Read does not accept a token.
 /// </summary>
 internal sealed class HidSharpReportSource : IHidReportSource
 {
@@ -27,23 +26,19 @@ internal sealed class HidSharpReportSource : IHidReportSource
         InputReportLength = inputReportLength;
         _buffer = new byte[Math.Max(inputReportLength, 1)];
 
-        // WICHTIG: HidSharp setzt HidStream.ReadTimeout intern standardmaessig auf 3000ms (nicht,
-        // wie urspruenglich hier angenommen, auf "kein Timeout") - ohne diese Zeile wuerde Read()
-        // nach 3 Sekunden ohne neuen Report eine TimeoutException werfen ("Operation timed out
-        // (3000 ms)."), selbst wenn das Geraet lediglich ruhig gehalten wird (z.B. ein unbewegter
-        // Analogstick waehrend eines Benchmarks/Logs). Ein blockierender Read() bis zum naechsten
-        // TATSAECHLICHEN Report ist fuer die Timing-Kennzahlen (Polling-Rate/Intervall) das
-        // gewuenschte Verhalten - daher hier explizit auf unendlich gesetzt.
+        // IMPORTANT: HidSharp defaults HidStream.ReadTimeout to 3000 ms, not infinite. Without this, Read()
+        // would throw a TimeoutException after three seconds without a report, even when the device is simply
+        // idle (e.g. a motionless analog stick during a benchmark/log). Blocking until the next actual report
+        // is required for timing metrics, so explicitly set the timeout to infinite.
         _stream.ReadTimeout = Timeout.Infinite;
     }
 
     public HidReport ReadReport(CancellationToken cancellationToken)
     {
-        // HidStream.Read() selbst kennt keinen CancellationToken. Ein per Registrierung ausgeloestes
-        // Schliessen des Streams laesst den blockierenden Read() mit einer IOException zurueckkehren,
-        // was wir hier in ein reguläres OperationCanceledException uebersetzen - siehe Stop()-Ablauf des
-        // zukuenftigen Benchmark-Orchestrators, der Dispose() dieser Quelle aus einem anderen Thread
-        // aufruft, um den blockierten Lese-Thread zeitnah zu wecken statt auf den naechsten Report zu warten.
+        // HidStream.Read() does not accept a CancellationToken. Closing the stream through this registration
+        // makes the blocking Read() return an IOException, which is translated to OperationCanceledException.
+        // BenchmarkSession.Stop disposes this source from another thread to wake the reader promptly instead
+        // of waiting for the next report.
         using var registration = cancellationToken.Register(static state => ((HidSharpReportSource)state!).SafeCloseStream(), this);
 
         cancellationToken.ThrowIfCancellationRequested();
@@ -73,8 +68,8 @@ internal sealed class HidSharpReportSource : IHidReportSource
         }
         catch
         {
-            // Stream ggf. bereits geschlossen/das Geraet getrennt - fuer den hier verfolgten Zweck
-            // (blockierenden Read() zeitnah wecken) unerheblich.
+            // The stream may already be closed or the device disconnected; either way, the goal of promptly
+            // waking the blocked Read() has been met.
         }
     }
 

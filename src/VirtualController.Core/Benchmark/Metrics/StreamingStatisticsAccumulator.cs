@@ -1,22 +1,20 @@
 namespace VirtualController.Core.Benchmark.Metrics;
 
 /// <summary>
-/// Sammelt fortlaufend einzelne Messwerte (z.B. Intervalle zwischen Reports fuer
-/// <see cref="PollingRateMetrics"/>, oder Latenzwerte fuer <see cref="LatencyMetrics"/>) waehrend eines
-/// potenziell sehr lange laufenden Benchmarks (siehe <see cref="ReservoirSampler"/>-Dokumentation) und
-/// liefert am Ende ein vollstaendiges <see cref="DescriptiveStatisticsResult"/>.
+/// Continuously accumulates individual measurements (e.g. report intervals for <see cref="PollingRateMetrics"/>
+/// or latency values for <see cref="LatencyMetrics"/>) during potentially long-running benchmarks (see
+/// <see cref="ReservoirSampler"/> docs) and returns a complete <see cref="DescriptiveStatisticsResult"/>.
 ///
-/// Mean/Min/Max/StdDev werden EXAKT ueber alle jemals gesehenen Werte berechnet (Welford's
-/// Online-Algorithmus - numerisch stabil, konstanter Speicherbedarf, keine nachtraegliche Korrektur
-/// noetig). Median/P95/P99 werden dagegen NUR NAEHERUNGSWEISE aus einer begrenzten Zufalls-Stichprobe
-/// (<see cref="ReservoirSampler"/>) berechnet, da eine exakte Perzentil-Berechnung eine vollstaendige,
-/// unbegrenzt wachsende Werteliste erfordern wuerde. Diese Einschraenkung wird ueber
-/// <see cref="AreDistributionPercentilesApproximate"/> nach aussen sichtbar gemacht, damit eine
-/// spaetere Benchmark-JSON-Ausgabe dies transparent kennzeichnen kann.
+/// Mean/min/max/standard deviation are calculated exactly across all values using Welford's online algorithm,
+/// which is numerically stable, uses constant memory, and requires no later correction. Median/P95/P99 are
+/// estimated from a bounded random sample (<see cref="ReservoirSampler"/>), since exact percentiles require
+/// retaining the full, unbounded value list. <see cref="AreDistributionPercentilesApproximate"/> exposes this
+/// limitation so benchmark JSON output can label it transparently.
 /// </summary>
 public sealed class StreamingStatisticsAccumulator
 {
-    /// <summary>10.000 Werte (~80 KB als double[]) - siehe Abwaegung in <see cref="ReservoirSampler"/>-Dokumentation.</summary>
+    /// <summary>10,000 values (~80 KB as double[]); see the tradeoff described in
+    /// <see cref="ReservoirSampler"/> documentation.</summary>
     private const int ReservoirCapacity = 10_000;
 
     private readonly ReservoirSampler _reservoir;
@@ -31,20 +29,19 @@ public sealed class StreamingStatisticsAccumulator
         _reservoir = new ReservoirSampler(ReservoirCapacity, randomSeedForTesting);
     }
 
-    /// <summary>Anzahl der bisher aufgenommenen Werte.</summary>
+    /// <summary>Number of values collected so far.</summary>
     public long Count => _count;
 
-    /// <summary>Ob Median/P95/P99 in <see cref="ComputeResult"/> auf einer Stichprobe (statt der
-    /// vollstaendigen Werteliste) beruhen - ab mehr als <see cref="ReservoirCapacity"/> Werten stets true.</summary>
+    /// <summary>Whether median/P95/P99 in <see cref="ComputeResult"/> use a sample rather than the full value list;
+    /// always true after more than <see cref="ReservoirCapacity"/> values.</summary>
     public bool AreDistributionPercentilesApproximate => _count > ReservoirCapacity;
 
     public void Add(double value)
     {
         _count++;
 
-        // Welford's Online-Algorithmus fuer Mean und Varianz (Knuth, TAOCP Vol. 2, 4.2.2) - numerisch
-        // stabiler als eine naive Summenbildung ueber sehr viele Werte, und benoetigt dabei nur zwei
-        // laufend aktualisierte Akkumulatoren statt der vollstaendigen Werteliste.
+        // Welford's online algorithm for mean and variance (Knuth, TAOCP Vol. 2, 4.2.2) is more numerically
+        // stable than naive summation over many values and needs only two running accumulators, not the full list.
         double delta = value - _mean;
         _mean += delta / _count;
         double delta2 = value - _mean;

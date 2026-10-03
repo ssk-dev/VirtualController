@@ -9,11 +9,10 @@ using VirtualController.Core.Mapping;
 namespace VirtualController.App.ViewModels;
 
 /// <summary>
-/// Repraesentiert genau einen Modus ("Flugmodus", "Rennen", ...) eines virtuellen Controllers in der
-/// UI: Name, Enabled-Flag, ob dieser Modus aktuell aktiv ist (fuer den gruenen Kreis im Tab-Label),
-/// die eigene Mapping-Tabelle dieses Modus sowie - nur relevant bei
-/// <see cref="ModeSwitchMechanism.Switch"/> - der physische Ausloeser, der diesen Modus direkt aktiviert.
-/// Aenderungen an den Properties schreiben direkt in das zugrunde liegende <see cref="ControllerMode"/>.
+/// Represents one mode ("Flight", "Racing", etc.) of a virtual controller in the UI: name, enabled state,
+/// whether it is currently active (shown by the green indicator in the tab label), its mapping table, and,
+/// for <see cref="ModeSwitchMechanism.Switch"/> only, the physical input that activates it directly.
+/// Property changes are written directly to the underlying <see cref="ControllerMode"/>.
 /// </summary>
 public sealed partial class ModeViewModel : ObservableObject
 {
@@ -27,65 +26,57 @@ public sealed partial class ModeViewModel : ObservableObject
     [ObservableProperty]
     private bool _enabled;
 
-    /// <summary>True, wenn dieser Modus aktuell der aktive Modus des Controllers ist - steuert den
-    /// gruenen Aktiv-Indikator im Tab-Label.</summary>
+    /// <summary>True when this is the controller's active mode; controls the green indicator in the tab label.</summary>
     [ObservableProperty]
     private bool _isActive;
 
     [ObservableProperty]
-    private string _switchTriggerDisplayName = "(keine Eingabe zugewiesen)";
+    private string _switchTriggerDisplayName = "(no input assigned)";
 
     [ObservableProperty]
     private bool _isCapturingSwitchTrigger;
 
-    /// <summary>Verbleibende Sekunden, waehrend "Erfassen" auf eine physische Eingabe fuer den
-    /// Switch-Trigger wartet - zaehlt vom Erfassen-Timeout (<see cref="CaptureTimeout"/>) bis 0 herunter.
-    /// Wird von der View als Countdown neben dem "Erfassen"-Button angezeigt.</summary>
+    /// <summary>Seconds remaining while Capture waits for a physical input for the switch trigger, counting
+    /// down from <see cref="CaptureTimeout"/> to zero. Shown beside the Capture button.</summary>
     [ObservableProperty]
     private int _captureCountdownSeconds;
 
-    /// <summary>Fehlermeldung, falls die zuletzt erfasste/zugewiesene physische Eingabe fuer den
-    /// Switch-Trigger bereits von einem anderen Modus desselben Controllers verwendet wird - siehe
-    /// <see cref="VirtualControllerViewModel.TryAssignSwitchTrigger"/>. Wird in der View direkt neben
-    /// dem Trigger-Bereich angezeigt und bei erfolgreicher Zuweisung wieder geleert.</summary>
+    /// <summary>Error shown when the most recently captured/assigned physical input is already used as a
+    /// switch trigger by another mode on the same controller (see
+    /// <see cref="VirtualControllerViewModel.TryAssignSwitchTrigger"/>). Displayed beside the trigger controls
+    /// and cleared after a successful assignment.</summary>
     [ObservableProperty]
     private string? _switchTriggerValidationError;
 
     public ObservableCollection<MappingRowViewModel> Mappings { get; } = new();
 
-    /// <summary>Dieselben Zeilen wie <see cref="Mappings"/>, aber nach Ziel-Typ gruppiert (siehe
-    /// <see cref="MappingGroupViewModel"/>) - in derselben Reihenfolge wie die "Ziel-Typ"-ComboBox
-    /// jeder Zeile ihre Optionen anzeigt (<see cref="MappingRowViewModel.TargetKindOptions"/>). Eine
-    /// Gruppe erscheint hier ausschliesslich, solange mindestens eine Zeile ihrem Ziel-Typ zugeordnet
-    /// ist (siehe <see cref="RebuildMappingGroups"/>) - leere Gruppen werden nicht angezeigt. Wird von
-    /// der View verwendet, um vor jeder Gruppe eine Ueberschrift anzuzeigen, ohne dafuer auf natives
-    /// WPF-DataGrid-Gruppieren (mit dessen eigenwilligem Standard-Gruppenheader) angewiesen zu sein.</summary>
+    /// <summary>The same rows as <see cref="Mappings"/>, grouped by target type (see
+    /// <see cref="MappingGroupViewModel"/>) in the order used by each row's target-type ComboBox
+    /// (<see cref="MappingRowViewModel.TargetKindOptions"/>). Only non-empty groups are shown
+    /// (see <see cref="RebuildMappingGroups"/>). The view displays a heading for each group without relying
+    /// on the native WPF DataGrid grouping and its custom default group header.</summary>
     public ObservableCollection<MappingGroupViewModel> MappingGroups { get; } = new();
 
-    /// <summary>Mapping-Zeilen, denen noch keine physische Quelle zugewiesen wurde (<see cref="MappingRowViewModel.IsSourceAssigned"/>
-    /// ist false) - typischerweise eine ueber "+ Mapping-Zeile hinzufuegen" frisch angelegte Zeile, bevor
-    /// der Nutzer "Erfassen" oder "Zuweisen" benutzt hat. Solche Zeilen lassen sich noch nicht sinnvoll
-    /// nach Ziel-Typ einordnen (ihr <see cref="MappingRowViewModel.SelectedTargetKind"/> ist zu diesem
-    /// Zeitpunkt lediglich ein bedeutungsloser Standardwert) und werden daher ungruppiert ganz oben in
-    /// der Mapping-Tabelle angezeigt, oberhalb aller <see cref="MappingGroups"/>. Sobald eine Quelle
-    /// zugewiesen wird, wandert die Zeile automatisch in ihre passende Ziel-Typ-Gruppe (siehe
-    /// <see cref="RebuildMappingGroups"/>).</summary>
+    /// <summary>Mapping rows without a physical source assigned (<see cref="MappingRowViewModel.IsSourceAssigned"/>
+    /// is false), typically newly added rows before the user selects Capture or Assign. They cannot yet be
+    /// meaningfully grouped by target type because <see cref="MappingRowViewModel.SelectedTargetKind"/> is
+    /// only a placeholder value, so they appear ungrouped at the top of the mapping table. Once a source is
+    /// assigned, the row moves automatically into its target-type group (see <see cref="RebuildMappingGroups"/>).</summary>
     public ObservableCollection<MappingRowViewModel> UnassignedMappings { get; } = new();
 
     private readonly Func<IReadOnlyList<PhysicalDeviceInfo>> _getAvailableDevices;
     private readonly Func<IReadOnlyDictionary<string, DeviceSettings>> _getDeviceSettings;
 
-    /// <summary>Wird ausgeloest, wenn der Nutzer diesen Modus ueber den "Entfernen"-Button loeschen moechte.</summary>
+    /// <summary>Raised when the user removes this mode through the Remove button.</summary>
     public event Action<ModeViewModel>? RemoveRequested;
 
-    /// <summary>Wird ausgeloest, wenn sich am zugrunde liegenden <see cref="ControllerMode"/> etwas
-    /// aendert (Name, Enabled, Mapping-Zeilen, Switch-Trigger) - fuer "ungespeicherte Aenderungen".</summary>
+    /// <summary>Raised when the underlying <see cref="ControllerMode"/> changes (name, enabled state, mapping
+    /// rows, or switch trigger), so unsaved changes can be tracked.</summary>
     public event Action<ModeViewModel>? Changed;
 
-    /// <summary>Wird ausgeloest, wenn der Nutzer per "Erfassen" eine physische Eingabe als Switch-Trigger
-    /// erfasst hat: der aufrufende <see cref="VirtualControllerViewModel"/> prueft die Eindeutigkeit
-    /// gegenueber den uebrigen Modi und uebernimmt den Wert nur bei Erfolg (siehe
-    /// <see cref="VirtualControllerViewModel.TryAssignSwitchTrigger"/>).</summary>
+    /// <summary>Raised when the user captures a physical input as a switch trigger. The calling
+    /// <see cref="VirtualControllerViewModel"/> checks that it is unique across the other modes before
+    /// accepting it (see <see cref="VirtualControllerViewModel.TryAssignSwitchTrigger"/>).</summary>
     public event Action<ModeViewModel, PhysicalInputRef>? SwitchTriggerCaptured;
 
     public ModeViewModel(
@@ -125,11 +116,10 @@ public sealed partial class ModeViewModel : ObservableObject
         RebuildMappingGroups();
     }
 
-    /// <summary>Der Ziel-Typ einer Zeile (<see cref="MappingRowViewModel.SelectedTargetKind"/>) kann sich
-    /// jederzeit aendern, waehrend die Zeile bereits Teil einer Gruppe ist - eine reine Neuzuordnung ihrer
-    /// Gruppe (statt eines vollstaendigen Neuaufbaus wie in <see cref="RebuildMappingGroups"/>) wuerde bei
-    /// jeder Aenderung erneut alle Gruppen durchsuchen muessen; da Aenderungen des Ziel-Typs vergleichsweise
-    /// selten sind (Nutzerinteraktion), ist ein vollstaendiger Neuaufbau hier einfacher und ausreichend.</summary>
+    /// <summary>A row's target type (<see cref="MappingRowViewModel.SelectedTargetKind"/>) can change while it
+    /// belongs to a group. Reassigning it in place would require searching all groups for each change; since
+    /// target type changes are infrequent user actions, rebuilding all groups is simpler and sufficient
+    /// (see <see cref="RebuildMappingGroups"/>).</summary>
     private void OnRowPropertyChanged(object? sender, PropertyChangedEventArgs e)
     {
         if (e.PropertyName == nameof(MappingRowViewModel.SelectedTargetKind)
@@ -139,14 +129,12 @@ public sealed partial class ModeViewModel : ObservableObject
         }
     }
 
-    /// <summary>Baut <see cref="UnassignedMappings"/> und <see cref="MappingGroups"/> vollstaendig aus dem
-    /// aktuellen Inhalt von <see cref="Mappings"/> neu auf: Zeilen ohne zugewiesene physische Quelle
-    /// (<see cref="MappingRowViewModel.IsSourceAssigned"/> == false) landen ungruppiert in
-    /// <see cref="UnassignedMappings"/>; alle uebrigen Zeilen werden - wie zuvor - eine Gruppe je
-    /// <see cref="MappingTargetKind"/>, in derselben Reihenfolge wie die "Ziel-Typ"-ComboBox ihre Optionen
-    /// anzeigt (<see cref="MappingRowViewModel.TargetKindOptions"/>), und ausschliesslich fuer Ziel-Typen,
-    /// denen aktuell mindestens eine (bereits zugewiesene) Zeile zugeordnet ist - leere Gruppen werden
-    /// nicht angezeigt.</summary>
+    /// <summary>Rebuilds <see cref="UnassignedMappings"/> and <see cref="MappingGroups"/> from the current
+    /// <see cref="Mappings"/>. Rows without an assigned physical source
+    /// (<see cref="MappingRowViewModel.IsSourceAssigned"/> == false) go into
+    /// <see cref="UnassignedMappings"/>; all others are grouped by <see cref="MappingTargetKind"/> in the
+    /// order shown by the target-type ComboBox (<see cref="MappingRowViewModel.TargetKindOptions"/>). Only
+    /// target types with at least one assigned row receive a group; empty groups are omitted.</summary>
     private void RebuildMappingGroups()
     {
         UnassignedMappings.Clear();
@@ -214,12 +202,12 @@ public sealed partial class ModeViewModel : ObservableObject
 
     private bool CanCaptureSwitchTrigger() => !IsCapturingSwitchTrigger;
 
-    /// <summary>Wird vom "Zuweisen"-Dialog aufgerufen (Alternative zu "Erfassen" fuer den Switch-Trigger,
-    /// analog zu <see cref="MappingRowViewModel.AssignInput"/>).</summary>
+    /// <summary>Called by the Assign dialog as an alternative to Capture for the switch trigger, like
+    /// <see cref="MappingRowViewModel.AssignInput"/>.</summary>
     public void AssignSwitchTrigger(AssignableInputOption selected)
         => SwitchTriggerCaptured?.Invoke(this, selected.InputRef);
 
-    /// <summary>Baut die vollstaendige Auswahlliste fuer den modalen "Zuweisen"-Dialog auf, analog zu
+    /// <summary>Builds the complete list for the modal Assign dialog, like
     /// <see cref="MappingRowViewModel.BuildAssignableInputs"/>.</summary>
     public IReadOnlyList<AssignableInputOption> BuildAssignableInputs()
     {
@@ -248,9 +236,9 @@ public sealed partial class ModeViewModel : ObservableObject
         return options;
     }
 
-    /// <summary>Uebernimmt einen bereits als eindeutig geprueften Switch-Trigger in das zugrunde liegende
-    /// <see cref="ControllerMode"/> und aktualisiert die Anzeige. Wird ausschliesslich vom besitzenden
-    /// <see cref="VirtualControllerViewModel"/> nach erfolgreicher Eindeutigkeitspruefung aufgerufen.</summary>
+    /// <summary>Applies a switch trigger that has already passed the uniqueness check to the underlying
+    /// <see cref="ControllerMode"/> and refreshes its display. Called only by the owning
+    /// <see cref="VirtualControllerViewModel"/> after validation succeeds.</summary>
     public void SetSwitchTrigger(PhysicalInputRef trigger, IReadOnlyList<PhysicalDeviceInfo> knownDevices)
     {
         Mode.SwitchTrigger = new PhysicalInputTrigger
@@ -268,7 +256,7 @@ public sealed partial class ModeViewModel : ObservableObject
     {
         if (Mode.SwitchTrigger is not { } trigger)
         {
-            SwitchTriggerDisplayName = "(keine Eingabe zugewiesen)";
+            SwitchTriggerDisplayName = "(no input assigned)";
             return;
         }
 

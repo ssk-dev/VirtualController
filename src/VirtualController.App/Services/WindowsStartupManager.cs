@@ -17,11 +17,11 @@ internal static class WindowsStartupManager
         }
 
         var executablePath = Environment.ProcessPath
-            ?? throw new InvalidOperationException("Der Pfad der laufenden Anwendung konnte nicht ermittelt werden.");
+            ?? throw new InvalidOperationException("Could not determine the path of the running application.");
         var command = $"\"{executablePath}\"{(startMinimized ? " --minimized" : string.Empty)}";
 
         using var runKey = Registry.CurrentUser.CreateSubKey(RunKeyPath, writable: true)
-            ?? throw new InvalidOperationException("Der Windows-Autostart-Registrierungsschlüssel konnte nicht geöffnet werden.");
+            ?? throw new InvalidOperationException("Could not open the Windows startup registry key.");
         runKey.SetValue(ValueName, command, RegistryValueKind.String);
     }
 }

@@ -3,13 +3,10 @@ using System.Text.RegularExpressions;
 namespace VirtualController.Core.Updates;
 
 /// <summary>
-/// Einfache SemVer-Repraesentation ("Major.Minor.Patch[-PreRelease]", z.B. "1.4.2" oder "0.0.0-dev") mit
-/// numerischem Vergleich, wie ihn <see cref="UpdateChecker"/> benoetigt, um eine installierte gegen eine
-/// verfuegbare Version zu vergleichen (siehe Akzeptanzkriterium "Versionsnummern sollen semantisch
-/// verglichen werden"). Bewusst keine vollstaendige SemVer-2.0.0-Implementierung (z.B. keine Build-
-/// Metadaten, keine mehrteiligen PreRelease-Bezeichner mit eigener Prioritaet) - fuer die hier
-/// benoetigten Versionsstrings (Git-Tags im Format "vX.Y.Z", Fallback "0.0.0-dev") reicht dieser
-/// Ausschnitt vollstaendig aus.
+/// Simple SemVer representation ("Major.Minor.Patch[-PreRelease]", e.g. "1.4.2" or "0.0.0-dev") with numeric
+/// comparison, used by <see cref="UpdateChecker"/> to compare installed and available versions. Not a complete
+/// SemVer 2.0.0 implementation (e.g. no build metadata or precedence rules for multi-part prerelease labels),
+/// but sufficient for the version strings used here (Git tags in "vX.Y.Z" format and the "0.0.0-dev" fallback).
 /// </summary>
 public readonly struct SemanticVersion : IComparable<SemanticVersion>, IEquatable<SemanticVersion>
 {
@@ -21,11 +18,9 @@ public readonly struct SemanticVersion : IComparable<SemanticVersion>, IEquatabl
     public int Minor { get; }
     public int Patch { get; }
 
-    /// <summary>Optionaler PreRelease-Bezeichner (z.B. "dev" bei "0.0.0-dev"), oder null bei einer
-    /// regulaeren Release-Version. Eine PreRelease-Version gilt bei sonst gleichen Major/Minor/Patch als
-    /// "kleiner" als die entsprechende Release-Version (analog zur SemVer-Spezifikation), damit ein
-    /// Entwicklungsbuild ("0.0.0-dev") niemals versehentlich als neuer als eine echte Release-Version
-    /// gilt.</summary>
+    /// <summary>Optional prerelease label (e.g. "dev" in "0.0.0-dev"), or null for a stable release. With the
+    /// same major/minor/patch, a prerelease ranks lower than the corresponding release per SemVer, so a
+    /// development build is never considered newer than a real release.</summary>
     public string? PreRelease { get; }
 
     public SemanticVersion(int major, int minor, int patch, string? preRelease = null)
@@ -59,12 +54,11 @@ public readonly struct SemanticVersion : IComparable<SemanticVersion>, IEquatabl
         return true;
     }
 
-    /// <summary>Wirft eine <see cref="FormatException"/>, falls <paramref name="value"/> keinem gueltigen
-    /// "Major.Minor.Patch[-PreRelease]"-Format entspricht - genutzt fuer <see cref="AppVersionProvider"/>,
-    /// wo ein ungueltiger Wert einen Programmierfehler anzeigen wuerde (die dortige Fallback-Zeichenkette
-    /// "0.0.0-dev" ist selbst immer gueltig).</summary>
+    /// <summary>Throws <see cref="FormatException"/> if <paramref name="value"/> does not match
+    /// "Major.Minor.Patch[-PreRelease]". Used by <see cref="AppVersionProvider"/>, where an invalid value
+    /// indicates a programming error; its "0.0.0-dev" fallback is always valid.</summary>
     public static SemanticVersion Parse(string value) =>
-        TryParse(value, out var version) ? version : throw new FormatException($"'{value}' ist keine gueltige Versionsnummer.");
+        TryParse(value, out var version) ? version : throw new FormatException($"'{value}' is not a valid version number.");
 
     public int CompareTo(SemanticVersion other)
     {
@@ -86,9 +80,8 @@ public readonly struct SemanticVersion : IComparable<SemanticVersion>, IEquatabl
             return result;
         }
 
-        // Gleiche Major.Minor.Patch: eine Version OHNE PreRelease-Suffix gilt als neuer/hoeher als
-        // dieselben Zahlen MIT Suffix (z.B. "1.4.2" > "1.4.2-dev"). Sind beide PreRelease-Versionen,
-        // entscheidet ein einfacher, kulturinvarianter String-Vergleich der Suffixe.
+        // Same major/minor/patch: a release without a prerelease suffix ranks higher than the same version
+        // with a suffix (e.g. "1.4.2" > "1.4.2-dev"). If both are prereleases, compare suffixes ordinally.
         if (PreRelease is null && other.PreRelease is null)
         {
             return 0;

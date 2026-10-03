@@ -6,14 +6,14 @@ using VirtualController.Core.Virtual;
 namespace VirtualController.App.ViewModels;
 
 /// <summary>
-/// Eine einzelne Zeile in der aufklappbaren Liste der physischen Eingaben eines Geraets:
-/// zeigt den (ggf. vom Nutzer umbenannten) Anzeigenamen, hebt sich farblich hervor, waehrend
-/// die zugehoerige physische Eingabe gerade aktiv ist (Live-Highlight), und bietet eine
-/// "Zuweisen"-Aktion, um diese Eingabe direkt als Quelle einer neuen Mapping-Zeile zu uebernehmen.
+/// One row in a device's expandable physical input list. Shows the display name (which the user can rename),
+/// highlights the row while its physical input is active, and offers an "Assign" action to use that input
+/// directly as the source for a new mapping row.
 /// </summary>
 public sealed partial class PhysicalInputRowViewModel : ObservableObject
 {
-    /// <summary>Ab diesem absoluten Achsenausschlag gilt eine Achsen-Richtung als "aktiv" (lockerer als der Schwellwert der Erfassung, fuer eine reaktionsfreudige Live-Anzeige).</summary>
+    /// <summary>An axis direction is considered active at this absolute deflection (less strict than the capture
+    /// threshold to provide responsive live feedback).</summary>
     private const float AxisActiveThreshold = 0.3f;
 
     public PhysicalInputRef Ref { get; }
@@ -26,15 +26,14 @@ public sealed partial class PhysicalInputRowViewModel : ObservableObject
     [ObservableProperty]
     private bool _isActive;
 
-    /// <summary>Ob diese physische Eingabe im Geraete-Konfigurationsdialog aktiviert ist. Wird nur bei
-    /// der Erstellung dieser Zeile ausgewertet (Snapshot) - reicht aus, da bei jeder Aenderung der
-    /// Geraeteverfuegbarkeit (<see cref="MainViewModel.NotifyDeviceAvailabilityChanged"/>) die komplette
-    /// Geraeteauswahlliste inkl. dieser Zeilen ohnehin neu aufgebaut wird. Wird in der View genutzt,
-    /// um deaktivierte Eingaben visuell auszugrauen.</summary>
+    /// <summary>Whether this physical input is enabled in the device configuration dialog. Captured when the
+    /// row is created; this is sufficient because every device availability change
+    /// (<see cref="MainViewModel.NotifyDeviceAvailabilityChanged"/>) rebuilds the entire device selection list.
+    /// The view uses this value to dim disabled inputs.</summary>
     [ObservableProperty]
     private bool _isEnabled;
 
-    /// <summary>Wird ausgeloest, wenn der Nutzer diese physische Eingabe einer neuen Mapping-Zeile zuweisen moechte.</summary>
+    /// <summary>Raised when the user assigns this physical input to a new mapping row.</summary>
     public event Action<PhysicalInputRef>? AssignRequested;
 
     public PhysicalInputRowViewModel(PhysicalInputRef inputRef, string displayName, bool isEnabled, Action<PhysicalInputRef, string> saveCustomName)
@@ -45,7 +44,7 @@ public sealed partial class PhysicalInputRowViewModel : ObservableObject
         _isEnabled = isEnabled;
     }
 
-    /// <summary>Aktualisiert den Aktiv-Status anhand des aktuellen Geraetezustands, fuer die Live-Hervorhebung in der UI.</summary>
+    /// <summary>Updates the active state from the current device state for live highlighting in the UI.</summary>
     public void UpdateActiveState(DeviceState state)
     {
         IsActive = Ref.Kind switch

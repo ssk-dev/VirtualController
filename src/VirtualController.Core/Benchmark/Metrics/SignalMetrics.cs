@@ -2,34 +2,28 @@ using VirtualController.Core.Devices.Hid;
 
 namespace VirtualController.Core.Benchmark.Metrics;
 
-/// <param name="Axis">Die betroffene Achse (siehe <see cref="HidAxisUsage"/>).</param>
-/// <param name="SampleCount">Anzahl der fuer diese Achse eingeflossenen Rohwerte.</param>
-/// <param name="DeclaredElementBits">Vom Geraet im Report-Deskriptor deklarierte Bit-Tiefe des Feldes
-/// (<see cref="HidAxisFieldInfo.ElementBits"/>) - die THEORETISCH moegliche Aufloesung.</param>
-/// <param name="DeclaredLogicalRange">Vom Geraet deklarierter Rohwertbereich (Logical Maximum - Logical
-/// Minimum + 1).</param>
-/// <param name="ObservedDistinctValues">Anzahl TATSAECHLICH waehrend der Messung beobachteter
-/// unterschiedlicher Rohwerte - siehe Klassendokumentation von <see cref="SignalMetrics"/> fuer den
-/// Unterschied zur deklarierten Aufloesung.</param>
-/// <param name="EffectiveBits">log2(<see cref="ObservedDistinctValues"/>) - die TATSAECHLICH beobachtete
-/// Aufloesung in Bit, meist kleiner als <see cref="DeclaredElementBits"/> (siehe Klassendokumentation).</param>
-/// <param name="ResolutionSupported">Immer true, sobald mindestens ein Rohwert beobachtet wurde.</param>
-/// <param name="NoiseStdDevRaw">Standardabweichung der Rohwerte innerhalb erkannter Ruhephasen (siehe
-/// Klassendokumentation, "Noise") - nur sinnvoll interpretierbar, wenn <see cref="NoiseSupported"/> true ist.</param>
-/// <param name="NoiseSupported">False, wenn waehrend der gesamten Messung keine erkennbare Ruhephase
-/// aufgetreten ist (Achse war durchgehend in Bewegung) - dann ist <see cref="NoiseStdDevRaw"/> 0 und
-/// NICHT als "kein Rauschen" zu interpretieren, sondern als "nicht ermittelbar".</param>
-/// <param name="DeadzoneRawWidth">Geschaetzte Breite (in Rohwert-Einheiten) einer zusammenhaengenden
-/// "Totzone" um den haeufigsten beobachteten Rohwert (siehe Klassendokumentation) - nur gueltig, wenn
-/// <see cref="DeadzoneSupported"/> true ist.</param>
-/// <param name="DeadzonePercentOfRange"><see cref="DeadzoneRawWidth"/> relativ zu <see cref="DeclaredLogicalRange"/>.</param>
-/// <param name="DeadzoneSupported">False bei zu wenigen Messwerten fuer eine belastbare Schaetzung
-/// (siehe <see cref="SignalMetrics"/>-Konstante fuer den Schwellwert).</param>
-/// <param name="LinearitySupported">Immer false - siehe Klassendokumentation: eine echte
-/// Linearitaets-Pruefung erfordert einen Kalibrier-Durchlauf mit bekannten Referenzpositionen, den ein
-/// passiver Benchmark nicht durchfuehren kann.</param>
-/// <param name="HysteresisSupported">Immer false - siehe Klassendokumentation: aus demselben Grund wie
-/// <see cref="LinearitySupported"/> nicht ermittelbar.</param>
+/// <param name="Axis">Axis being measured (see <see cref="HidAxisUsage"/>).</param>
+/// <param name="SampleCount">Number of raw values collected for this axis.</param>
+/// <param name="DeclaredElementBits">Bit depth declared for the field in the device report descriptor
+/// (<see cref="HidAxisFieldInfo.ElementBits"/>), representing theoretical resolution.</param>
+/// <param name="DeclaredLogicalRange">Raw value range declared by the device (logical maximum - logical minimum + 1).</param>
+/// <param name="ObservedDistinctValues">Number of distinct raw values actually observed during measurement;
+/// see <see cref="SignalMetrics"/> docs for how this differs from declared resolution.</param>
+/// <param name="EffectiveBits">log2(<see cref="ObservedDistinctValues"/>), the resolution in bits actually
+/// observed, usually lower than <see cref="DeclaredElementBits"/> (see class documentation).</param>
+/// <param name="ResolutionSupported">True once at least one raw value has been observed.</param>
+/// <param name="NoiseStdDevRaw">Standard deviation of raw values during detected idle periods (see the Noise
+/// section in the class documentation); meaningful only when <see cref="NoiseSupported"/> is true.</param>
+/// <param name="NoiseSupported">False when no idle period was detected during the measurement because the axis
+/// was continuously moving. In that case, <see cref="NoiseStdDevRaw"/> is unavailable, not "no noise".</param>
+/// <param name="DeadzoneRawWidth">Estimated width, in raw units, of a contiguous deadzone around the most
+/// frequently observed raw value (see class documentation); valid only when <see cref="DeadzoneSupported"/> is true.</param>
+/// <param name="DeadzonePercentOfRange"><see cref="DeadzoneRawWidth"/> relative to <see cref="DeclaredLogicalRange"/>.</param>
+/// <param name="DeadzoneSupported">False when there are too few samples for a reliable estimate (see the
+/// threshold constant in <see cref="SignalMetrics"/>).</param>
+/// <param name="LinearitySupported">Always false. A true linearity test requires calibration at known reference
+/// positions, which a passive benchmark cannot perform.</param>
+/// <param name="HysteresisSupported">Always false; see the <see cref="LinearitySupported"/> limitation.</param>
 public sealed record SignalAxisResult(
     HidAxisUsage Axis,
     long SampleCount,
@@ -47,71 +41,59 @@ public sealed record SignalAxisResult(
     bool HysteresisSupported);
 
 /// <summary>
-/// Berechnet Signal-Kennzahlen (Resolution, Noise, Deadzone, Linearity, Hysteresis) je Achse, direkt auf
-/// Basis der ROHEN HID-Logical-Werte (siehe <see cref="HidAxisReportParser"/>) - bewusst NICHT auf den
-/// bereits durch DirectInput auf [-1,1] normalisierten Werten (<see cref="Devices.DeviceState.Axes"/>),
-/// da die Normalisierung die tatsaechliche Bit-Aufloesung des Geraets verschleiern wuerde.
+/// Computes per-axis signal metrics (resolution, noise, deadzone, linearity, hysteresis) directly from raw
+/// HID logical values (see <see cref="HidAxisReportParser"/>), not values normalized by DirectInput to [-1,1]
+/// (<see cref="Devices.DeviceState.Axes"/>), because normalization would hide the device's actual bit resolution.
 ///
-/// EHRLICHE EINSCHRAENKUNGEN (siehe Session-weite Vorgabe, reale statt vorgetaeuschte Werte zu liefern):
+/// Limitations are reported transparently rather than presenting unsupported values as measurements:
 ///
-/// - <b>Resolution</b>: die vom Geraet DEKLARIERTE Bit-Tiefe (<see cref="HidAxisFieldInfo.ElementBits"/>)
-///   sagt nichts darueber aus, ob das Geraet diese Aufloesung tatsaechlich ausnutzt - manche Geraete
-///   deklarieren z.B. 16 Bit, liefern intern aber nur 10 Bit echte Aufloesung (die restlichen Bits sind
-///   konstant 0 oder Rauschen). Diese Klasse zaehlt daher die Anzahl TATSAECHLICH waehrend der Messung
-///   beobachteter unterschiedlicher Rohwerte (<see cref="SignalAxisResult.ObservedDistinctValues"/>) als
-///   ehrlichere Naeherung der real nutzbaren Aufloesung - mit der Einschraenkung, dass eine zu kurze
-///   Messung oder eine zu wenig bewegte Achse die beobachtete Aufloesung kuenstlich niedrig erscheinen
-///   laesst (es wurden schlicht nicht alle moeglichen Werte durchlaufen).
+/// - <b>Resolution</b>: the bit depth declared by the device (<see cref="HidAxisFieldInfo.ElementBits"/>) does
+///   not show whether the device actually uses that resolution. A device may declare 16 bits but provide only
+///   10 bits of real resolution, with remaining bits constant or noisy. This class counts distinct raw values
+///   actually observed (<see cref="SignalAxisResult.ObservedDistinctValues"/>) as a more honest estimate of
+///   usable resolution. A short measurement or limited axis movement can make the observed resolution appear
+///   artificially low because not all possible values were visited.
 ///
-/// - <b>Noise</b>: erfordert eigentlich eine kontrollierte, vollstaendig unbewegte Referenzposition -
-///   ein passiver Benchmark kann eine solche nicht erzwingen. Diese Klasse erkennt daher heuristisch
-///   "Ruhephasen" (ein gleitendes Fenster von <see cref="QuasiStaticWindowSize"/> aufeinanderfolgenden
-///   Rohwerten, deren Spannweite eine geraeteproportionale Toleranz nicht ueberschreitet) und berechnet
-///   das Rauschen NUR aus diesen Phasen. Bewegt sich eine Achse waehrend der gesamten Messung
-///   durchgehend, gibt es keine solche Phase - siehe <see cref="SignalAxisResult.NoiseSupported"/>.
+/// - <b>Noise</b>: ideally requires a controlled, motionless reference position, which a passive benchmark
+///   cannot enforce. This class detects idle periods heuristically using a sliding window of
+///   <see cref="QuasiStaticWindowSize"/> consecutive raw values whose range stays within a device-proportional
+///   tolerance, then calculates noise only from those periods. If an axis moves continuously, no such period
+///   exists; see <see cref="SignalAxisResult.NoiseSupported"/>.
 ///
-/// - <b>Deadzone</b>: eine echte Deadzone-Vermessung erfordert eine bekannte, kalibrierte
-///   Referenzposition ("Mitte"). Diese Klasse SCHAETZT die Ruheposition stattdessen als den im gesamten
-///   Messverlauf haeufigsten beobachteten Rohwert (unter der Annahme, dass ein Analogstick/Pedal die
-///   meiste Zeit in Ruhe verbringt) und ermittelt die Breite einer zusammenhaengenden Werteregion um
-///   diesen Modalwert, in der jeder einzelne Rohwert ueberproportional haeufig vorkommt (siehe
-///   <see cref="MinDeadzoneIncrementFraction"/>). Diese Heuristik liefert bei einer Achse, deren
-///   Ruheposition NICHT dem Modalwert entspricht (z.B. ein Trigger, der meist auf 0 statt in der Mitte
-///   ruht - dort ist das Ergebnis dann korrekt als "keine Deadzone um den Trigger-Ruhepunkt" zu lesen,
-///   nicht falsch, aber ggf. weniger aussagekraeftig fuer den erwarteten Anwendungsfall) plausible, aber
-///   nicht garantiert korrekte Ergebnisse.
+/// - <b>Deadzone</b>: accurately measuring a deadzone requires a known, calibrated reference position (center).
+///   This class instead estimates the resting position as the most frequently observed raw value, assuming an
+///   analog stick/pedal spends most of its time at rest, then measures the contiguous region around that mode
+///   where values occur disproportionately often (see <see cref="MinDeadzoneIncrementFraction"/>). Results
+///   are plausible but not guaranteed when the resting position differs from the mode, such as a trigger that
+///   usually rests at zero rather than center; in that case, "no deadzone around the trigger's resting point"
+///   is correct but may be less informative for the intended use.
 ///
-/// - <b>Linearity</b>/<b>Hysteresis</b>: nicht implementiert (jeweils <c>Supported</c> = false) - beide
-///   erfordern einen definierten Kalibrier-Durchlauf mit BEKANNTEN Referenzpositionen (z.B. "Stick jetzt
-///   exakt bei 0%/50%/100% halten") bzw. eine kontrollierte Hin- und Ruecklauf-Bewegung mit
-///   Positionsreferenz, um die tatsaechliche physische Position mit dem gemeldeten Rohwert zu
-///   vergleichen. Ein rein passiv beobachtender Benchmark (siehe Session-Vorgabe: laeuft bis der Nutzer
-///   ihn stoppt, ohne gefuehrten Kalibrier-Ablauf) hat keine solche unabhaengige Positionsreferenz und
-///   kann diese Werte daher nicht ehrlich berechnen.
+/// - <b>Linearity</b>/<b>Hysteresis</b>: not implemented (<c>Supported</c> = false). Both require a defined
+///   calibration run with known reference positions (e.g. hold the stick at exactly 0%/50%/100%) or a
+///   controlled forward/backward movement with position references to compare physical position with the
+///   reported raw value. A passive benchmark has no independent position reference and cannot calculate these
+///   values reliably.
 /// </summary>
 public sealed class SignalMetrics
 {
-    /// <summary>Fenstergroesse (Anzahl aufeinanderfolgender Rohwerte) fuer die Ruhephasen-Erkennung, siehe
-    /// Klassendokumentation "Noise". Bewusst klein gehalten, damit auch kurze Ruhephasen innerhalb einer
-    /// ansonsten bewegten Session erkannt werden.</summary>
+    /// <summary>Window size (number of consecutive raw values) for idle-period detection; see the Noise section
+    /// above. Kept small so brief idle periods during an otherwise active session can be detected.</summary>
     private const int QuasiStaticWindowSize = 30;
 
-    /// <summary>Ein an den Modalwert angrenzender Rohwert gilt fuer die Deadzone-Heuristik nur dann als
-    /// Teil der "Totzone", wenn er mindestens diesen Anteil aller Messwerte der Achse ausmacht (siehe
-    /// Klassendokumentation "Deadzone"). 0,5% - bewusst klein, aber deutlich ueber dem, was bei einer
-    /// gleichmaessig druchlaufenen Achse pro Einzelwert zu erwarten waere.</summary>
+    /// <summary>A raw value adjacent to the mode is included in the deadzone estimate only if it accounts for
+    /// at least this fraction of all axis samples (see the Deadzone section above). 0.5% is deliberately small
+    /// but clearly above the expected fraction for a uniformly traversed axis.</summary>
     private const double MinDeadzoneIncrementFraction = 0.005;
 
-    /// <summary>Mindestanzahl an Messwerten, unterhalb derer die Deadzone-Heuristik als nicht belastbar
-    /// gilt (siehe <see cref="SignalAxisResult.DeadzoneSupported"/>).</summary>
+    /// <summary>Minimum number of samples required for the deadzone heuristic to be considered reliable
+    /// (see <see cref="SignalAxisResult.DeadzoneSupported"/>).</summary>
     private const int MinSamplesForDeadzoneHeuristic = 50;
 
     private readonly Dictionary<HidAxisUsage, AxisAccumulator> _axes;
 
-    /// <param name="availableAxes">Die im Report-Deskriptor gefundenen Achsen-Felder (siehe
-    /// <see cref="HidAxisReportParser.AvailableAxes"/>) - legt fest, welche Achsen diese Instanz
-    /// entgegennimmt; bei mehreren Feldern fuer dieselbe Achse (sollte praktisch nicht vorkommen) wird
-    /// das erste verwendet.</param>
+    /// <param name="availableAxes">Axis fields found in the report descriptor (see
+    /// <see cref="HidAxisReportParser.AvailableAxes"/>), defining which axes this instance accepts. If multiple
+    /// fields describe the same axis (not expected in practice), the first is used.</param>
     public SignalMetrics(IReadOnlyList<HidAxisFieldInfo> availableAxes)
     {
         _axes = availableAxes
@@ -119,8 +101,8 @@ public sealed class SignalMetrics
             .ToDictionary(group => group.Key, group => new AxisAccumulator(group.First()));
     }
 
-    /// <summary>Nimmt die aus einem einzelnen Report geparsten Rohwerte entgegen (siehe
-    /// <see cref="HidAxisReportParser.TryParse"/>) - unbekannte/nicht ueberwachte Achsen werden ignoriert.</summary>
+    /// <summary>Accepts raw values parsed from one report (see <see cref="HidAxisReportParser.TryParse"/>);
+    /// unknown or unmonitored axes are ignored.</summary>
     public void Add(IReadOnlyDictionary<HidAxisUsage, int> rawAxisValues)
     {
         foreach (var (axis, rawValue) in rawAxisValues)
@@ -149,9 +131,8 @@ public sealed class SignalMetrics
             _fieldInfo = fieldInfo;
             int declaredRange = Math.Max(1, fieldInfo.LogicalMaximum - fieldInfo.LogicalMinimum + 1);
 
-            // Toleranz bewusst proportional zum deklarierten Wertebereich (0,5%), nicht als fester
-            // Rohwert - sonst waere die Ruhephasen-Erkennung fuer sehr niedrig- bzw. sehr hochaufloesende
-            // Achsen gleichermassen falsch kalibriert.
+            // Scale tolerance to the declared range (0.5%) rather than using a fixed raw value; otherwise
+            // idle detection would be miscalibrated for both low- and high-resolution axes.
             _quasiStaticToleranceRawUnits = Math.Max(1, declaredRange * 0.005);
         }
 
@@ -159,11 +140,9 @@ public sealed class SignalMetrics
         {
             _sampleCount++;
 
-            // Histogramm fuer Resolution- und Deadzone-Heuristik (siehe Klassendokumentation von
-            // SignalMetrics). Sicherheitslimit gegen unbegrenztes Wachstum bei einem (praktisch nicht
-            // beobachteten, aber theoretisch moeglichen) Geraet mit extrem grossem deklariertem
-            // Wertebereich - bereits bekannte Werte werden weiterhin gezaehlt, nur keine neuen Schluessel
-            // mehr aufgenommen.
+            // Histogram for resolution and deadzone estimates (see SignalMetrics docs). Cap its size to avoid
+            // unbounded growth for a device with an extremely large declared range. Existing values continue
+            // to be counted after the cap; new keys are ignored.
             if (_histogram.Count < 200_000 || _histogram.ContainsKey(rawValue))
             {
                 _histogram[rawValue] = _histogram.GetValueOrDefault(rawValue) + 1;
@@ -193,8 +172,8 @@ public sealed class SignalMetrics
                 if (value > windowMax) windowMax = value;
             }
 
-            // Ein Fenster ohne nennenswerte Bewegung gilt als Ruhephase - dessen neuester Rohwert fliesst
-            // als ein Rausch-Messpunkt ein (siehe Klassendokumentation, "Noise").
+            // A window with negligible movement is considered an idle period; add its newest raw value as a
+            // noise sample (see the Noise section above).
             if (windowMax - windowMin <= _quasiStaticToleranceRawUnits)
             {
                 _noiseAccumulator.Add(rawValue);
@@ -225,8 +204,8 @@ public sealed class SignalMetrics
                 HysteresisSupported: false);
         }
 
-        /// <summary>Siehe Klassendokumentation von <see cref="SignalMetrics"/>, Abschnitt "Deadzone", fuer
-        /// die Methodik und ihre Grenzen.</summary>
+        /// <summary>See the Deadzone section in <see cref="SignalMetrics"/> documentation for the method and
+        /// its limitations.</summary>
         private (int Width, double PercentOfRange, bool Supported) ComputeDeadzone(int declaredRange)
         {
             if (_sampleCount < MinSamplesForDeadzoneHeuristic || _histogram.Count == 0)

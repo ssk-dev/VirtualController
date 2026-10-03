@@ -1,14 +1,13 @@
 namespace VirtualController.Core.Devices;
 
 /// <summary>
-/// Einheitliche Lese-Schnittstelle fuer ein physisches Eingabegeraet, unabhaengig von der
-/// zugrunde liegenden API (XInput oder DirectInput). Implementierungen muessen threadsicher
-/// fuer wiederholte <see cref="Poll"/>-Aufrufe aus einem dedizierten Polling-Thread sein.
+/// Unified reader interface for a physical input device, independent of the underlying API (XInput or
+/// DirectInput). Implementations must be safe for repeated <see cref="Poll"/> calls from a dedicated polling thread.
 /// </summary>
 public interface IDeviceReader : IDisposable
 {
     PhysicalDeviceInfo Info { get; }
 
-    /// <summary>Liest den aktuellen Zustand. Gibt false zurueck, wenn das Geraet nicht mehr verbunden ist.</summary>
+    /// <summary>Reads the current state. Returns false if the device is no longer connected.</summary>
     bool Poll(out DeviceState state);
 }

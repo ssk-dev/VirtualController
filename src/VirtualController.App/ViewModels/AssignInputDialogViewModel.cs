@@ -6,38 +6,36 @@ using CommunityToolkit.Mvvm.Input;
 namespace VirtualController.App.ViewModels;
 
 /// <summary>
-/// ViewModel des modalen "Zuweisen"-Dialogs (<see cref="Views.AssignInputDialog"/>): zeigt alle
-/// vom aufrufenden <see cref="MappingRowViewModel"/> ermittelten physischen Eingaben
-/// (<see cref="MappingRowViewModel.BuildAssignableInputs"/>) nach Geraet gruppiert an und erlaubt
-/// das Filtern per Live-Suchfeld, bevor der Nutzer eine Eingabe als neue physische Quelle der
-/// Mapping-Zeile bestaetigt - eine Alternative zum physischen Erfassen ("Erfassen"-Button).
+/// ViewModel for the modal "Assign" dialog (<see cref="Views.AssignInputDialog"/>). Displays the physical
+/// inputs gathered by the calling <see cref="MappingRowViewModel"/> through
+/// <see cref="MappingRowViewModel.BuildAssignableInputs"/>, grouped by device. Users can filter the list
+/// through live search before confirming an input as the mapping row's physical source, as an alternative
+/// to physically capturing it with the Capture button.
 /// </summary>
 public sealed partial class AssignInputDialogViewModel : ObservableObject
 {
     private readonly List<AssignableInputOption> _allInputs;
 
-    /// <summary>Aktueller Suchtext. Filtert <see cref="View"/> live bei jeder Eingabe (siehe
-    /// <see cref="OnSearchTextChanged"/>), sowohl gegen den Anzeigenamen der Eingabe als auch gegen
-    /// den Geraetenamen, damit z.B. auch nach dem Geraet selbst gesucht werden kann.</summary>
+    /// <summary>Current search text. Filters <see cref="View"/> as the user types (see
+    /// <see cref="OnSearchTextChanged"/>) against both the input display name and device name.</summary>
     [ObservableProperty]
     private string _searchText = string.Empty;
 
-    /// <summary>Aktuell in der Liste ausgewaehlte Eingabe. Bestimmt, ob <see cref="ConfirmCommand"/>
-    /// ausfuehrbar ist - eine leere Auswahl kann nicht bestaetigt werden.</summary>
+    /// <summary>Input currently selected in the list. Determines whether <see cref="ConfirmCommand"/> can run;
+    /// an empty selection cannot be confirmed.</summary>
     [ObservableProperty]
     private AssignableInputOption? _selectedInput;
 
-    /// <summary>Gefilterte, nach <see cref="AssignableInputOption.DeviceDisplayName"/> gruppierte Sicht
-    /// auf alle uebergebenen Eingaben, direkt an die <c>ListBox</c> der View gebunden.</summary>
+    /// <summary>Filtered view of all supplied inputs, grouped by <see cref="AssignableInputOption.DeviceDisplayName"/>
+    /// and bound directly to the view's <c>ListBox</c>.</summary>
     public ICollectionView View { get; }
 
-    /// <summary>Wird ausgeloest, wenn der Nutzer die aktuelle Auswahl bestaetigt hat (OK-Button,
-    /// Enter oder Doppelklick auf einen Listeneintrag) - der Code-Behind des Dialogs schliesst das
-    /// Fenster daraufhin mit <c>DialogResult = true</c>.</summary>
+    /// <summary>Raised when the user confirms the current selection through the OK button, Enter, or a
+    /// double-click. The dialog code-behind then closes the window with <c>DialogResult = true</c>.</summary>
     public event Action? Confirmed;
 
-    /// <summary>Wird ausgeloest, wenn der Nutzer den Dialog abbricht (Abbrechen-Button oder Escape) -
-    /// der Code-Behind des Dialogs schliesst das Fenster daraufhin mit <c>DialogResult = false</c>.</summary>
+    /// <summary>Raised when the user cancels through the Cancel button or Escape. The dialog code-behind
+    /// then closes the window with <c>DialogResult = false</c>.</summary>
     public event Action? Cancelled;
 
     public AssignInputDialogViewModel(IReadOnlyList<AssignableInputOption> allInputs)

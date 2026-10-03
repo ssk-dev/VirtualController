@@ -1,15 +1,16 @@
 using System.Windows;
 using System.Windows.Forms;
 using VirtualController.App.Diagnostics;
+using VirtualController.App.Services;
+using VirtualController.Core.Profiles;
 using Application = System.Windows.Application;
 
 namespace VirtualController.App;
 
 /// <summary>
-/// Anwendungs-Einstiegspunkt. Verwaltet zusaetzlich das Tray-Icon (ueber WinForms'
-/// <see cref="NotifyIcon"/>, da WPF selbst keine native Tray-Icon-Unterstuetzung bietet) und
-/// stellt sicher, dass alle laufenden virtuellen Controller beim Beenden sauber abgemeldet
-/// werden (ViGEmBus entfernt die Geraete sonst erst beim Prozessende).
+/// Application entry point. Also manages the tray icon through WinForms' <see cref="NotifyIcon"/> because
+/// WPF has no native tray icon support, and ensures running virtual controllers are cleanly removed on exit
+/// (otherwise ViGEmBus removes the devices only when the process terminates).
 /// </summary>
 public partial class App : Application
 {
@@ -21,18 +22,19 @@ public partial class App : Application
     {
         base.OnStartup(e);
 
+        var appProfile = ProfileStore.Load();
+        TranslationService.Instance.ApplyLanguage(appProfile.UiLanguage);
+
         StartMinimized = e.Args.Contains("--minimized", StringComparer.OrdinalIgnoreCase);
 
-        DebugLog.Reset("App-Start");
-        DebugLog.Write($"Debug-Log-Datei: {DebugLog.FilePath}");
+        DebugLog.Reset("App startup");
+        DebugLog.Write($"Debug log file: {DebugLog.FilePath}");
 
         _trayIcon = new NotifyIcon
         {
-            // Verwendet dasselbe Icon wie die EXE selbst (siehe ApplicationIcon in
-            // VirtualController.App.csproj) statt des generischen Windows-Standardsymbols - so zeigen
-            // Taskleiste, Alt+Tab UND das Tray-Icon einheitlich das App-Logo. ExtractAssociatedIcon liest
-            // das bereits in die EXE eingebettete Icon direkt aus der laufenden Datei, ohne dass eine
-            // separate .ico-Datei mit ausgeliefert werden muss.
+            // Reuse the executable's icon (see ApplicationIcon in VirtualController.App.csproj) instead of
+            // the generic Windows icon, keeping the taskbar, Alt+Tab, and tray icon consistent. ExtractAssociatedIcon
+            // reads the icon embedded in the running executable, so no separate .ico file needs to ship.
             Icon = System.Drawing.Icon.ExtractAssociatedIcon(System.Windows.Forms.Application.ExecutablePath)
                 ?? System.Drawing.SystemIcons.Application,
             Visible = true,
@@ -42,9 +44,22 @@ public partial class App : Application
         _trayIcon.DoubleClick += (_, _) => ShowMainWindow();
 
         var contextMenu = new ContextMenuStrip();
-        contextMenu.Items.Add("Oeffnen", null, (_, _) => ShowMainWindow());
-        contextMenu.Items.Add("Beenden", null, (_, _) => Shutdown());
+        var openItem = new ToolStripMenuItem(TranslationService.Instance.GetText("tray.open"), null, (_, _) => ShowMainWindow());
+        var exitItem = new ToolStripMenuItem(TranslationService.Instance.GetText("tray.exit"), null, (_, _) => Shutdown());
+        contextMenu.Items.Add(openItem);
+        contextMenu.Items.Add(exitItem);
         _trayIcon.ContextMenuStrip = contextMenu;
+
+        // The tray menu is created in code (WinForms), not through XAML bindings, so it does not pick up
+        // language changes automatically. Update the item texts explicitly whenever the language changes.
+        TranslationService.Instance.PropertyChanged += (_, args) =>
+        {
+            if (args.PropertyName is nameof(TranslationService.CurrentLanguage))
+            {
+                openItem.Text = TranslationService.Instance.GetText("tray.open");
+                exitItem.Text = TranslationService.Instance.GetText("tray.exit");
+            }
+        };
 
         MainWindow = new Views.MainWindow
         {

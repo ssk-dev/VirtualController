@@ -7,53 +7,47 @@ using VirtualController.Core.Virtual;
 namespace VirtualController.Core.Engine;
 
 /// <summary>
-/// Zentrale Verwaltung aller virtuellen Controller der Anwendung. Haelt genau eine
-/// <see cref="ViGEmClient"/>-Verbindung zum ViGEmBus-Treiber (pro Prozess ausreichend und
-/// empfohlen) und je einen laufenden <see cref="ControllerSession"/> pro konfiguriertem
-/// virtuellem Controller.
+/// Central manager for all virtual controllers in the application. Holds one <see cref="ViGEmClient"/>
+/// connection to the ViGEmBus driver (one per process is sufficient and recommended) and one running
+/// <see cref="ControllerSession"/> per configured virtual controller.
 /// </summary>
 public sealed class ControllerManager : IDisposable
 {
     private readonly Dictionary<Guid, ControllerSession> _sessions = new();
     private readonly HidHideController _hidHide = new();
 
-    /// <summary>Merkt sich je Profil-Id die aktuell fuer dieses Profil per HidHide gesperrten PnP-Instanz-IDs
-    /// (siehe <see cref="ResolveHidHideInstanceIds"/>) - benoetigt, um bei Entfernen/Aktualisieren eines
-    /// Controllers exakt dieselben Instanz-IDs wieder korrekt freizugeben (<see cref="HidHideController.Unlock"/>
-    /// ist referenzgezaehlt, siehe dessen Dokumentation).</summary>
+    /// <summary>Tracks the PnP instance IDs currently blocked through HidHide for each profile (see
+    /// <see cref="ResolveHidHideInstanceIds"/>), so the same IDs can be unlocked when a controller is removed
+    /// or updated. <see cref="HidHideController.Unlock"/> uses reference counting; see its documentation.</summary>
     private readonly Dictionary<Guid, HashSet<string>> _hidHideLockedInstanceIds = new();
 
     public event Action<Guid, Exception>? SessionFaulted;
 
-    /// <summary>Wird mit einer anzeigefertigen deutschen Hinweismeldung ausgeloest, wenn im Zusammenhang mit
-    /// der HidHide-Integration eine Situation auftritt, die der Nutzer sehen sollte, aber die keinen
-    /// Abbruch/Fehler darstellt (z.B. verwaiste Sperren eines vorherigen Absturzes wurden automatisch
-    /// bereinigt, oder HidHide ist fuer ein Profil aktiviert, aber der Treiber ist nicht verfuegbar).
-    /// Ergaenzt die automatische Bereinigung um eine explizite UI-Rueckmeldung (siehe <see cref="MainViewModel"/>).</summary>
+    /// <summary>Raised with a user-facing warning when a HidHide situation should be shown but is not fatal,
+    /// e.g. orphaned locks from a previous crash were cleaned up or HidHide is enabled in a profile but the
+    /// driver is unavailable. Provides UI feedback for automatic cleanup (see <see cref="MainViewModel"/>).</summary>
     public event Action<string>? HidHideWarning;
 
-    /// <summary>Ob der HidHide-Treiber installiert und betriebsbereit ist - fuer die UI, um die zugehoerige
-    /// Checkbox ("physische Geraete sperren, waehrend dieser Controller laeuft") auszugrauen, falls nicht.</summary>
+    /// <summary>Whether the HidHide driver is installed and ready; used to disable the UI checkbox for blocking
+    /// physical devices while this controller runs.</summary>
     public bool IsHidHideAvailable => _hidHide.IsAvailable;
 
     /// <summary>
-    /// Initialisiert die Verbindung zum ViGEmBus-Treiber. Muss erfolgreich sein, bevor
-    /// virtuelle Controller erzeugt werden koennen.
+    /// Initializes the connection to the ViGEmBus driver. Must succeed before virtual controllers can be created.
     /// </summary>
-    /// <exception cref="VigemBusNotFoundException">ViGEmBus ist auf diesem Rechner nicht installiert.</exception>
+    /// <exception cref="VigemBusNotFoundException">ViGEmBus is not installed on this machine.</exception>
     public void Initialize()
     {
         _client ??= new ViGEmClient();
 
-        // Einmalig beim Start pruefen, ob von einem vorherigen, abgestuerzten Programmlauf noch eigene
-        // HidHide-Sperren uebrig sind (regulaeres Beenden haette sie bereits ueber Unlock() entfernt) -
-        // und diese automatisch entfernen, damit physische Geraete nicht dauerhaft faelschlicherweise fuer
-        // andere Anwendungen gesperrt bleiben.
+        // Once at startup, check for HidHide locks left by a previous crashed run (normal shutdown removes
+        // them through Unlock()) and clean them up so physical devices are not incorrectly blocked from
+        // other applications indefinitely.
         var orphaned = _hidHide.CleanupOrphanedLocks();
         if (orphaned.Count > 0)
         {
             HidHideWarning?.Invoke(
-                $"HidHide: {orphaned.Count} verwaiste Geraete-Sperre(n) von einem vorherigen, nicht ordnungsgemaess beendeten Programmlauf wurden automatisch entfernt.");
+                $"HidHide: automatically removed {orphaned.Count} orphaned device lock(s) left by a previous unclean shutdown.");
         }
     }
 
@@ -63,14 +57,13 @@ public sealed class ControllerManager : IDisposable
     {
         if (_client is null)
         {
-            throw new InvalidOperationException($"{nameof(ControllerManager)}.{nameof(Initialize)}() muss zuerst aufgerufen werden.");
+            throw new InvalidOperationException($"{nameof(ControllerManager)}.{nameof(Initialize)}() must be called first.");
         }
 
-        // Sicherheitsnetz gegen einen Geraete-Leak: falls fuer dieses Profil bereits eine Session
-        // laeuft (z.B. weil "Start" ohne vorheriges "Stop" erneut ausgeloest wurde, etwa nach einem
-        // Layout-Wechsel), zuerst die alte Session korrekt beenden (Disconnect vom ViGEmBus-Treiber),
-        // statt sie im Dictionary stillschweigend zu ueberschreiben - andernfalls bleibt der alte
-        // virtuelle Controller dauerhaft (bis Prozessende) als Geraet in Windows sichtbar angemeldet.
+        // Prevent a device leak: if this profile already has a session (e.g. Start was invoked again without
+        // Stop after a layout change), end the old session and disconnect it from ViGEmBus before replacing
+        // the dictionary entry. Otherwise the old virtual controller would remain registered in Windows
+        // until the process exits.
         RemoveController(profile.Id);
 
         var pad = VirtualPadFactory.Create(_client, profile.Backend);
@@ -110,9 +103,8 @@ public sealed class ControllerManager : IDisposable
                 session.UpdateDeviceSettings(deviceSettings);
             }
 
-            // HidHide-Sperren per Differenz aktualisieren: eine Profilaenderung (z.B. andere zugewiesene
-            // Geraete oder Umschalten von HidHideEnabled) muss sich sofort auswirken, ohne dass der
-            // Controller dafuer neu gestartet werden muss.
+            // Update HidHide locks by diff so profile changes (e.g. assigned devices or HidHideEnabled) take
+            // effect immediately without restarting the controller.
             var newInstanceIds = ResolveHidHideInstanceIds(profile, session);
             _hidHideLockedInstanceIds.TryGetValue(profile.Id, out var previousInstanceIds);
             previousInstanceIds ??= new HashSet<string>();
@@ -126,10 +118,10 @@ public sealed class ControllerManager : IDisposable
         }
     }
 
-    /// <summary>Ermittelt anhand von <see cref="VirtualControllerProfile.HidHideEnabled"/> und der aktuell von
-    /// <paramref name="session"/> tatsaechlich benoetigten physischen Geraete (<see cref="ControllerSession.NeededDeviceIds"/>)
-    /// die Menge der PnP-Instanz-IDs, die fuer dieses Profil per HidHide gesperrt sein sollen. Liefert eine
-    /// leere Menge, falls die Option deaktiviert ist oder HidHide nicht installiert/betriebsbereit ist.</summary>
+    /// <summary>Resolves the PnP instance IDs to block through HidHide based on
+    /// <see cref="VirtualControllerProfile.HidHideEnabled"/> and the physical devices actually needed by
+    /// <paramref name="session"/> (<see cref="ControllerSession.NeededDeviceIds"/>). Returns an empty set when
+    /// the option is disabled or HidHide is unavailable.</summary>
     private HashSet<string> ResolveHidHideInstanceIds(VirtualControllerProfile profile, ControllerSession session)
     {
         if (!profile.HidHideEnabled)
@@ -140,7 +132,7 @@ public sealed class ControllerManager : IDisposable
         if (!_hidHide.IsAvailable)
         {
             HidHideWarning?.Invoke(
-                $"HidHide ist fuer \"{profile.Name}\" aktiviert, der HidHide-Treiber ist aber nicht installiert/betriebsbereit - die physischen Geraete werden NICHT gesperrt.");
+                $"HidHide is enabled for \"{profile.Name}\", but the HidHide driver is unavailable. Physical devices will NOT be blocked.");
             return new HashSet<string>();
         }
 
@@ -163,9 +155,8 @@ public sealed class ControllerManager : IDisposable
         return result;
     }
 
-    /// <summary>Verteilt geaenderte geraeteweite Einstellungen (z.B. eine im Konfigurationsdialog
-    /// deaktivierte Eingabe) sofort an alle aktuell laufenden Sessions, ohne dass dafuer ein
-    /// vollstaendiges Mapping-Profil-Update erforderlich ist.</summary>
+    /// <summary>Immediately broadcasts changed device-wide settings (e.g. an input disabled in the configuration
+    /// dialog) to all running sessions without requiring a full mapping profile update.</summary>
     public void BroadcastDeviceSettings(IReadOnlyDictionary<string, DeviceSettings> deviceSettings)
     {
         foreach (var session in _sessions.Values)

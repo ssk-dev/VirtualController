@@ -10,43 +10,38 @@ using VirtualController.Core.Virtual;
 namespace VirtualController.App.ViewModels;
 
 /// <summary>
-/// Repraesentiert genau einen virtuellen Controller in der UI: Name, gewaehltes Layout,
-/// Ziel-Abtastrate sowie die komplette Mapping-Tabelle (welche physischen Controller/Eingaben
-/// auf ihn wirken). Aenderungen an den Properties schreiben direkt in das zugrunde liegende
-/// <see cref="VirtualControllerProfile"/>, das beim Speichern persistiert wird.
+/// Represents one virtual controller in the UI: its name, selected layout, target polling rate, and complete
+/// mapping table (which physical controllers/inputs affect it). Property changes are written directly to
+/// the underlying <see cref="VirtualControllerProfile"/>, which is persisted when saved.
 /// </summary>
 public sealed partial class VirtualControllerViewModel : ObservableObject
 {
     private static readonly TimeSpan CaptureTimeout = TimeSpan.FromSeconds(5);
 
-    /// <summary>Aktualisierungsrate der Laufzeit-Synchronisation von <see cref="VirtualControllerProfile.ActiveModeId"/>
-    /// in die UI (ausgewaehlter Tab, gruener Aktiv-Indikator), waehrend der Controller laeuft - siehe
-    /// <see cref="_activeModeSyncTimer"/>. Bewusst niedrig, da es hier nur um eine fuer das menschliche
-    /// Auge fluessige visuelle Rueckmeldung geht, nicht um das eigentliche 1000Hz-Mapping-Polling.</summary>
+    /// <summary>Runtime refresh rate for synchronizing <see cref="VirtualControllerProfile.ActiveModeId"/> with
+    /// the UI (selected tab and green active indicator) while the controller is running; see
+    /// <see cref="_activeModeSyncTimer"/>. Kept low because this is only for smooth visual feedback, not the
+    /// actual 1000 Hz mapping poll.</summary>
     private static readonly TimeSpan ActiveModeSyncInterval = TimeSpan.FromMilliseconds(100);
 
-    /// <summary>Pollt <see cref="VirtualControllerProfile.ActiveModeId"/>, waehrend der Controller laeuft:
-    /// <see cref="Engine.ControllerSession"/> aendert diesen Wert bei ausgeloestem Toggle-/Switch-Trigger
-    /// auf seinem eigenen Hochfrequenz-Polling-Thread - die UI muss daraus den gruenen Aktiv-Indikator
-    /// (<see cref="ModeViewModel.IsActive"/>) jedes Tabs aktuell halten. Der ausgewaehlte Tab
-    /// (<see cref="SelectedMode"/>, und damit die angezeigte Mapping-Tabelle) wird dabei NUR dann
-    /// automatisch nachgezogen, wenn sich <see cref="VirtualControllerProfile.ActiveModeId"/> seit dem
-    /// letzten Tick tatsaechlich geaendert hat (siehe <see cref="_lastObservedActiveModeId"/>) - eine rein
-    /// manuelle Tab-Auswahl des Nutzers bleibt also bestehen, bis der Trigger wirklich einen anderen
-    /// Modus aktiviert - siehe <see cref="OnActiveModeSyncTimerTick"/>.</summary>
+    /// <summary>Polls <see cref="VirtualControllerProfile.ActiveModeId"/> while the controller is running.
+    /// <see cref="Engine.ControllerSession"/> changes it on its high-frequency polling thread when a toggle or
+    /// switch trigger fires, and the UI uses it to keep each tab's green active indicator
+    /// (<see cref="ModeViewModel.IsActive"/>) up to date. The selected tab (<see cref="SelectedMode"/> and its
+    /// mapping table) follows automatically only when <see cref="VirtualControllerProfile.ActiveModeId"/>
+    /// actually changes since the previous tick (see <see cref="_lastObservedActiveModeId"/>). A manual tab
+    /// selection remains in place until a trigger activates another mode (see <see cref="OnActiveModeSyncTimerTick"/>).</summary>
     private DispatcherTimer? _activeModeSyncTimer;
 
-    /// <summary>Letzter von <see cref="OnActiveModeSyncTimerTick"/> beobachteter Wert von
-    /// <see cref="VirtualControllerProfile.ActiveModeId"/> - wird benoetigt, um eine tatsaechliche
-    /// Trigger-Umschaltung (dieser Wert aendert sich) von einer rein manuellen Tab-Auswahl des Nutzers
-    /// (nur <see cref="SelectedMode"/> weicht ab, ActiveModeId bleibt gleich) zu unterscheiden - nur bei
-    /// einer echten Trigger-Umschaltung soll <see cref="SelectedMode"/> automatisch nachgezogen werden,
-    /// damit der Nutzer zwischenzeitlich frei einen beliebigen Tab anschauen kann.</summary>
+    /// <summary>Last <see cref="VirtualControllerProfile.ActiveModeId"/> observed by
+    /// <see cref="OnActiveModeSyncTimerTick"/>. Distinguishes an actual trigger switch (the value changes)
+    /// from a manual tab selection (only <see cref="SelectedMode"/> differs) so the selected tab follows only
+    /// real trigger switches and users can freely inspect other tabs between them.</summary>
     private Guid? _lastObservedActiveModeId;
 
     public VirtualControllerProfile Profile { get; }
 
-    /// <summary>Fuer ComboBox-Bindings in der View.</summary>
+    /// <summary>Options for ComboBox bindings in the view.</summary>
     public static IReadOnlyList<ControllerLayout> LayoutOptions { get; } = Enum.GetValues<ControllerLayout>();
 
     [ObservableProperty]
@@ -62,12 +57,12 @@ public sealed partial class VirtualControllerViewModel : ObservableObject
     private int _pollingRateHz;
 
     [ObservableProperty]
-    private string _statusText = "Gestoppt";
+    private string _statusText = "Stopped";
 
     [ObservableProperty]
     private bool _isRunning;
 
-    /// <summary>Anzeige des tatsaechlich verwendeten ViGEmBus-Backends (Xbox360/DualShock4), abgeleitet aus dem Layout.</summary>
+    /// <summary>Currently resolved ViGEmBus backend (Xbox 360/DualShock 4), derived from the layout.</summary>
     public VirtualBackend ResolvedBackend => LayoutBackendMap.Resolve(Layout);
 
     public ObservableCollection<ModeViewModel> Modes { get; } = new();
@@ -75,68 +70,64 @@ public sealed partial class VirtualControllerViewModel : ObservableObject
     [ObservableProperty]
     private ModeViewModel? _selectedMode;
 
-    /// <summary>Fuer ComboBox/RadioButton-Bindings in der View.</summary>
+    /// <summary>Options for ComboBox/RadioButton bindings in the view.</summary>
     public static IReadOnlyList<ModeSwitchMechanism> ModeSwitchMechanismOptions { get; } = Enum.GetValues<ModeSwitchMechanism>();
 
     [ObservableProperty]
     private ModeSwitchMechanism _modeSwitchMechanism;
 
-    /// <summary>Ob bei jedem tatsaechlichen Wechsel des aktiven Modus eine kurze Bildschirmbenachrichtigung
-    /// (siehe <see cref="ModeActivated"/>, ausgewertet in <see cref="MainViewModel"/>) angezeigt werden soll.</summary>
+    /// <summary>Whether to show a brief on-screen notification whenever the active mode changes
+    /// (see <see cref="ModeActivated"/>, handled by <see cref="MainViewModel"/>).</summary>
     [ObservableProperty]
     private bool _notifyOnModeChange;
 
-    /// <summary>Ob die diesem Controller aktuell zugeordneten physischen Geraete automatisch per HidHide
-    /// gesperrt werden sollen, waehrend dieser Controller laeuft (siehe <see cref="Core.Mapping.VirtualControllerProfile.HidHideEnabled"/>).
-    /// Nur wirksam, wenn HidHide installiert/betriebsbereit ist (siehe <see cref="Views.MainWindow"/>, dort
-    /// wird die zugehoerige Checkbox andernfalls ausgegraut, siehe <see cref="MainViewModel.IsHidHideAvailable"/>).</summary>
+    /// <summary>Whether to automatically block this controller's assigned physical devices through HidHide
+    /// while it is running (see <see cref="Core.Mapping.VirtualControllerProfile.HidHideEnabled"/>). Effective
+    /// only when HidHide is installed and ready; otherwise the associated checkbox in
+    /// <see cref="Views.MainWindow"/> is disabled (see <see cref="MainViewModel.IsHidHideAvailable"/>).</summary>
     [ObservableProperty]
     private bool _hidHideEnabled;
 
-    /// <summary>Ob dieser Controller automatisch gestartet/gestoppt werden soll, je nachdem ob das unter
-    /// <see cref="AutoStartExecutablePath"/> hinterlegte Programm laeuft (siehe <see cref="Core.Mapping.VirtualControllerProfile.AutoStartEnabled"/>).
-    /// Wird per periodischem Polling in <see cref="MainViewModel"/> ausgewertet.</summary>
+    /// <summary>Whether this controller should start and stop automatically based on whether the program at
+    /// <see cref="AutoStartExecutablePath"/> is running (see <see cref="Core.Mapping.VirtualControllerProfile.AutoStartEnabled"/>).
+    /// Evaluated through periodic polling in <see cref="MainViewModel"/>.</summary>
     [ObservableProperty]
     private bool _autoStartEnabled;
 
-    /// <summary>Vollstaendiger Pfad der .exe, deren Laufen ueberwacht wird (siehe <see cref="AutoStartEnabled"/>
-    /// und <see cref="Core.Mapping.VirtualControllerProfile.AutoStartExecutablePath"/>). Wird per
-    /// <see cref="ChooseAutoStartExecutableCommand"/> ueber einen Dateiauswahl-Dialog gesetzt.</summary>
+    /// <summary>Full path to the .exe whose process is monitored (see <see cref="AutoStartEnabled"/> and
+    /// <see cref="Core.Mapping.VirtualControllerProfile.AutoStartExecutablePath"/>). Set through a file picker
+    /// opened by <see cref="ChooseAutoStartExecutableCommand"/>.</summary>
     [ObservableProperty]
     private string? _autoStartExecutablePath;
 
-    /// <summary>Anzeigename der ausgewaehlten .exe (nur Dateiname ohne Pfad) fuer die Beschriftung neben dem
-    /// "Programm auswaehlen"-Button, oder ein Platzhaltertext, solange noch kein Programm ausgewaehlt wurde.</summary>
+    /// <summary>Display name of the selected .exe (filename only), shown beside the "Choose program" button,
+    /// or a placeholder when no program is selected.</summary>
     public string AutoStartExecutableDisplayName => string.IsNullOrWhiteSpace(AutoStartExecutablePath)
-        ? "(kein Programm ausgewaehlt)"
+        ? "(no program selected)"
         : System.IO.Path.GetFileName(AutoStartExecutablePath);
 
-    /// <summary>Nur relevant bei <see cref="Core.Mapping.ModeSwitchMechanism.Toggle"/>: Anzeigename der
-    /// physischen Eingabe, die bei jeder steigenden Flanke zum naechsten aktivierten Modus weiterschaltet.</summary>
+    /// <summary>Used only with <see cref="Core.Mapping.ModeSwitchMechanism.Toggle"/>: display name of the physical
+    /// input that advances to the next enabled mode on each rising edge.</summary>
     [ObservableProperty]
-    private string _toggleTriggerDisplayName = "(keine Eingabe zugewiesen)";
+    private string _toggleTriggerDisplayName = "(no input assigned)";
 
     [ObservableProperty]
     private bool _isCapturingToggleTrigger;
 
-    /// <summary>Verbleibende Sekunden, waehrend "Erfassen" auf eine physische Eingabe fuer den
-    /// controller-weiten Toggle-Trigger wartet - zaehlt vom Erfassen-Timeout (<see cref="CaptureTimeout"/>)
-    /// bis 0 herunter. Wird von der View als Countdown neben dem "Erfassen"-Button angezeigt.</summary>
+    /// <summary>Seconds remaining while Capture waits for a physical input for the controller-wide toggle
+    /// trigger, counting down from <see cref="CaptureTimeout"/> to zero. Shown beside the Capture button.</summary>
     [ObservableProperty]
     private int _captureCountdownSeconds;
 
-    /// <summary>Angeschlossene physische Controller mit Checkbox, ob sie fuer diesen virtuellen Controller
-    /// beruecksichtigt werden sollen (Filter fuer die "Erfassen"-Funktion und das aktive Mapping).
-    /// </summary>
+    /// <summary>Connected physical controllers with a checkbox to include them for this virtual controller's
+    /// capture function and active mapping.</summary>
     public ObservableCollection<DeviceSelectionViewModel> AvailableDeviceSelections { get; } = new();
 
-    /// <summary>Physische Geraete, die diesem virtuellen Controller zugeordnet sind (siehe
-    /// <see cref="Core.Mapping.VirtualControllerProfile.AssignedDeviceIds"/>), aber aktuell NICHT
-    /// angeschlossen sind - werden in der View unterhalb von <see cref="AvailableDeviceSelections"/> in
-    /// einer eigenen, ausgegrauten Liste "Zugewiesene Geräte" angezeigt, damit die bestehende Zuweisung
-    /// auch waehrend das Geraet getrennt ist sichtbar bleibt. Wird bei jedem Aufruf von
-    /// <see cref="RefreshDeviceSelections"/> neu ermittelt (siehe <see cref="UpdateAssignedDisconnectedDeviceSelections"/>).
-    /// </summary>
+    /// <summary>Devices assigned to this virtual controller (see
+    /// <see cref="Core.Mapping.VirtualControllerProfile.AssignedDeviceIds"/>) that are currently disconnected.
+    /// Shown in a separate dimmed "Assigned devices" list below <see cref="AvailableDeviceSelections"/> so the
+    /// assignment remains visible. Recomputed by <see cref="RefreshDeviceSelections"/> (see
+    /// <see cref="UpdateAssignedDisconnectedDeviceSelections"/>).</summary>
     public ObservableCollection<AssignedDisconnectedDeviceViewModel> AssignedDisconnectedDeviceSelections { get; } = new();
 
     private readonly Func<IReadOnlyList<PhysicalDeviceInfo>> _getAvailableDevices;
@@ -149,11 +140,10 @@ public sealed partial class VirtualControllerViewModel : ObservableObject
     public event Action<VirtualControllerViewModel>? RemoveRequested;
     public event Action<VirtualControllerViewModel>? ProfileChanged;
 
-    /// <summary>Wird ausgeloest, wenn sich der aktive Modus dieses Controllers tatsaechlich geaendert hat
-    /// (manuell per Tab-Klick waehrend der Controller gestoppt ist, oder per Toggle-/Switch-Trigger
-    /// waehrend der Controller laeuft) UND <see cref="NotifyOnModeChange"/> aktiviert ist - wird von
-    /// <see cref="MainViewModel"/> weitergereicht, damit <see cref="Views.MainWindow"/> eine kurze
-    /// Bildschirmbenachrichtigung anzeigen kann (siehe <see cref="Views.ModeChangeToast"/>).</summary>
+    /// <summary>Raised when this controller's active mode actually changes (by tab click while stopped or by
+    /// a toggle/switch trigger while running) and <see cref="NotifyOnModeChange"/> is enabled. Forwarded by
+    /// <see cref="MainViewModel"/> so <see cref="Views.MainWindow"/> can show a brief on-screen notification
+    /// (see <see cref="Views.ModeChangeToast"/>).</summary>
     public event Action<VirtualControllerViewModel, ModeViewModel>? ModeActivated;
 
     public VirtualControllerViewModel(
@@ -181,7 +171,7 @@ public sealed partial class VirtualControllerViewModel : ObservableObject
 
         var knownDevices = getAvailableDevices();
 
-        // Neues Profil ohne Auswahl -> standardmaessig alle aktuell angeschlossenen Geraete beruecksichtigen.
+        // For a new profile with no device selection, include all currently connected devices by default.
         if (Profile.AssignedDeviceIds.Count == 0 && knownDevices.Count > 0)
         {
             Profile.AssignedDeviceIds = knownDevices.Select(d => d.DeviceId).ToList();
@@ -200,26 +190,20 @@ public sealed partial class VirtualControllerViewModel : ObservableObject
             AddModeViewModel(mode, knownDevices);
         }
 
-        // RefreshDeviceSelections() oben lief bereits VOR dieser Schleife (Modes war zu diesem Zeitpunkt
-        // noch leer) und konnte daher noch keine vorhandenen Mapping-Quellen erkennen - erneuter Aufruf
-        // jetzt, damit Geraete, die bereits geladene Mapping-Eintraege als Quelle referenzieren, von
-        // Anfang an live ueberwacht werden (Mapping-Tabellen-Highlight unabhaengig von "Verfügbare Geräte").
+        // RefreshDeviceSelections() ran before this loop while Modes was still empty, so it could not detect
+        // existing mapping sources. Run it again now so devices referenced by loaded mappings are monitored
+        // from the start, keeping mapping row highlights active even when "Available devices" is collapsed.
         UpdateMappingSourceLiveMonitoring();
 
         SelectedMode = Modes.FirstOrDefault(m => m.Mode.Id == profile.ActiveModeId) ?? Modes.FirstOrDefault();
     }
 
-    /// <summary>Baut die Geraete-Auswahlliste anhand der aktuell verfuegbaren physischen Controller neu auf.
-    /// Arbeitet bewusst inkrementell (statt alles zu verwerfen und neu zu erzeugen): nur Geraete, die
-    /// nicht mehr in <paramref name="devices"/> enthalten sind, werden entfernt, und nur wirklich neue
-    /// Geraete werden als zusaetzliche <see cref="DeviceSelectionViewModel"/> angelegt. Bereits vorhandene
-    /// Instanzen bleiben unveraendert erhalten. Das ist notwendig, da diese Methode inzwischen (durch die
-    /// automatische Geraeteerkennung, siehe <see cref="MainViewModel"/>-Hotplug-Timer) alle paar Sekunden
-    /// aufgerufen wird - ein vollstaendiger Neuaufbau wuerde sonst bei jedem Aufruf den aufgeklappten
-    /// Zustand (<see cref="DeviceSelectionViewModel.IsExpanded"/>) sowie die bereits aufgebaute
-    /// Eingabeliste und laufende Live-Hervorhebung jedes Geraets verwerfen, sodass eine vom Nutzer
-    /// aufgeklappte Geraeteliste sich waehrend der Nutzung (z.B. beim Testen einer Eingabe) von selbst
-    /// wieder einklappte.</summary>
+    /// <summary>Incrementally reconciles the device selection list with the currently available physical
+    /// controllers: removes devices no longer in <paramref name="devices"/> and adds only new devices, keeping
+    /// existing instances intact. This method now runs every few seconds through the automatic device detection
+    /// hot-plug timer in <see cref="MainViewModel"/>. Rebuilding the list would reset each device's expanded
+    /// state (<see cref="DeviceSelectionViewModel.IsExpanded"/>), input rows, and live highlights, causing an
+    /// expanded list to collapse while the user is testing an input.</summary>
     public void RefreshDeviceSelections(IReadOnlyList<PhysicalDeviceInfo> devices)
     {
         var incomingIds = devices.Select(d => d.DeviceId).ToHashSet();
@@ -239,7 +223,7 @@ public sealed partial class VirtualControllerViewModel : ObservableObject
         {
             if (existingIds.Contains(device.DeviceId))
             {
-                continue; // Bereits vorhanden -> ViewModel (inkl. IsExpanded/IsSelected/Inputs) unangetastet lassen.
+                continue; // Keep the existing view model (including expanded/selected state and inputs) intact.
             }
 
             bool isSelected = Profile.AssignedDeviceIds.Contains(device.DeviceId);
@@ -254,9 +238,9 @@ public sealed partial class VirtualControllerViewModel : ObservableObject
 
         UpdateAssignedDisconnectedDeviceSelections(devices);
 
-        // Bereits vorhandene Mapping-Zeilen zeigen den Verbindungsstatus ihrer physischen Quelle an
-        // (siehe MappingRowViewModel.IsSourceConnected) - muss bei jeder Aenderung der Geraeteliste
-        // neu ermittelt werden, z.B. wenn ein Geraet waehrend der Laufzeit getrennt/wieder verbunden wird.
+        // Existing mapping rows display their physical source's connection status (see
+        // MappingRowViewModel.IsSourceConnected), so refresh it whenever the device list changes, e.g. when a
+        // device disconnects or reconnects while the app is running.
         foreach (var mode in Modes)
         {
             foreach (var row in mode.Mappings)
@@ -276,12 +260,11 @@ public sealed partial class VirtualControllerViewModel : ObservableObject
         UpdateMappingSourceLiveMonitoring();
     }
 
-    /// <summary>Baut <see cref="AssignedDisconnectedDeviceSelections"/> anhand der aktuellen Zuweisung
-    /// (<see cref="Core.Mapping.VirtualControllerProfile.AssignedDeviceIds"/>) neu auf: enthaelt genau
-    /// jene zugeordneten Geraete-Ids, die NICHT in <paramref name="availableDevices"/> (also aktuell nicht
-    /// angeschlossen bzw. deaktiviert/ausgeblendet) enthalten sind. Der Anzeigename wird dabei aus dem
-    /// zuletzt bekannten Geraetenamen (siehe <see cref="Core.Devices.DeviceSettings.LastKnownDisplayName"/>)
-    /// ermittelt, analog zu <see cref="MainViewModel.GetAllKnownDevices"/>.</summary>
+    /// <summary>Rebuilds <see cref="AssignedDisconnectedDeviceSelections"/> from the current assignment
+    /// (<see cref="Core.Mapping.VirtualControllerProfile.AssignedDeviceIds"/>), including exactly the assigned
+    /// device IDs missing from <paramref name="availableDevices"/> (disconnected, disabled, or hidden). Uses
+    /// the last known display name (see <see cref="Core.Devices.DeviceSettings.LastKnownDisplayName"/>), as in
+    /// <see cref="MainViewModel.GetAllKnownDevices"/>.</summary>
     private void UpdateAssignedDisconnectedDeviceSelections(IReadOnlyList<PhysicalDeviceInfo> availableDevices)
     {
         var availableIds = availableDevices.Select(d => d.DeviceId).ToHashSet();
@@ -293,7 +276,7 @@ public sealed partial class VirtualControllerViewModel : ObservableObject
         {
             if (availableIds.Contains(deviceId))
             {
-                continue; // Aktuell angeschlossen -> bereits in AvailableDeviceSelections vertreten.
+                continue; // Connected; already represented in AvailableDeviceSelections.
             }
 
             string displayName = deviceSettings.TryGetValue(deviceId, out var settings)
@@ -304,20 +287,18 @@ public sealed partial class VirtualControllerViewModel : ObservableObject
         }
     }
 
-    /// <summary>Liefert nur die aktuell fuer diesen virtuellen Controller ausgewaehlten physischen Geraete,
-    /// z.B. als Quelle fuer die "Erfassen"-Funktion der Mapping-Zeilen.</summary>
+    /// <summary>Returns only the physical devices currently selected for this virtual controller, e.g. as
+    /// sources for mapping row capture.</summary>
     public IReadOnlyList<PhysicalDeviceInfo> GetFilteredDevices()
         => AvailableDeviceSelections.Where(s => s.IsSelected).Select(s => s.Device).ToList();
 
-    /// <summary>Stellt sicher, dass jedes physische Geraet, das aktuell als Quelle mindestens einer
-    /// Mapping-Zeile (irgendeines Modus) dient, live ueberwacht wird (siehe
-    /// <see cref="DeviceSelectionViewModel.SetMappingSourceMonitoringRequested"/>) - unabhaengig davon,
-    /// ob die Eingabeliste dieses Geraets in "Verfügbare Geräte" aktuell aufgeklappt ist. Damit hebt sich
-    /// eine zugewiesene Mapping-Zeile (<see cref="MappingRowViewModel.IsSourceActive"/>) auch dann farblich
-    /// hervor, wenn der Nutzer die zugehoerige Geraeteliste nie oeffnet. Muss bei jeder Aenderung, die die
-    /// Menge der als Quelle verwendeten Geraete beeinflussen kann, erneut aufgerufen werden: neue/entfernte
-    /// Mapping-Zeile, geaenderte physische Quelle einer Zeile (Erfassen/Zuweisen), neuer/entfernter Modus,
-    /// sowie nach jedem Neuaufbau der Geraeteauswahl (<see cref="RefreshDeviceSelections"/>).</summary>
+    /// <summary>Ensures every physical device used as a source by any mapping row in any mode is monitored
+    /// live (see <see cref="DeviceSelectionViewModel.SetMappingSourceMonitoringRequested"/>), regardless of
+    /// whether its input list in "Available devices" is expanded. This keeps assigned mapping rows
+    /// (<see cref="MappingRowViewModel.IsSourceActive"/>) highlighted even when the user never opens that list.
+    /// Call again whenever the set of source devices may change: mapping rows or modes are added/removed, a
+    /// row's source changes through Capture/Assign, or device selections are rebuilt
+    /// (<see cref="RefreshDeviceSelections"/>).</summary>
     public void UpdateMappingSourceLiveMonitoring()
     {
         var sourceDeviceIds = Modes
@@ -332,21 +313,17 @@ public sealed partial class VirtualControllerViewModel : ObservableObject
         }
     }
 
-    /// <summary>Ob der "Mapping"-Tab des Hauptfensters aktuell tatsaechlich sichtbar ist, DIESER Controller
-    /// der aktuell ausgewaehlte Controller ist UND das Fenster nicht minimiert ist (siehe
-    /// <see cref="SetScreenActive"/>, gesetzt durch <see cref="MainViewModel"/>). Wird an jede
-    /// <see cref="DeviceSelectionViewModel"/>-Instanz in <see cref="AvailableDeviceSelections"/>
-    /// weitergereicht, damit deren Live-Polling (siehe <see cref="DeviceSelectionViewModel.SetScreenActive"/>)
-    /// nur laeuft, waehrend diese Bedingung erfuellt ist - andernfalls waere jedes Polling reine
-    /// Verschwendung, da die zugehoerige Live-Hervorhebung ohnehin nicht sichtbar sein kann.</summary>
+    /// <summary>Whether the main window's Mapping tab is visible, this controller is selected, and the window
+    /// is not minimized (see <see cref="SetScreenActive"/>, set by <see cref="MainViewModel"/>). Propagated to
+    /// each <see cref="DeviceSelectionViewModel"/> in <see cref="AvailableDeviceSelections"/> so live polling
+    /// (see <see cref="DeviceSelectionViewModel.SetScreenActive"/>) runs only when this condition is true;
+    /// otherwise the highlight cannot be seen.</summary>
     private bool _isScreenActive;
 
-    /// <summary>Legt fest, ob dieser Controller aktuell "auf dem Bildschirm" sichtbar ist - d.h. der
-    /// Mapping-Tab des Hauptfensters ist der aktive Tab, DIESER Controller ist der aktuell ausgewaehlte
-    /// Controller (siehe <see cref="MainViewModel.SelectedController"/>) UND das Fenster ist nicht
-    /// minimiert. Wird von <see cref="MainViewModel"/> bei jeder dieser drei Bedingungen (Tab-Wechsel,
-    /// Controller-Auswahl, Minimieren/Wiederherstellen) fuer ALLE verwalteten Controller neu berechnet und
-    /// gesetzt - nur der jeweils tatsaechlich sichtbare Controller erhaelt dabei <c>true</c>.</summary>
+    /// <summary>Sets whether this controller is currently visible: the Mapping tab is active, this controller
+    /// is selected (see <see cref="MainViewModel.SelectedController"/>), and the window is not minimized.
+    /// <see cref="MainViewModel"/> recalculates this for every controller whenever the tab, selection, or
+    /// window state changes; only the visible controller receives <c>true</c>.</summary>
     public void SetScreenActive(bool value)
     {
         _isScreenActive = value;
@@ -359,25 +336,21 @@ public sealed partial class VirtualControllerViewModel : ObservableObject
 
     private void OnDeviceSelectionChanged(DeviceSelectionViewModel selection)
     {
-        // Bewusst NICHT einfach durch die aktuell sichtbare Auswahl ersetzen: aktuell getrennte, aber
-        // weiterhin zugeordnete Geraete (siehe AssignedDisconnectedDeviceSelections) sind hier nicht
-        // vertreten (sie tauchen ja gar nicht in AvailableDeviceSelections auf) und wuerden sonst bei
-        // jeder Checkbox-Aenderung eines beliebigen ANDEREN, gerade angeschlossenen Geraets faelschlich
-        // aus der Zuweisung entfernt.
+        // Do not replace the assignment with only the visible selection. Assigned but disconnected devices
+        // (see AssignedDisconnectedDeviceSelections) are absent from AvailableDeviceSelections and would
+        // otherwise be incorrectly removed whenever the checkbox for another connected device changes.
         var selectedVisibleIds = AvailableDeviceSelections.Where(s => s.IsSelected).Select(s => s.Device.DeviceId);
         var stillAssignedDisconnectedIds = AssignedDisconnectedDeviceSelections.Select(d => d.DeviceId);
         Profile.AssignedDeviceIds = selectedVisibleIds.Union(stillAssignedDisconnectedIds).ToList();
         ProfileChanged?.Invoke(this);
     }
 
-    /// <summary>Spiegelt die Live-Hervorhebung der aufklappbaren Geraete-Eingabeliste
-    /// (<see cref="DeviceSelectionViewModel.LiveStateChanged"/>, gleicher Mechanismus wie
-    /// <see cref="PhysicalInputRowViewModel.IsActive"/>) zusaetzlich auf alle Mapping-Zeilen (ueber alle
-    /// Modi hinweg, nicht nur den aktuell angezeigten <see cref="SelectedMode"/>), deren physische Quelle
-    /// von diesem Geraet stammt - dadurch hebt sich die zugewiesene Zeile der Mapping-Tabelle farblich
-    /// hervor, waehrend die zugehoerige physische Eingabe gerade aktiv ist, analog zum Verhalten in der
-    /// Liste der verfuegbaren Geraete. Bei <paramref name="state"/> == null (Geraet eingeklappt/getrennt)
-    /// wird die Hervorhebung stattdessen zurueckgesetzt.</summary>
+    /// <summary>Mirrors the live highlight from the expandable device input list
+    /// (<see cref="DeviceSelectionViewModel.LiveStateChanged"/>, using the same mechanism as
+    /// <see cref="PhysicalInputRowViewModel.IsActive"/>) to every mapping row across all modes, not only
+    /// <see cref="SelectedMode"/>. Rows sourced from this device are highlighted while their physical input is
+    /// active, just as in the available devices list. When <paramref name="state"/> is null (collapsed or
+    /// disconnected), clears the highlight.</summary>
     private void OnDeviceLiveStateChanged(DeviceSelectionViewModel selection, DeviceState? state)
     {
         string deviceId = selection.Device.DeviceId;
@@ -404,15 +377,15 @@ public sealed partial class VirtualControllerViewModel : ObservableObject
         var mode = new ControllerMode
         {
             Id = Guid.NewGuid(),
-            Name = $"Modus {Modes.Count + 1}"
+            Name = $"Mode {Modes.Count + 1}"
         };
 
         Profile.Modes.Add(mode);
         var viewModel = AddModeViewModel(mode, _getAvailableDevices());
         SelectedMode = viewModel;
 
-        // Erster angelegter Modus wird automatisch aktiv, damit der Controller ueberhaupt ein
-        // ausgewertetes Mapping besitzt, ohne dass der Nutzer zusaetzlich manuell aktivieren muss.
+        // Activate the first mode automatically so the controller has a mapping to evaluate without requiring
+        // the user to activate it manually.
         if (Profile.ActiveModeId is null)
         {
             Profile.ActiveModeId = mode.Id;
@@ -424,26 +397,23 @@ public sealed partial class VirtualControllerViewModel : ObservableObject
     [RelayCommand(CanExecute = nameof(CanAddMapping))]
     private void AddMapping()
     {
-        // Neuer, noch nicht zugeordneter Eintrag - Quelle wird ueber "Erfassen" in der Zeile gesetzt.
+        // Create an unassigned row; its source will be set through Capture on the row.
         CreateAndAddMapping(sourceDeviceId: string.Empty, sourceKind: PhysicalInputKind.Button, sourceIndex: 0);
     }
 
-    /// <summary>Ein Mapping-Eintrag gehoert immer zu einem Modus - ohne angelegten/ausgewaehlten Modus
-    /// kann kein neues Mapping hinzugefuegt werden (siehe <see cref="CreateAndAddMapping"/>). Steuert die
-    /// Aktivierung des "+ Mapping-Zeile hinzufuegen"-Buttons in der View.</summary>
+    /// <summary>Every mapping entry belongs to a mode, so a new mapping cannot be added without a selected
+    /// mode (see <see cref="CreateAndAddMapping"/>). Controls the Add mapping row button in the view.</summary>
     private bool CanAddMapping() => SelectedMode is not null;
 
-    /// <summary>Wird aufgerufen, wenn der Nutzer in der aufklappbaren Eingabeliste eines Geraets bei einer
-    /// physischen Eingabe auf "Zuweisen" klickt: legt eine neue Mapping-Zeile mit bereits gesetzter
-    /// physischer Quelle an, sodass der Nutzer nur noch Ziel-Typ/Ziel-Wert waehlen muss.</summary>
+    /// <summary>Called when the user clicks Assign on a physical input in the expandable device list. Creates
+    /// a mapping row with its physical source already set, leaving only the target type and value to choose.</summary>
     private void OnAssignInputRequested(PhysicalInputRef inputRef)
         => CreateAndAddMapping(inputRef.DeviceId, inputRef.Kind, inputRef.Index);
 
     private void CreateAndAddMapping(string sourceDeviceId, PhysicalInputKind sourceKind, int sourceIndex)
     {
-        // Ein Mapping-Eintrag gehoert immer zu genau einem Modus - ohne angelegten/ausgewaehlten Modus
-        // gibt es keine Zieltabelle, in die der Eintrag geschrieben werden koennte (siehe Anforderung:
-        // ein Modus muss angelegt werden, bevor Mappings erfasst/zugewiesen werden koennen).
+        // Every mapping entry belongs to exactly one mode. Without a selected mode, there is no target table
+        // to add it to; a mode must exist before mappings can be captured or assigned.
         if (SelectedMode is not { } mode)
         {
             return;
@@ -479,18 +449,16 @@ public sealed partial class VirtualControllerViewModel : ObservableObject
 
     public void SetRunningState(bool running, string? statusText = null)
     {
-        DebugLog.Write($"[VCVM:{Name}] SetRunningState aufgerufen: running={running} statusText='{statusText}' (vorher IsRunning={IsRunning}).");
+        DebugLog.Write($"[VCVM:{Name}] SetRunningState called: running={running} statusText='{statusText}' (previous IsRunning={IsRunning}).");
         IsRunning = running;
-        StatusText = statusText ?? (running ? "Laeuft" : "Gestoppt");
+        StatusText = statusText ?? (running ? "Running" : "Stopped");
     }
 
     partial void OnIsRunningChanged(bool value)
     {
-        // Start-Button muss gesperrt werden, sobald der Controller laeuft (und umgekehrt fuer
-        // Stop) - verhindert den Bug, dass "Start" erneut geklickt werden konnte (z.B. nach einem
-        // Layout-Wechsel waehrend der Laufzeit), wodurch ein neuer virtueller Controller erzeugt
-        // wurde, ohne den vorherigen zu beenden. Der alte blieb dadurch dauerhaft (bis Prozessende)
-        // als verwaistes Geraet beim ViGEmBus-Treiber/in Windows angemeldet.
+        // Disable Start while the controller is running (and vice versa for Stop). This prevents starting a
+        // second virtual controller without stopping the first, which previously left an orphaned device
+        // registered with ViGEmBus/Windows until the process exited.
         StartCommand.NotifyCanExecuteChanged();
         StopCommand.NotifyCanExecuteChanged();
 
@@ -504,8 +472,8 @@ public sealed partial class VirtualControllerViewModel : ObservableObject
         }
     }
 
-    /// <summary>Startet die periodische Uebernahme von <see cref="VirtualControllerProfile.ActiveModeId"/>
-    /// in die UI, solange der Controller laeuft (siehe <see cref="_activeModeSyncTimer"/>).</summary>
+    /// <summary>Starts periodic synchronization of <see cref="VirtualControllerProfile.ActiveModeId"/> with
+    /// the UI while the controller is running (see <see cref="_activeModeSyncTimer"/>).</summary>
     private void StartActiveModeSync()
     {
         if (_activeModeSyncTimer is not null)
@@ -533,15 +501,11 @@ public sealed partial class VirtualControllerViewModel : ObservableObject
 
     private void OnActiveModeSyncTimerTick(object? sender, EventArgs e)
     {
-        // Aktualisiert die gruenen Aktiv-Indikatoren immer. SelectedMode (und damit die angezeigte
-        // Mapping-Tabelle, siehe MainWindow.xaml MappingsDataGrid.ItemsSource) wird jedoch NUR dann
-        // nachgezogen, wenn sich Profile.ActiveModeId seit dem letzten Tick tatsaechlich geaendert hat
-        // (also der Toggle-/Switch-Trigger wirklich umgeschaltet hat) - nicht schon deshalb, weil der
-        // Nutzer manuell einen anderen Tab angeklickt hat, um sich dessen Mappings anzusehen (dabei
-        // bleibt Profile.ActiveModeId unveraendert, siehe OnSelectedModeChanged). So kann der Nutzer
-        // waehrend der Laufzeit frei zwischen Tabs wechseln, ohne dass diese Ansicht durch den naechsten
-        // 100ms-Tick sofort wieder zurueckgesetzt wird - sobald der Trigger jedoch tatsaechlich einen
-        // anderen Modus aktiviert, folgt die Ansicht dem sofort.
+        // Always refresh the green active indicators. Update SelectedMode (and its mapping table) only when
+        // Profile.ActiveModeId actually changes since the previous tick, meaning a toggle/switch trigger fired.
+        // A manual tab click leaves that value unchanged (see OnSelectedModeChanged), so users can inspect
+        // another mode while the controller runs without the next 100 ms tick resetting the view. When a
+        // trigger activates another mode, the view follows immediately.
         RefreshActiveModeIndicators();
 
         bool triggerSwitchedMode = Profile.ActiveModeId != _lastObservedActiveModeId;
@@ -601,10 +565,9 @@ public sealed partial class VirtualControllerViewModel : ObservableObject
         ProfileChanged?.Invoke(this);
     }
 
-    /// <summary>Wird aufgerufen, wenn der Nutzer fuer einen Modus per "Erfassen"/"Zuweisen" einen
-    /// Switch-Trigger festlegen moechte: stellt sicher, dass dieselbe physische Eingabe innerhalb
-    /// desselben Controllers nicht bereits von einem anderen (aktivierten) Modus als Switch-Trigger
-    /// verwendet wird, bevor der Wert tatsaechlich uebernommen wird.</summary>
+    /// <summary>Called when the user sets a mode's switch trigger through Capture/Assign. Ensures that the
+    /// same physical input is not already used as a switch trigger by another mode in this controller before
+    /// accepting it.</summary>
     private void OnModeSwitchTriggerCaptured(ModeViewModel mode, PhysicalInputRef trigger)
     {
         bool isAlreadyUsedElsewhere = Modes.Any(other => other != mode
@@ -615,7 +578,7 @@ public sealed partial class VirtualControllerViewModel : ObservableObject
 
         if (isAlreadyUsedElsewhere)
         {
-            mode.SwitchTriggerValidationError = "Diese Eingabe wird bereits von einem anderen Modus dieses Controllers verwendet.";
+            mode.SwitchTriggerValidationError = "This input is already used by another mode on this controller.";
             return;
         }
 
@@ -623,8 +586,8 @@ public sealed partial class VirtualControllerViewModel : ObservableObject
         ProfileChanged?.Invoke(this);
     }
 
-    /// <summary>Aktualisiert den gruenen Aktiv-Indikator (<see cref="ModeViewModel.IsActive"/>) aller Modi
-    /// anhand von <see cref="VirtualControllerProfile.ActiveModeId"/>.</summary>
+    /// <summary>Updates every mode's green active indicator (<see cref="ModeViewModel.IsActive"/>) from
+    /// <see cref="VirtualControllerProfile.ActiveModeId"/>.</summary>
     private void RefreshActiveModeIndicators()
     {
         foreach (var mode in Modes)
@@ -646,9 +609,8 @@ public sealed partial class VirtualControllerViewModel : ObservableObject
         Profile.Layout = value;
         OnPropertyChanged(nameof(ResolvedBackend));
 
-        // Bereits vorhandene Mapping-Zeilen zeigen ihre "Ziel-Wert"-Beschriftung layoutabhaengig an
-        // (z.B. "A" bei Xbox vs. "Kreuz" bei PlayStation) - bei Layoutwechsel muessen alle bestehenden
-        // Zeilen ihre Anzeige aktualisieren, obwohl sich der zugrunde liegende gespeicherte Wert nicht aendert.
+        // Existing mapping rows display layout-dependent target labels (e.g. "A" on Xbox vs. "Cross" on
+        // PlayStation), so refresh them when the layout changes even though the stored values remain the same.
         foreach (var mode in Modes)
         {
             foreach (var row in mode.Mappings)
@@ -672,33 +634,28 @@ public sealed partial class VirtualControllerViewModel : ObservableObject
         ProfileChanged?.Invoke(this);
     }
 
-    /// <summary>Wird ausgeloest, wenn der Nutzer in der Tab-Leiste einen anderen Modus auswaehlt oder wenn
-    /// <see cref="OnActiveModeSyncTimerTick"/> den ausgewaehlten Tab an einen tatsaechlich per Trigger neu
-    /// aktivierten Modus anpasst. Waehrend der Controller GESTOPPT ist, aktiviert die Tab-Auswahl den
-    /// Modus direkt (Klick = Aktivierung) - der Nutzer soll so bequem per Klick zwischen Modi wechseln
-    /// koennen. Waehrend der Controller LAEUFT, wird die Aktivierung ausschliesslich durch den
-    /// Toggle-/Switch-Trigger bestimmt (siehe <see cref="Engine.ControllerSession.EvaluateModeSwitching"/>);
-    /// ein manueller Tab-Klick aendert dann nur die Ansicht (Profile.ActiveModeId bleibt unveraendert) und
-    /// bleibt bestehen, bis der Trigger tatsaechlich einen anderen Modus aktiviert - erst dann zieht
-    /// <see cref="OnActiveModeSyncTimerTick"/> die Ansicht automatisch nach.</summary>
+    /// <summary>Raised when the user selects another mode in the tab bar or when
+    /// <see cref="OnActiveModeSyncTimerTick"/> follows a mode activated by a trigger. While the controller is
+    /// stopped, selecting a tab activates that mode directly. While it is running, only toggle/switch triggers
+    /// change the active mode (see <see cref="Engine.ControllerSession.EvaluateModeSwitching"/>); a manual tab
+    /// click changes only the view and leaves Profile.ActiveModeId unchanged until a trigger activates another mode.</summary>
     partial void OnSelectedModeChanged(ModeViewModel? value)
     {
-        DebugLog.Write($"[VCVM:{Name}] OnSelectedModeChanged aufgerufen: neuer Wert='{value?.Name ?? "null"}' (Id={value?.Mode.Id}) IsRunning={IsRunning}");
+        DebugLog.Write($"[VCVM:{Name}] OnSelectedModeChanged called: new value='{value?.Name ?? "null"}' (Id={value?.Mode.Id}) IsRunning={IsRunning}");
 
         AddMappingCommand.NotifyCanExecuteChanged();
 
         if (IsRunning)
         {
-            DebugLog.Write($"[VCVM:{Name}] OnSelectedModeChanged: IsRunning=true -> Profile.ActiveModeId wird NICHT geaendert, nur Ansicht (SelectedMode.Mappings) wechselt.");
+            DebugLog.Write($"[VCVM:{Name}] OnSelectedModeChanged: IsRunning=true -> Profile.ActiveModeId is unchanged; only the view (SelectedMode.Mappings) changes.");
             RefreshActiveModeIndicators();
             return;
         }
 
         Profile.ActiveModeId = value?.Mode.Id;
-        DebugLog.Write($"[VCVM:{Name}] OnSelectedModeChanged: IsRunning=false -> Profile.ActiveModeId gesetzt auf {Profile.ActiveModeId}.");
-        // Muss ERST NACH der ActiveModeId-Zuweisung erfolgen, sonst haengt der gruene Aktiv-Indikator
-        // bzw. das Tab-Highlighting einen Klick hinterher (zeigt noch den vorherigen statt des gerade
-        // ausgewaehlten Modus als aktiv an).
+        DebugLog.Write($"[VCVM:{Name}] OnSelectedModeChanged: IsRunning=false -> Profile.ActiveModeId set to {Profile.ActiveModeId}.");
+        // Update only after assigning ActiveModeId; otherwise the green active indicator and tab highlight
+        // would lag one click behind.
         RefreshActiveModeIndicators();
 
         if (NotifyOnModeChange && value is not null)
@@ -740,18 +697,17 @@ public sealed partial class VirtualControllerViewModel : ObservableObject
         ProfileChanged?.Invoke(this);
     }
 
-    /// <summary>Oeffnet einen Dateiauswahl-Dialog (gefiltert auf .exe), damit der Nutzer das Programm
-    /// festlegen kann, dessen Laufen ueber <see cref="AutoStartEnabled"/> automatisches Starten/Stoppen
-    /// dieses Controllers ausloest (siehe <see cref="AutoStartExecutablePath"/>). Speichert bewusst den
-    /// vollstaendigen Pfad (nicht nur den Dateinamen), um Verwechslungen mit gleichnamigen Programmen an
-    /// anderer Stelle zu vermeiden.</summary>
+    /// <summary>Opens an .exe-filtered file picker so the user can choose the program whose process triggers
+    /// automatic start/stop for this controller (see <see cref="AutoStartEnabled"/> and
+    /// <see cref="AutoStartExecutablePath"/>). Stores the full path, not just the filename, to distinguish
+    /// programs with the same name in different locations.</summary>
     [RelayCommand]
     private void ChooseAutoStartExecutable()
     {
         var dialog = new Microsoft.Win32.OpenFileDialog
         {
-            Title = "Programm fuer automatischen Start auswaehlen",
-            Filter = "Programme (*.exe)|*.exe",
+            Title = "Choose program to start controller automatically",
+            Filter = "Programs (*.exe)|*.exe",
             CheckFileExists = true
         };
 
@@ -785,9 +741,9 @@ public sealed partial class VirtualControllerViewModel : ObservableObject
 
     partial void OnIsCapturingToggleTriggerChanged(bool value) => CaptureToggleTriggerCommand.NotifyCanExecuteChanged();
 
-    /// <summary>Baut die vollstaendige Auswahlliste fuer den modalen "Zuweisen"-Dialog des controller-weiten
-    /// Toggle-Triggers auf (Alternative zu "Erfassen"), analog zu <see cref="ModeViewModel.BuildAssignableInputs"/>
-    /// bzw. <see cref="MappingRowViewModel.BuildAssignableInputs"/>.</summary>
+    /// <summary>Builds the complete list for the modal Assign dialog for the controller-wide toggle trigger
+    /// (an alternative to Capture), like <see cref="ModeViewModel.BuildAssignableInputs"/> and
+    /// <see cref="MappingRowViewModel.BuildAssignableInputs"/>.</summary>
     public IReadOnlyList<AssignableInputOption> BuildAssignableToggleTriggerInputs()
     {
         var deviceSettings = _getDeviceSettings();
@@ -815,8 +771,8 @@ public sealed partial class VirtualControllerViewModel : ObservableObject
         return options;
     }
 
-    /// <summary>Wird vom modalen "Zuweisen"-Dialog aufgerufen, wenn der Nutzer dort eine physische Eingabe
-    /// als controller-weiten Toggle-Trigger bestaetigt hat - Alternative zum physischen "Erfassen".</summary>
+    /// <summary>Called when the user confirms a physical input as the controller-wide toggle trigger in the
+    /// modal Assign dialog; an alternative to physical Capture.</summary>
     public void AssignToggleTrigger(AssignableInputOption selected)
         => ApplyToggleTrigger(selected.InputRef, _getAvailableDevices());
 

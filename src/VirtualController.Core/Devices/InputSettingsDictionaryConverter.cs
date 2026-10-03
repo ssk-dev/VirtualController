@@ -4,17 +4,14 @@ using System.Text.Json.Serialization;
 namespace VirtualController.Core.Devices;
 
 /// <summary>
-/// Custom-Serialisierung fuer <see cref="DeviceSettings.Inputs"/>: blendet beim Schreiben Felder aus,
-/// die fuer die jeweilige Eingabeart (aus dem Dictionary-Key ermittelt, siehe
-/// <see cref="PhysicalInputCatalog.TryParseStorageKey"/>) fachlich keine Bedeutung haben. Ein digitaler
-/// Button oder eine D-Pad-Richtung besitzt z.B. keine Kalibrierung, Deadzone oder Antwortkurve - diese
-/// Felder sind ausschliesslich fuer Achsen/Slider (<see cref="PhysicalInputKind.AxisPositive"/>/
-/// <see cref="PhysicalInputKind.AxisNegative"/>) relevant. So bleiben gespeicherte Profile fuer Buttons
-/// deutlich kompakter und enthalten keine irrefuehrenden, fachlich bedeutungslosen Werte.
+/// Custom serialization for <see cref="DeviceSettings.Inputs"/>. Omits fields that do not apply to the input
+/// type, determined from the dictionary key (see <see cref="PhysicalInputCatalog.TryParseStorageKey"/>).
+/// Digital buttons and D-pad directions have no calibration, deadzone, or response curve; those fields apply
+/// only to axes/sliders (<see cref="PhysicalInputKind.AxisPositive"/>/<see cref="PhysicalInputKind.AxisNegative"/>).
+/// This keeps saved button profiles smaller and avoids meaningless values.
 ///
-/// Beim Lesen genuegt die Standard-Deserialisierung: fehlt eines der ausgeblendeten Felder im JSON,
-/// erhaelt die Eigenschaft ohnehin ihren regulaeren Default-Wert (siehe <see cref="InputSettings"/>),
-/// exakt wie bei jedem anderen optionalen Feld.
+/// Standard deserialization is sufficient when reading: omitted JSON fields receive their normal defaults
+/// (see <see cref="InputSettings"/>), like any other optional field.
 /// </summary>
 public sealed class InputSettingsDictionaryConverter : JsonConverter<Dictionary<string, InputSettings>>
 {
@@ -25,7 +22,7 @@ public sealed class InputSettingsDictionaryConverter : JsonConverter<Dictionary<
         {
             if (reader.TokenType != JsonTokenType.StartObject)
             {
-                throw new JsonException("Erwartetes Objekt fuer Inputs-Dictionary nicht gefunden.");
+                throw new JsonException("Expected an object for the Inputs dictionary.");
             }
 
             var result = new Dictionary<string, InputSettings>();
@@ -98,10 +95,9 @@ public sealed class InputSettingsDictionaryConverter : JsonConverter<Dictionary<
         }
     }
 
-    /// <summary>Nur Achsen/Slider unterstuetzen Kalibrierung, Deadzone und Antwortkurve - Buttons und
-    /// D-Pad-Richtungen sind rein digital und besitzen keinen kalibrierbaren Wertebereich. Kann der Key
-    /// nicht geparst werden (z.B. unerwartetes/zukuenftiges Format), wird sicherheitshalber weiterhin
-    /// alles geschrieben, statt moeglicherweise relevante Daten stillschweigend zu verwerfen.</summary>
+    /// <summary>Only axes/sliders support calibration, deadzone, and response curves; buttons and D-pad
+    /// directions are digital and have no calibratable range. If the key cannot be parsed (e.g. an unexpected
+    /// future format), serialize all fields to avoid silently discarding potentially relevant data.</summary>
     private static bool SupportsAnalogSettings(string key)
     {
         if (!PhysicalInputCatalog.TryParseStorageKey(key, out _, out var kind, out _))

@@ -9,50 +9,45 @@ using VirtualController.Core.Updates;
 namespace VirtualController.App.ViewModels;
 
 /// <summary>
-/// ViewModel der Update-Funktion (siehe "Einstellungen"-Tab in <see cref="Views.MainWindow"/>): verwaltet
-/// die persistierte Einstellung "Automatisch auf Updates pruefen" sowie die manuelle Pruefung ueber den
-/// "Auf Updates pruefen"-Button. Delegiert die eigentliche Kommunikation mit der Update-Quelle und den
-/// semantischen Versionsvergleich vollstaendig an <see cref="UpdateCoordinator"/> (VirtualController.Core) -
-/// dieses ViewModel uebersetzt dessen Ergebnisse lediglich in UI-Zustand (Ladeindikator, Statustext) und
-/// in das <see cref="UpdateAvailable"/>-Ereignis, auf das <see cref="Views.MainWindow"/> reagiert, um das
-/// Update-Popup anzuzeigen (analog zu <see cref="VirtualControllerViewModel.ModeActivated"/> ->
-/// <see cref="Views.ModeChangeToast"/>).
+/// ViewModel for the update feature (see the "Settings" tab in <see cref="Views.MainWindow"/>). It manages
+/// the persisted "Check for updates automatically" setting and manual checks triggered by the
+/// "Check for updates" button. <see cref="UpdateCoordinator"/> (VirtualController.Core) handles communication
+/// with the update source and semantic version comparison; this view model only maps its results to UI state
+/// (progress indicator and status text) and raises <see cref="UpdateAvailable"/>. <see cref="Views.MainWindow"/>
+/// handles that event to show the update dialog, similar to <see cref="VirtualControllerViewModel.ModeActivated"/>
+/// and <see cref="Views.ModeChangeToast"/>.
 /// </summary>
 public sealed partial class UpdateViewModel : ObservableObject
 {
     private readonly UpdateCoordinator _coordinator = new();
 
-    /// <summary>Ob bei jedem App-Start automatisch geprueft werden soll, ob eine neuere Version verfuegbar
-    /// ist. Aenderungen werden sofort persistiert (siehe <see cref="UpdateCoordinator.AutoCheckEnabled"/>),
-    /// unabhaengig vom expliziten "Profile speichern"-Button der restlichen Konfiguration.</summary>
+    /// <summary>Whether to automatically check for a newer version at each app startup. Changes are persisted
+    /// immediately (see <see cref="UpdateCoordinator.AutoCheckEnabled"/>), independently of the explicit
+    /// "Save profiles" button for the rest of the configuration.</summary>
     [ObservableProperty]
     private bool _autoCheckEnabled;
 
-    /// <summary>Ob bei der Update-Pruefung auch als "Pre-release" markierte Versionen (z.B. Tags mit
-    /// Suffix "-alpha"/"-beta"/"-nightly") beruecksichtigt werden sollen, statt ausschliesslich
-    /// vollwertige, stabile Releases. Aenderungen werden sofort persistiert (siehe
-    /// <see cref="UpdateCoordinator.IncludePreReleases"/>), analog zu <see cref="AutoCheckEnabled"/>.</summary>
+    /// <summary>Whether update checks should include versions marked as prereleases (e.g. tags with the
+    /// "-alpha", "-beta", or "-nightly" suffix) instead of only stable releases. Changes are persisted
+    /// immediately (see <see cref="UpdateCoordinator.IncludePreReleases"/>), like <see cref="AutoCheckEnabled"/>.</summary>
     [ObservableProperty]
     private bool _includePreReleases;
 
-    /// <summary>Ob aktuell eine Update-Pruefung laeuft (manuell oder automatisch beim Start) - blendet in
-    /// der View einen Ladeindikator ein und deaktiviert den "Auf Updates pruefen"-Button, damit der Nutzer
-    /// erkennen kann, dass eine Pruefung bereits laeuft, statt sie versehentlich mehrfach parallel
-    /// auszuloesen.</summary>
+    /// <summary>Whether an update check is currently running, either manually or automatically at startup.
+    /// The view shows a progress indicator and disables the "Check for updates" button to prevent
+    /// accidentally starting multiple checks in parallel.</summary>
     [ObservableProperty]
     private bool _isCheckingForUpdates;
 
-    /// <summary>Ergebnistext der letzten Pruefung (Erfolg oder Fehler) fuer die Anzeige im
-    /// "Einstellungen"-Tab.</summary>
+    /// <summary>Status text from the last check (success or failure), shown on the "Settings" tab.</summary>
     [ObservableProperty]
     private string? _statusText;
 
-    /// <summary>Aktuell installierte Version, fuer die Anzeige im "Einstellungen"-Tab.</summary>
+    /// <summary>Currently installed version, shown on the "Settings" tab.</summary>
     public string CurrentVersionText => AppVersionProvider.RawVersion;
 
-    /// <summary>Wird ausgeloest, sobald eine Pruefung (manuell oder automatisch) eine tatsaechlich neuere,
-    /// anzuzeigende Version ermittelt hat - <see cref="Views.MainWindow"/> zeigt daraufhin das
-    /// Update-Popup (<see cref="Views.UpdateAvailableDialog"/>) an.</summary>
+    /// <summary>Raised when a manual or automatic check finds a newer version to display. The
+    /// <see cref="Views.MainWindow"/> then shows the update dialog (<see cref="Views.UpdateAvailableDialog"/>).</summary>
     public event Action<UpdateCheckResult>? UpdateAvailable;
 
     public UpdateViewModel()
@@ -68,20 +63,19 @@ public sealed partial class UpdateViewModel : ObservableObject
     partial void OnIsCheckingForUpdatesChanged(bool value) => CheckForUpdatesCommand.NotifyCanExecuteChanged();
 
     /// <summary>
-    /// Manuelle Pruefung ueber den "Auf Updates pruefen"-Button: laeuft unabhaengig von
-    /// <see cref="AutoCheckEnabled"/> immer, und zeigt - im Gegensatz zur automatischen Pruefung beim
-    /// Programmstart (<see cref="RunStartupCheckAsync"/>) - dem Nutzer bei einem Fehler eine verstaendliche
-    /// Meldung an, statt ihn stillschweigend zu verwerfen. Eine bereits per "Update ueberspringen"
-    /// markierte Version wird hier bewusst trotzdem erneut angeboten (<see cref="UpdateCheckResult.IsUpdateAvailable"/>
-    /// statt der versionsbezogenen Skip-Kategorie aus <see cref="UpdateCoordinator.CheckAsync"/>) - ein
-    /// expliziter Klick auf "Auf Updates pruefen" ist eine bewusste Nutzeraktion, die unabhaengig von
-    /// einer frueher getroffenen Uebersprringen-Entscheidung ein Ergebnis liefern soll.
+    /// Manual check triggered by the "Check for updates" button. It runs regardless of
+    /// <see cref="AutoCheckEnabled"/> and, unlike the startup check (<see cref="RunStartupCheckAsync"/>),
+    /// shows a readable error instead of silently discarding failures. A version previously marked with
+    /// "Skip update" is deliberately offered again here (<see cref="UpdateCheckResult.IsUpdateAvailable"/>)
+    /// instead of using the version-specific skip outcome from <see cref="UpdateCoordinator.CheckAsync"/>.
+    /// Clicking "Check for updates" is an explicit user action and should return a result regardless of
+    /// an earlier decision to skip that version.
     /// </summary>
     [RelayCommand(CanExecute = nameof(CanCheckForUpdates))]
     private async Task CheckForUpdatesAsync()
     {
         IsCheckingForUpdates = true;
-        StatusText = "Suche nach Updates...";
+        StatusText = "Searching for updates...";
 
         try
         {
@@ -89,19 +83,19 @@ public sealed partial class UpdateViewModel : ObservableObject
 
             if (result.Details.IsUpdateAvailable)
             {
-                StatusText = $"Neue Version verfügbar: {result.Details.AvailableVersion}";
+                StatusText = $"New version available: {result.Details.AvailableVersion}";
                 UpdateAvailable?.Invoke(result.Details);
             }
             else
             {
-                StatusText = $"Kein Update verfügbar. Version {result.Details.InstalledVersion} ist aktuell.";
+                StatusText = $"No update available. Version {result.Details.InstalledVersion} is up to date.";
             }
         }
         catch (UpdateCheckException ex)
         {
             StatusText = null;
             System.Windows.MessageBox.Show(
-                ex.Message, "Update-Prüfung fehlgeschlagen", System.Windows.MessageBoxButton.OK, System.Windows.MessageBoxImage.Warning);
+                ex.Message, "Update check failed", System.Windows.MessageBoxButton.OK, System.Windows.MessageBoxImage.Warning);
         }
         finally
         {
@@ -112,12 +106,11 @@ public sealed partial class UpdateViewModel : ObservableObject
     private bool CanCheckForUpdates() => !IsCheckingForUpdates;
 
     /// <summary>
-    /// Automatische Pruefung beim App-Start, nur ausgefuehrt, wenn <see cref="AutoCheckEnabled"/> aktiv
-    /// ist. Wirft NIEMALS eine Ausnahme und blockiert nicht (siehe Aufrufer in <see cref="Views.MainWindow"/>):
-    /// eine fehlende Internetverbindung oder ein nicht erreichbarer Update-Server duerfen die normale
-    /// Anwendungsfunktion in keinem Fall beeintraechtigen - Fehler werden hier bewusst stillschweigend
-    /// verworfen. Eine bereits per "Update ueberspringen" markierte Version loest hier (im Gegensatz zu
-    /// <see cref="CheckForUpdatesAsync"/>) bewusst KEIN erneutes Popup aus.
+    /// Automatic startup check, run only when <see cref="AutoCheckEnabled"/> is enabled. Never throws or
+    /// blocks the app (see the caller in <see cref="Views.MainWindow"/>): a missing internet connection or
+    /// unreachable update server must not affect normal app behavior, so failures are deliberately ignored.
+    /// Unlike <see cref="CheckForUpdatesAsync"/>, a version previously marked with "Skip update" does not
+    /// trigger another dialog here.
     /// </summary>
     public async Task RunStartupCheckAsync()
     {
@@ -133,16 +126,15 @@ public sealed partial class UpdateViewModel : ObservableObject
 
             if (result.Outcome == UpdateCheckOutcome.UpdateAvailable)
             {
-                StatusText = $"Neue Version verfügbar: {result.Details.AvailableVersion}";
+                StatusText = $"New version available: {result.Details.AvailableVersion}";
                 UpdateAvailable?.Invoke(result.Details);
             }
         }
         catch (UpdateCheckException)
         {
-            // Automatische Pruefung beim Start darf die Anwendung nicht beeintraechtigen - z.B. fehlende
-            // Internetverbindung oder nicht erreichbarer Update-Server werden hier bewusst verworfen,
-            // ohne den Nutzer damit zu stoeren (im Gegensatz zur manuellen Pruefung, siehe
-            // CheckForUpdatesAsync).
+            // Startup checks must not affect normal app behavior. Ignore failures such as a missing
+            // internet connection or an unreachable update server without showing a message to the user
+            // (unlike the manual check in CheckForUpdatesAsync).
         }
         finally
         {
@@ -150,22 +142,21 @@ public sealed partial class UpdateViewModel : ObservableObject
         }
     }
 
-    /// <summary>Erzeugt das ViewModel des Update-Popups fuer <paramref name="details"/>, mit Zugriff auf
-    /// denselben <see cref="UpdateCoordinator"/> (fuer <see cref="UpdateCoordinator.SkipVersion"/> bei
-    /// Klick auf "Update ueberspringen").</summary>
+    /// <summary>Creates the update dialog view model for <paramref name="details"/>, sharing the same
+    /// <see cref="UpdateCoordinator"/> so it can call <see cref="UpdateCoordinator.SkipVersion"/> when
+    /// the user clicks "Skip update".</summary>
     public UpdateAvailableDialogViewModel CreateAvailableDialogViewModel(UpdateCheckResult details) =>
         new(details, _coordinator);
 
-    /// <summary>Vollstaendiger Pfad der Update-Log-Datei (siehe <see cref="Logging.UpdateLog"/>), fuer die
-    /// Anzeige im "Einstellungen"-Tab, damit der Nutzer die Datei nach einem fehlgeschlagenen
-    /// Update-Versuch auch ohne Klick auf <see cref="OpenUpdateLogCommand"/> im Explorer wiederfindet.</summary>
+    /// <summary>Full path to the update log file (see <see cref="Logging.UpdateLog"/>), shown on the
+    /// "Settings" tab so the user can locate it in File Explorer after a failed update without clicking
+    /// <see cref="OpenUpdateLogCommand"/>.</summary>
     public string UpdateLogFilePath => UpdateLog.FilePath;
 
-    /// <summary>Oeffnet die Update-Log-Datei (siehe <see cref="Logging.UpdateLog"/>) im Standard-Texteditor
-    /// des Systems, damit der Nutzer nach einem unerwarteten Update-Verlauf (z.B. Anwendung startet nicht
-    /// neu) exakt nachvollziehen kann, welcher Schritt (Download, Kopieren, Neustart - siehe
-    /// <see cref="Core.Updates.UpdateInstaller"/> und das dort generierte PowerShell-Updater-Skript)
-    /// fehlgeschlagen ist, ohne die Datei manuell unter %AppData%\VirtualController suchen zu muessen.</summary>
+    /// <summary>Opens the update log file (see <see cref="Logging.UpdateLog"/>) in the system's default text
+    /// editor so the user can determine which step failed (download, copy, or restart; see
+    /// <see cref="Core.Updates.UpdateInstaller"/> and its generated PowerShell updater script) when an update
+    /// behaves unexpectedly, without searching for the file under %AppData%\VirtualController manually.</summary>
     [RelayCommand]
     private void OpenUpdateLog()
     {
@@ -173,7 +164,7 @@ public sealed partial class UpdateViewModel : ObservableObject
         {
             if (!File.Exists(UpdateLog.FilePath))
             {
-                StatusText = "Es liegt noch keine Update-Log-Datei vor - bisher wurde noch keine Update-Pruefung/-Installation durchgefuehrt.";
+                StatusText = "No update log is available because no update check or installation has been performed yet.";
                 return;
             }
 
@@ -181,14 +172,14 @@ public sealed partial class UpdateViewModel : ObservableObject
         }
         catch (Exception ex)
         {
-            StatusText = $"Update-Log-Datei konnte nicht geoeffnet werden: {ex.Message}";
+            StatusText = $"Could not open the update log file: {ex.Message}";
         }
     }
 
-    /// <summary>Oeffnet den Anwendungsdatenordner ("%AppData%\VirtualController", siehe
-    /// <see cref="ProfileStore.BaseDirectory"/>) im Windows-Explorer, damit der Nutzer bei Bedarf direkt
-    /// auf saemtliche gespeicherten Dateien zugreifen kann (Profile, Geraete-Einstellungen, Logs,
-    /// <see cref="Logging.UpdateLog"/>), ohne den Pfad manuell in der Adressleiste eingeben zu muessen.</summary>
+    /// <summary>Opens the application data folder ("%AppData%\VirtualController", see
+    /// <see cref="ProfileStore.BaseDirectory"/>) in File Explorer so the user can access saved profiles,
+    /// device settings, and logs (including <see cref="Logging.UpdateLog"/>) without entering the path
+    /// manually.</summary>
     [RelayCommand]
     private void OpenAppDataFolder()
     {
@@ -203,12 +194,12 @@ public sealed partial class UpdateViewModel : ObservableObject
         }
         catch (Exception ex)
         {
-            StatusText = $"Anwendungsdatenordner konnte nicht geoeffnet werden: {ex.Message}";
+            StatusText = $"Could not open the application data folder: {ex.Message}";
         }
     }
 
-    /// <summary>Erzeugt das ViewModel des "Version wechseln"-Dialogs (Rollback-Funktion), mit Zugriff auf
-    /// denselben <see cref="UpdateCoordinator"/> (fuer <see cref="UpdateCoordinator.GetAllVersionsAsync"/>,
-    /// unter Beruecksichtigung der aktuellen <see cref="IncludePreReleases"/>-Einstellung).</summary>
+    /// <summary>Creates the "Change version" dialog view model (rollback feature), sharing the same
+    /// <see cref="UpdateCoordinator"/> to call <see cref="UpdateCoordinator.GetAllVersionsAsync"/>,
+    /// respecting the current <see cref="IncludePreReleases"/> setting.</summary>
     public RollbackDialogViewModel CreateRollbackDialogViewModel() => new(_coordinator);
 }

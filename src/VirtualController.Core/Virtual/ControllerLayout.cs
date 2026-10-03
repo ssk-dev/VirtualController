@@ -1,11 +1,10 @@
 namespace VirtualController.Core.Virtual;
 
 /// <summary>
-/// Rein kosmetisches Layout fuer die Anzeige (Beschriftung/Anordnung der Buttons in der UI).
-/// Windows selbst erkennt technisch nur den zugrunde liegenden <see cref="VirtualBackend"/>
-/// (Xbox360 = XInput-Geraet, DualShock4 = HID-Gamepad). Ein natives "Nintendo"-Zielgeraet
-/// existiert im ViGEmBus-Treiber nicht - "Nintendo" bildet daher nur die Button-Beschriftung
-/// (B/A/X/Y seitenverkehrt zu Xbox) auf dem Xbox360-Backend nach.
+/// Cosmetic layout for UI button labels/arrangement. Windows recognizes only the underlying
+/// <see cref="VirtualBackend"/> (Xbox 360 = XInput device, DualShock 4 = HID gamepad). ViGEmBus has no native
+/// Nintendo target, so Nintendo layout changes only button labels (B/A/X/Y reversed relative to Xbox) while
+/// using the Xbox 360 backend.
 /// </summary>
 public enum ControllerLayout
 {

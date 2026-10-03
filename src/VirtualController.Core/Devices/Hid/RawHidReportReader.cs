@@ -3,31 +3,25 @@ using System.Diagnostics;
 namespace VirtualController.Core.Devices.Hid;
 
 /// <summary>
-/// Ein einzelner, bereits mit dem Vorgaenger-Report verglichener Messpunkt - siehe
-/// <see cref="RawHidReportReader.SampleReceived"/>. Enthaelt bewusst nur rohe, unbewertete Fakten
-/// (Zeitdifferenz, Rohdaten); jede Interpretation (Dropped/Duplicate/Latenz-Naeherung usw.) obliegt
-/// der Benchmark-/Metrics-Schicht (siehe <c>VirtualController.Core.Benchmark</c>), nicht dieser HID-Ebene.
+/// One sample already compared with the previous report (see <see cref="RawHidReportReader.SampleReceived"/>).
+/// Contains only raw facts (time interval and data); interpretation such as dropped/duplicate reports or
+/// latency estimates belongs to the benchmark/metrics layer (<c>VirtualController.Core.Benchmark</c>), not HID.
 /// </summary>
-/// <param name="Report">Der soeben gelesene Report.</param>
-/// <param name="IntervalMs">Zeit seit dem unmittelbar vorherigen Report in Millisekunden, oder null
-/// beim allerersten Report einer Session (kein Vorgaenger vorhanden).</param>
-/// <param name="PreviousData">Rohdaten des unmittelbar vorherigen Reports, oder null beim ersten Report -
-/// fuer eine spaetere Duplikat-Erkennung per Byte-Vergleich (siehe Benchmark-Schicht).</param>
+/// <param name="Report">The report just read.</param>
+/// <param name="IntervalMs">Time since the previous report in milliseconds, or null for the first report in a session.</param>
+/// <param name="PreviousData">Raw data from the previous report, or null for the first report; used by the
+/// benchmark layer for byte-wise duplicate detection.</param>
 public readonly record struct HidReportSample(HidReport Report, double? IntervalMs, byte[]? PreviousData);
 
 /// <summary>
-/// Liest fortlaufend Reports von einer <see cref="IHidReportSource"/> auf einem dedizierten
-/// Hintergrund-Thread, bis <see cref="Stop"/> aufgerufen wird oder das Geraet die Verbindung verliert,
-/// und meldet jeden gelesenen Report zeitnah per <see cref="SampleReceived"/>-Event. Reine
-/// Erfassungs-/Weiterleitungslogik ohne jede statistische Auswertung (siehe Klassendokumentation von
-/// <see cref="HidReportSample"/>) - die eigentliche Timing-/Latenz-/Reliability-Berechnung lebt bewusst
-/// in einer eigenen, von HidSharp/HID vollstaendig unabhaengigen Schicht
-/// (<c>VirtualController.Core.Benchmark.Metrics</c>), die ausschliesslich <see cref="HidReportSample"/>
-/// konsumiert.
+/// Continuously reads reports from an <see cref="IHidReportSource"/> on a dedicated background thread until
+/// <see cref="Stop"/> is called or the device disconnects, then promptly raises <see cref="SampleReceived"/>.
+/// Performs capture/forwarding only, with no statistical analysis (see <see cref="HidReportSample"/> docs).
+/// Timing/latency/reliability calculations live in the separate HidSharp-independent
+/// <c>VirtualController.Core.Benchmark.Metrics</c> layer, which consumes <see cref="HidReportSample"/>.
 ///
-/// Laeuft unabhaengig von jeglicher UI-Sichtbarkeit (kein DispatcherTimer, kein Bezug zu einem
-/// ausgewaehlten Tab) - passend zur Anforderung, dass ein gestartetes Benchmark/Log auch bei
-/// Tab-Wechsel weiterlaeuft.
+/// Runs independently of UI visibility (no DispatcherTimer or selected-tab dependency), so a started
+/// benchmark/log continues when the user switches tabs.
 /// </summary>
 public sealed class RawHidReportReader : IDisposable
 {
@@ -37,15 +31,16 @@ public sealed class RawHidReportReader : IDisposable
     private volatile bool _running;
     private bool _disposed;
 
-    /// <summary>Wird auf dem internen Lese-Thread ausgefuehrt (NICHT auf dem UI-Thread) - Abonnenten
-    /// muessen ggf. selbst per Dispatcher auf den UI-Thread wechseln, falls sie UI-Elemente aktualisieren.</summary>
+    /// <summary>Runs on the internal reader thread, not the UI thread. Subscribers must dispatch to the UI
+    /// thread themselves when updating UI elements.</summary>
     public event Action<HidReportSample>? SampleReceived;
 
-    /// <summary>Wird genau einmal ausgeloest, wenn die Lese-Schleife wegen eines Fehlers (z.B. Geraet
-    /// getrennt) vorzeitig beendet wurde - NICHT bei regulaerem <see cref="Stop"/>-Aufruf.</summary>
+    /// <summary>Raised once if the read loop exits early due to an error (e.g. device disconnected), not during
+    /// a normal <see cref="Stop"/> call.</summary>
     public event Action<Exception>? ReadFailed;
 
-    /// <summary>Ob der Lese-Thread aktuell laeuft. Wird nach einem Fehler (siehe <see cref="ReadFailed"/>) automatisch false.</summary>
+    /// <summary>Whether the reader thread is running. Automatically becomes false after an error (see
+    /// <see cref="ReadFailed"/>).</summary>
     public bool IsRunning => _running;
 
     public RawHidReportReader(IHidReportSource source)
@@ -98,13 +93,13 @@ public sealed class RawHidReportReader : IDisposable
                 }
                 catch (OperationCanceledException)
                 {
-                    // Regulaerer Stop() - kein Fehler.
+                    // Normal Stop(); not an error.
                     break;
                 }
                 catch (Exception ex)
                 {
-                    // Geraet vermutlich getrennt/Zugriff verloren - Schleife beenden und den Fehler
-                    // dem Aufrufer melden, statt in einer Endlosschleife weitere Fehler zu produzieren.
+                    // The device likely disconnected or access was lost. End the loop and report the error
+                    // rather than producing errors indefinitely.
                     _running = false;
                     ReadFailed?.Invoke(ex);
                     return;

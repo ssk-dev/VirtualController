@@ -6,84 +6,74 @@ using VirtualController.Core.Updates;
 namespace VirtualController.App.ViewModels;
 
 /// <summary>
-/// Eine an der Update-Quelle verfuegbare Version, aufbereitet fuer die Anzeige in der Versionsliste
-/// des "Version wechseln"-Dialogs (<see cref="Views.RollbackDialog"/>).
+/// A version available from the update source, prepared for display in the version list
+/// of the "Change version" dialog (<see cref="Views.RollbackDialog"/>).
 /// </summary>
-/// <param name="Version">Versionsnummer.</param>
-/// <param name="DownloadUrl">Download-URL des zugehoerigen Installationspakets.</param>
-/// <param name="IsCurrentlyInstalled">Ob dies exakt die aktuell installierte Version ist (Vergleich
-/// gegen <see cref="AppVersionProvider.CurrentVersion"/>) - wird in der Liste entsprechend markiert und
-/// ist beim Oeffnen des Dialogs standardmaessig vorausgewaehlt.</param>
+/// <param name="Version">Version number.</param>
+/// <param name="DownloadUrl">Download URL for the corresponding installation package.</param>
+/// <param name="IsCurrentlyInstalled">Whether this is exactly the installed version (compared with
+/// <see cref="AppVersionProvider.CurrentVersion"/>); marked in the list and selected by default when the dialog opens.</param>
 public sealed record RollbackVersionOption(SemanticVersion Version, string DownloadUrl, bool IsCurrentlyInstalled)
 {
-    /// <summary>Anzeigetext fuer die Versionsliste, z.B. "1.4.2 (aktuell installiert)" oder "1.3.0".</summary>
-    public string DisplayText => IsCurrentlyInstalled ? $"{Version} (aktuell installiert)" : Version.ToString();
+    /// <summary>Display text for the version list, e.g. "1.4.2 (currently installed)" or "1.3.0".</summary>
+    public string DisplayText => IsCurrentlyInstalled ? $"{Version} (currently installed)" : Version.ToString();
 }
 
 /// <summary>
-/// ViewModel des "Version wechseln"-Dialogs (<see cref="Views.RollbackDialog"/>): laedt ALLE an der
-/// Update-Quelle verfuegbaren Versionen (siehe <see cref="UpdateCoordinator.GetAllVersionsAsync"/>) und
-/// erlaubt dem Nutzer, gezielt zu JEDER dieser Versionen zu wechseln - insbesondere auch zu einer
-/// AELTEREN als der aktuell installierten (Rollback). Dies ist eine bewusste, explizite Nutzeraktion und
-/// unterliegt daher NICHT der Einschraenkung der regulaeren Update-Pruefung (<see cref="UpdateChecker"/>),
-/// die niemals ein Downgrade anbietet - die automatische bzw. manuelle Update-Pruefung
-/// (<see cref="UpdateViewModel"/>) bleibt davon unberuehrt und unveraendert. Vor jeder Installation wird
-/// zur Vermeidung versehentlicher Versionswechsel eine Bestaetigung eingeholt. Die eigentliche
-/// Installation nutzt denselben <see cref="UpdateInstaller"/> wie das reguläre Update-Popup (siehe
-/// <see cref="UpdateAvailableDialogViewModel"/>), da dieser lediglich eine Download-URL entgegennimmt und
-/// somit unabhaengig davon funktioniert, ob es sich um ein Up- oder ein Downgrade handelt.
+/// ViewModel for the "Change version" dialog (<see cref="Views.RollbackDialog"/>). It loads every version
+/// available from the update source (see <see cref="UpdateCoordinator.GetAllVersionsAsync"/>) and lets the
+/// user switch to any of them, including an older version (rollback). This is an explicit user action, so it
+/// is not subject to the regular update check's restriction (<see cref="UpdateChecker"/>) against downgrades;
+/// automatic and manual checks (<see cref="UpdateViewModel"/>) remain unchanged. Each installation requires
+/// confirmation to prevent accidental version changes. Installation uses the same <see cref="UpdateInstaller"/>
+/// as the regular update dialog (see <see cref="UpdateAvailableDialogViewModel"/>), which accepts a download URL
+/// regardless of whether the change is an upgrade or downgrade.
 /// </summary>
 public sealed partial class RollbackDialogViewModel : ObservableObject
 {
     private readonly UpdateCoordinator _coordinator;
     private readonly UpdateInstaller _installer = new();
 
-    /// <summary>Ob aktuell die Liste der verfuegbaren Versionen geladen wird - blendet in der View einen
-    /// Ladeindikator ein.</summary>
+    /// <summary>Whether the list of available versions is currently loading; controls the view's progress indicator.</summary>
     [ObservableProperty]
     private bool _isLoading;
 
-    /// <summary>Fehlertext, falls das Laden der Versionsliste fehlgeschlagen ist (siehe
-    /// <see cref="LoadVersionsAsync"/>), sonst <c>null</c>.</summary>
+    /// <summary>Error shown if loading the version list fails (see <see cref="LoadVersionsAsync"/>), otherwise <c>null</c>.</summary>
     [ObservableProperty]
     private string? _loadErrorText;
 
-    /// <summary>Ob <see cref="LoadErrorText"/> aktuell einen Fehlertext enthaelt - fuer die
-    /// Sichtbarkeit des Fehlertext-Blocks in der View (kein String-zu-Visibility-Konverter im
-    /// Projekt vorhanden, siehe Converters.xaml).</summary>
+    /// <summary>Whether <see cref="LoadErrorText"/> contains an error; controls the error block's visibility
+    /// because the project has no string-to-Visibility converter (see Converters.xaml).</summary>
     public bool HasLoadError => !string.IsNullOrEmpty(LoadErrorText);
 
-    /// <summary>Alle an der Update-Quelle verfuegbaren Versionen, absteigend sortiert (siehe
+    /// <summary>All versions available from the update source, sorted in descending order (see
     /// <see cref="LoadVersionsAsync"/>).</summary>
     public ObservableCollection<RollbackVersionOption> Versions { get; } = new();
 
-    /// <summary>Die vom Nutzer in der Liste ausgewaehlte Version, Ziel von <see cref="InstallAsync"/>.</summary>
+    /// <summary>Version selected by the user in the list, targeted by <see cref="InstallAsync"/>.</summary>
     [ObservableProperty]
     private RollbackVersionOption? _selectedVersion;
 
-    /// <summary>Ob aktuell ein Download/eine Installation laeuft - blendet in der View einen
-    /// Ladeindikator ein und deaktiviert Liste und Buttons, analog zu
-    /// <see cref="UpdateAvailableDialogViewModel.IsInstalling"/>.</summary>
+    /// <summary>Whether a download or installation is running; controls the progress indicator and disables
+    /// the list and buttons, as in <see cref="UpdateAvailableDialogViewModel.IsInstalling"/>.</summary>
     [ObservableProperty]
     private bool _isInstalling;
 
-    /// <summary>Statustext waehrend der Installation, fuer die Anzeige in der View.</summary>
+    /// <summary>Status text shown in the view during installation.</summary>
     [ObservableProperty]
     private string? _installStatusText;
 
-    /// <summary>Fortschritt (0-100) des GESAMTEN Installationsvorgangs, siehe
-    /// <see cref="UpdateInstallProgress.OverallPercent"/>.</summary>
+    /// <summary>Overall installation progress (0-100); see <see cref="UpdateInstallProgress.OverallPercent"/>.</summary>
     [ObservableProperty]
     private double _installProgressPercent;
 
-    /// <summary>Beschreibung des aktuellen Installationsschritts inkl. Schrittzaehler, siehe
+    /// <summary>Description of the current installation step, including its position; see
     /// <see cref="UpdateAvailableDialogViewModel.InstallStepText"/>.</summary>
     [ObservableProperty]
     private string? _installStepText;
 
-    /// <summary>Wird ausgeloest, sobald der Dialog geschlossen werden soll - entweder nach "Abbrechen"
-    /// oder nachdem die Installation erfolgreich gestartet wurde (unmittelbar vor dem bevorstehenden
-    /// Beenden der Anwendung durch <see cref="Views.MainWindow"/>).</summary>
+    /// <summary>Raised when the dialog should close, either after cancellation or after installation starts
+    /// successfully, just before <see cref="Views.MainWindow"/> shuts down the app.</summary>
     public event Action? RequestClose;
 
     public RollbackDialogViewModel(UpdateCoordinator coordinator)
@@ -104,11 +94,10 @@ public sealed partial class RollbackDialogViewModel : ObservableObject
     partial void OnIsLoadingChanged(bool value) => InstallCommand.NotifyCanExecuteChanged();
 
     /// <summary>
-    /// Laedt die Liste aller verfuegbaren Versionen (siehe <see cref="UpdateCoordinator.GetAllVersionsAsync"/>)
-    /// und waehlt standardmaessig die aktuell installierte Version vor, falls sie in der Liste enthalten
-    /// ist. Wird von der View beim Oeffnen des Dialogs (Loaded-Ereignis) aufgerufen, NICHT bereits im
-    /// Konstruktor, damit der Dialog sofort sichtbar wird und der Ladevorgang mit sichtbarem
-    /// Ladeindikator im Hintergrund erfolgen kann.
+    /// Loads all available versions (see <see cref="UpdateCoordinator.GetAllVersionsAsync"/>) and selects the
+    /// installed version by default when it is present. The view calls this from its Loaded event rather than
+    /// the constructor so the dialog appears immediately while loading continues in the background with a
+    /// visible progress indicator.
     /// </summary>
     public async Task LoadVersionsAsync()
     {
@@ -139,12 +128,10 @@ public sealed partial class RollbackDialogViewModel : ObservableObject
     }
 
     /// <summary>
-    /// Installiert die in <see cref="SelectedVersion"/> ausgewaehlte Version - unabhaengig davon, ob es
-    /// sich dabei um ein Up- oder ein Downgrade gegenueber der aktuell installierten Version handelt.
-    /// Holt vorab ueber einen <see cref="System.Windows.MessageBox"/>-Dialog eine ausdrueckliche
-    /// Bestaetigung ein, um versehentliche Versionswechsel durch einen Fehlklick zu vermeiden. Nutzt
-    /// anschliessend denselben <see cref="UpdateInstaller"/>-Ablauf wie
-    /// <see cref="UpdateAvailableDialogViewModel.InstallAsync"/>.
+    /// Installs the version selected in <see cref="SelectedVersion"/>, whether it is an upgrade or downgrade
+    /// from the currently installed version. Requests explicit confirmation through a
+    /// <see cref="System.Windows.MessageBox"/> to prevent accidental changes, then uses the same
+    /// <see cref="UpdateInstaller"/> flow as <see cref="UpdateAvailableDialogViewModel.InstallAsync"/>.
     /// </summary>
     [RelayCommand(CanExecute = nameof(CanInstall))]
     private async Task InstallAsync()
@@ -157,14 +144,14 @@ public sealed partial class RollbackDialogViewModel : ObservableObject
 
         string action = target.Version.CompareTo(AppVersionProvider.CurrentVersion) switch
         {
-            < 0 => "zu einer älteren Version zurückwechseln",
-            > 0 => "zu einer neueren Version wechseln",
-            _ => "diese Version erneut installieren",
+            < 0 => "switch to an older version",
+            > 0 => "switch to a newer version",
+            _ => "reinstall this version",
         };
 
         var confirmation = System.Windows.MessageBox.Show(
-            $"Möchten Sie wirklich {action} (Version {target.Version})? Die Anwendung wird dazu beendet und automatisch neu gestartet.",
-            "Version wechseln",
+            $"Are you sure you want to {action} (version {target.Version})? The app will close and restart automatically.",
+            "Change version",
             System.Windows.MessageBoxButton.YesNo,
             System.Windows.MessageBoxImage.Warning);
 
@@ -178,7 +165,7 @@ public sealed partial class RollbackDialogViewModel : ObservableObject
         var progress = new Progress<UpdateInstallProgress>(p =>
         {
             InstallProgressPercent = p.OverallPercent;
-            InstallStepText = $"Schritt {p.StepNumber} von {p.TotalSteps}: {p.StepDescription}";
+            InstallStepText = $"Step {p.StepNumber} of {p.TotalSteps}: {p.StepDescription}";
             InstallStatusText = p.StepDescription;
         });
 
@@ -187,9 +174,8 @@ public sealed partial class RollbackDialogViewModel : ObservableObject
             var preparation = await _installer.PrepareAsync(target.DownloadUrl, target.Version.ToString(), progress).ConfigureAwait(true);
             _installer.LaunchUpdaterProcess(preparation, progress);
 
-            // Ab hier ist der separate Updater-Prozess gestartet - siehe
-            // UpdateAvailableDialogViewModel.InstallAsync fuer die Begruendung, warum das eigentliche
-            // Beenden der Anwendung bewusst dem Aufrufer (Views.MainWindow) obliegt.
+            // The separate updater process has started. See UpdateAvailableDialogViewModel.InstallAsync
+            // for why the caller (Views.MainWindow) is responsible for shutting down the app.
             RequestClose?.Invoke();
         }
         catch (UpdateInstallException ex)
@@ -199,13 +185,13 @@ public sealed partial class RollbackDialogViewModel : ObservableObject
             InstallStepText = null;
             InstallProgressPercent = 0;
             System.Windows.MessageBox.Show(
-                ex.Message, "Installation fehlgeschlagen", System.Windows.MessageBoxButton.OK, System.Windows.MessageBoxImage.Error);
+                ex.Message, "Installation failed", System.Windows.MessageBoxButton.OK, System.Windows.MessageBoxImage.Error);
         }
     }
 
     private bool CanInstall() => SelectedVersion is not null && !IsInstalling && !IsLoading;
 
-    /// <summary>"Abbrechen": schliesst den Dialog ohne eine Aenderung vorzunehmen.</summary>
+    /// <summary>"Cancel": closes the dialog without making any changes.</summary>
     [RelayCommand(CanExecute = nameof(CanCancel))]
     private void Cancel() => RequestClose?.Invoke();
 

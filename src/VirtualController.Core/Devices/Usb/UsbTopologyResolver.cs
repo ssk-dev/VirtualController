@@ -3,23 +3,22 @@ using VirtualController.Core.Devices.Hid;
 namespace VirtualController.Core.Devices.Usb;
 
 /// <summary>
-/// Verbindet die HID-Ebene (<see cref="HidDeviceInfo"/>, insbesondere <see cref="HidDeviceInfo.UsbHubDevicePath"/>/
-/// <see cref="HidDeviceInfo.UsbPortNumber"/>) mit der rohen USB-Hub-IOCTL-Abfrage (<see cref="UsbHubNativeInterop"/>)
-/// zu einer einzigen, defensiven Einstiegsmethode fuer die Transport-Kennzahlen des geplanten
-/// Geraete-Benchmarks (USB Speed, Endpoint-Informationen, Nominal Polling Rate).
+/// Combines HID metadata (<see cref="HidDeviceInfo"/>, especially <see cref="HidDeviceInfo.UsbHubDevicePath"/>
+/// and <see cref="HidDeviceInfo.UsbPortNumber"/>) with raw USB hub IOCTL queries
+/// (<see cref="UsbHubNativeInterop"/>) behind one defensive entry point for benchmark transport metrics
+/// (USB speed, endpoint information, nominal polling rate).
 ///
-/// Liefert bei JEDEM Fehler (fehlende Hub-Pfad-Information, Hub nicht erreichbar, IOCTL schlaegt fehl)
-/// bewusst null statt einer Ausnahme - der Aufrufer (spaeterer Benchmark-Orchestrator) muss diesen Teil
-/// der Kennzahlen dann als "nicht ermittelbar" anzeigen, statt den gesamten Benchmark abzubrechen (siehe
-/// Klassendokumentation von <see cref="UsbHubNativeInterop"/> zur Unsicherheit dieses ungetesteten Codes).
+/// Returns null, rather than throwing, for any failure (missing hub path, unreachable hub, failed IOCTL).
+/// Callers should display these metrics as unavailable rather than aborting the entire benchmark. See
+/// <see cref="UsbHubNativeInterop"/> documentation for reliability caveats in this untested native code.
 /// </summary>
 public static class UsbTopologyResolver
 {
     /// <summary>
-    /// Ermittelt USB-Speed, Endpoints und (bereits speed-korrigiertes) nominales Polling-Intervall fuer
-    /// das durch <paramref name="hidInfo"/> beschriebene Geraet. Gibt null zurueck, falls
-    /// <see cref="HidDeviceInfo.UsbHubDevicePath"/>/<see cref="HidDeviceInfo.UsbPortNumber"/> nicht
-    /// verfuegbar sind (siehe <see cref="HidDeviceInfoReader"/>) oder die native Abfrage fehlschlaegt.
+    /// Resolves USB speed, endpoints, and speed-corrected nominal polling interval for the device described by
+    /// <paramref name="hidInfo"/>. Returns null if <see cref="HidDeviceInfo.UsbHubDevicePath"/> or
+    /// <see cref="HidDeviceInfo.UsbPortNumber"/> is unavailable (see <see cref="HidDeviceInfoReader"/>) or the
+    /// native query fails.
     /// </summary>
     public static UsbConnectionInfo? TryResolve(HidDeviceInfo hidInfo)
     {
@@ -38,19 +37,17 @@ public static class UsbTopologyResolver
     }
 
     /// <summary>
-    /// <see cref="UsbHubNativeInterop"/> berechnet <see cref="UsbEndpointInfo.NominalPollingIntervalMs"/>
-    /// zunaechst unter der Annahme einer Low-/Full-Speed-Kodierung von <c>bInterval</c> (direkter
-    /// Millisekunden-Wert), da ihr zum Zeitpunkt der Endpoint-Auswertung die Geschwindigkeit des
-    /// Geraets noch nicht getrennt vorliegt. Bei High-/SuperSpeed-Geraeten gilt stattdessen die
-    /// Mikroframe-Formel <c>2^(bInterval-1) * 0.125 ms</c> (USB-2.0-Spezifikation Abschnitt 9.6.6) -
-    /// diese Korrektur wird hier, nachdem <see cref="UsbConnectionInfo.Speed"/> bekannt ist, nachtraeglich
-    /// auf alle Endpoints angewendet.
+    /// <see cref="UsbHubNativeInterop"/> initially calculates <see cref="UsbEndpointInfo.NominalPollingIntervalMs"/>
+    /// assuming Low-/Full-Speed <c>bInterval</c> encoding (direct milliseconds), because device speed is not
+    /// known while parsing endpoints. High-/SuperSpeed uses the microframe formula
+    /// <c>2^(bInterval-1) * 0.125 ms</c> (USB 2.0 spec section 9.6.6); apply that correction to all endpoints
+    /// once <see cref="UsbConnectionInfo.Speed"/> is known.
     /// </summary>
     private static UsbConnectionInfo ApplySpeedCorrection(UsbConnectionInfo raw)
     {
         if (raw.Speed != UsbSpeed.High && raw.Speed != UsbSpeed.Super)
         {
-            // Low/Full/Unknown: bereits korrekt (direkter ms-Wert) berechnet.
+            // Low/Full/Unknown: already calculated correctly as a direct millisecond value.
             return raw;
         }
 

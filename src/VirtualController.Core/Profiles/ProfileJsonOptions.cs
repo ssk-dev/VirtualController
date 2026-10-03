@@ -4,9 +4,9 @@ using System.Text.Json.Serialization;
 namespace VirtualController.Core.Profiles;
 
 /// <summary>
-/// Zentrale <see cref="JsonSerializerOptions"/>-Konfiguration fuer alle Profil-Teilspeicher
-/// (<see cref="DeviceSettingsStore"/>, <see cref="ControllerStore"/>, <see cref="SettingsStore"/>),
-/// damit z.B. Enum-Namen ueberall gleich (als lesbarer String statt Zahl) serialisiert werden.
+/// Shared <see cref="JsonSerializerOptions"/> for all profile stores (<see cref="DeviceSettingsStore"/>,
+/// <see cref="ControllerStore"/>, <see cref="SettingsStore"/>), ensuring enums are consistently serialized
+/// as readable strings rather than numbers.
 /// </summary>
 internal static class ProfileJsonOptions
 {

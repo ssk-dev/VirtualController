@@ -7,16 +7,14 @@ using VirtualController.Core.Devices;
 namespace VirtualController.App.ViewModels;
 
 /// <summary>
-/// Repraesentiert einen angeschlossenen physischen Controller in der Auswahlliste eines
-/// virtuellen Controllers: der Nutzer entscheidet per Checkbox, ob dieses Geraet fuer das
-/// Mapping (und die "Erfassen"-Funktion) dieses virtuellen Controllers beruecksichtigt wird.
-/// Kann zusaetzlich aufgeklappt werden, um alle physischen Eingaben des Geraets mit Live-
-/// Hervorhebung anzuzeigen und direkt einer Mapping-Zeile zuzuweisen.
+/// Represents a connected physical controller in a virtual controller's selection list. The user chooses
+/// whether to include it in that virtual controller's mapping and capture actions. It can also be expanded
+/// to show all physical inputs with live highlighting and assign them directly to a mapping row.
 /// </summary>
 public sealed partial class DeviceSelectionViewModel : ObservableObject, IDisposable
 {
-    /// <summary>Aktualisierungsrate der Live-Hervorhebung. Bewusst deutlich niedriger als das Mapping-Polling (1000Hz),
-    /// da es hier nur um eine fuer das menschliche Auge fluessige visuelle Rueckmeldung geht.</summary>
+    /// <summary>Live highlight refresh rate. Intentionally much lower than mapping polling (1000 Hz), since this
+    /// only needs to provide smooth visual feedback.</summary>
     private static readonly TimeSpan LivePollInterval = TimeSpan.FromMilliseconds(33);
 
     public PhysicalDeviceInfo Device { get; }
@@ -29,21 +27,17 @@ public sealed partial class DeviceSelectionViewModel : ObservableObject, IDispos
     private IDeviceReader? _liveReader;
     private bool _inputsBuilt;
 
-    /// <summary>Ob mindestens eine Mapping-Zeile eines beliebigen Modus dieses Geraet aktuell als
-    /// physische Quelle verwendet (siehe <see cref="VirtualControllerViewModel.UpdateMappingSourceLiveMonitoring"/>).
-    /// Haelt das Live-Polling dieses Geraets unabhaengig von <see cref="IsExpanded"/> am Laufen, damit die
-    /// Hervorhebung der Mapping-Tabelle (<see cref="MappingRowViewModel.IsSourceActive"/>) auch dann
-    /// funktioniert, wenn die Eingabeliste dieses Geraets gerade nicht aufgeklappt ist.</summary>
+    /// <summary>Whether any mapping row in any mode currently uses this device as a physical source (see
+    /// <see cref="VirtualControllerViewModel.UpdateMappingSourceLiveMonitoring"/>). Keeps live polling active
+    /// independently of <see cref="IsExpanded"/> so the mapping table highlight
+    /// (<see cref="MappingRowViewModel.IsSourceActive"/>) works even when this device's input list is collapsed.</summary>
     private bool _mappingSourceMonitoringRequested;
 
-    /// <summary>Ob der "Mapping"-Tab des Hauptfensters aktuell tatsaechlich sichtbar ist, der virtuelle
-    /// Controller, zu dem dieses Geraet gehoert, der aktuell ausgewaehlte Controller ist UND das Fenster
-    /// nicht minimiert ist (siehe <see cref="VirtualControllerViewModel.SetScreenActive"/>, gesetzt durch
-    /// <see cref="MainViewModel"/>). Ohne diese Bedingung wuerde jedes Geraet jedes (auch gerade nicht
-    /// sichtbaren) virtuellen Controllers weiterhin per Timer gepollt, obwohl die zugehoerige Hervorhebung
-    /// gar nicht angezeigt werden kann - reine Verschwendung von CPU-Zeit und Geraetezugriffen. Startet
-    /// bewusst mit <c>false</c>: erst der explizite Aufruf durch <see cref="MainViewModel"/> (unmittelbar
-    /// nach dem Aufbau) aktiviert das Polling tatsaechlich.</summary>
+    /// <summary>Whether the main window's Mapping tab is visible, this device's virtual controller is selected,
+    /// and the window is not minimized (see <see cref="VirtualControllerViewModel.SetScreenActive"/>, set by
+    /// <see cref="MainViewModel"/>). Otherwise every device, including those belonging to hidden controllers,
+    /// would be polled by a timer even though its highlight cannot be seen, wasting CPU time and device access.
+    /// Starts as <c>false</c>; polling begins only after <see cref="MainViewModel"/> explicitly enables it during setup.</summary>
     private bool _isScreenActive;
 
     [ObservableProperty]
@@ -54,17 +48,16 @@ public sealed partial class DeviceSelectionViewModel : ObservableObject, IDispos
 
     public ObservableCollection<PhysicalInputRowViewModel> Inputs { get; } = new();
 
-    /// <summary>Wird ausgeloest, wenn der Nutzer die Auswahl per Checkbox aendert.</summary>
+    /// <summary>Raised when the user changes the checkbox selection.</summary>
     public event Action<DeviceSelectionViewModel>? SelectionChanged;
 
-    /// <summary>Wird ausgeloest, wenn der Nutzer ueber "Zuweisen" bei einer physischen Eingabe eine neue Mapping-Zeile anlegen moechte.</summary>
+    /// <summary>Raised when the user requests a new mapping row through "Assign" on a physical input.</summary>
     public event Action<PhysicalInputRef>? AssignInputRequested;
 
-    /// <summary>Wird bei jedem Live-Poll-Tick dieses Geraets mit dem frisch gelesenen <see cref="DeviceState"/>
-    /// ausgeloest (waehrend die Geraeteliste aufgeklappt ist), bzw. mit <c>null</c>, sobald die Live-
-    /// Ueberwachung stoppt (Einklappen, Geraet getrennt). Ermoeglicht es <see cref="VirtualControllerViewModel"/>,
-    /// dieselbe Live-Hervorhebung wie in <see cref="Inputs"/> zusaetzlich auf die passenden Zeilen der
-    /// Mapping-Tabelle anzuwenden, ohne einen eigenen, redundanten Polling-Mechanismus zu benoetigen.</summary>
+    /// <summary>Raised on each live polling tick with the newly read <see cref="DeviceState"/> while the device
+    /// list is expanded, or with <c>null</c> when monitoring stops (collapsed or disconnected). Lets
+    /// <see cref="VirtualControllerViewModel"/> apply the same live highlight shown in <see cref="Inputs"/> to
+    /// matching mapping rows without adding a redundant polling mechanism.</summary>
     public event Action<DeviceSelectionViewModel, DeviceState?>? LiveStateChanged;
 
     public DeviceSelectionViewModel(
@@ -95,12 +88,11 @@ public sealed partial class DeviceSelectionViewModel : ObservableObject, IDispos
         RefreshLiveMonitoringState();
     }
 
-    /// <summary>Legt fest, ob dieses Geraet fuer die Live-Hervorhebung der Mapping-Tabelle
-    /// (<see cref="MappingRowViewModel.IsSourceActive"/>) ueberwacht werden muss, weil mindestens eine
-    /// Mapping-Zeile eines beliebigen Modus dieses Geraet als physische Quelle verwendet - unabhaengig
-    /// davon, ob die Eingabeliste dieses Geraets (<see cref="IsExpanded"/>) aktuell aufgeklappt ist. Wird
-    /// von <see cref="VirtualControllerViewModel.UpdateMappingSourceLiveMonitoring"/> bei jeder relevanten
-    /// Aenderung (Mapping hinzugefuegt/entfernt/Quelle geaendert, Modus hinzugefuegt/entfernt) neu gesetzt.</summary>
+    /// <summary>Sets whether this device must be monitored for the mapping table's live highlight
+    /// (<see cref="MappingRowViewModel.IsSourceActive"/>) because a mapping row in any mode uses it as a source,
+    /// regardless of whether its input list (<see cref="IsExpanded"/>) is expanded. Updated by
+    /// <see cref="VirtualControllerViewModel.UpdateMappingSourceLiveMonitoring"/> whenever mappings or modes
+    /// are added, removed, or changed.</summary>
     public void SetMappingSourceMonitoringRequested(bool value)
     {
         if (_mappingSourceMonitoringRequested == value)
@@ -112,12 +104,10 @@ public sealed partial class DeviceSelectionViewModel : ObservableObject, IDispos
         RefreshLiveMonitoringState();
     }
 
-    /// <summary>Legt fest, ob der "Mapping"-Tab des Hauptfensters aktuell tatsaechlich sichtbar ist, der
-    /// virtuelle Controller, zu dem dieses Geraet gehoert, der aktuell ausgewaehlte Controller ist UND das
-    /// Fenster nicht minimiert ist - nur dann darf ueberhaupt live gepollt werden (siehe
-    /// <see cref="RefreshLiveMonitoringState"/>). Wird von <see cref="VirtualControllerViewModel.SetScreenActive"/>
-    /// bei jeder relevanten Aenderung (Tab-Wechsel, Controller-Auswahl, Minimieren/Wiederherstellen des
-    /// Fensters) fuer alle seine <see cref="AvailableDeviceSelections"/> neu gesetzt.</summary>
+    /// <summary>Sets whether the main window's Mapping tab is visible, this device's virtual controller is
+    /// selected, and the window is not minimized. Live polling is allowed only in that state (see
+    /// <see cref="RefreshLiveMonitoringState"/>). Updated by <see cref="VirtualControllerViewModel.SetScreenActive"/>
+    /// for every tab switch, controller selection, or minimize/restore event.</summary>
     public void SetScreenActive(bool value)
     {
         if (_isScreenActive == value)
@@ -129,15 +119,11 @@ public sealed partial class DeviceSelectionViewModel : ObservableObject, IDispos
         RefreshLiveMonitoringState();
     }
 
-    /// <summary>Startet bzw. stoppt das Live-Polling dieses Geraets anhand der kombinierten Bedingung
-    /// "Bildschirm aktiv UND (Eingabeliste aufgeklappt ODER als Mapping-Quelle benoetigt)" - so bleibt das
-    /// Polling z.B. beim Einklappen der Eingabeliste bestehen, solange noch eine Mapping-Zeile dieses
-    /// Geraet referenziert, und umgekehrt startet es automatisch, sobald der Nutzer eine neue Mapping-Zeile
-    /// mit diesem Geraet als Quelle anlegt, ohne dass die Eingabeliste dafuer aufgeklappt sein muss. Die
-    /// Bedingung "Bildschirm aktiv" (<see cref="_isScreenActive"/>) hat dabei stets Vorrang: solange der
-    /// Mapping-Tab nicht sichtbar ist, der zugehoerige Controller nicht ausgewaehlt ist oder das Fenster
-    /// minimiert ist, wird ueberhaupt nicht gepollt - unabhaengig davon, wie die beiden anderen Bedingungen
-    /// stehen.</summary>
+    /// <summary>Starts or stops live polling based on whether the screen is active and either the input list
+    /// is expanded or the device is needed as a mapping source. Polling therefore continues when the list is
+    /// collapsed if a mapping still references this device, and starts when a new mapping uses it even if the
+    /// list is collapsed. The screen-active condition (<see cref="_isScreenActive"/>) always takes precedence:
+    /// no polling occurs when the Mapping tab is hidden, its controller is not selected, or the window is minimized.</summary>
     private void RefreshLiveMonitoringState()
     {
         if (_isScreenActive && (IsExpanded || _mappingSourceMonitoringRequested))
@@ -184,7 +170,7 @@ public sealed partial class DeviceSelectionViewModel : ObservableObject, IDispos
         }
         catch
         {
-            // Geraet aktuell nicht oeffenbar (z.B. gerade getrennt) -> Live-Hervorhebung einfach ueberspringen.
+            // The device cannot currently be opened (e.g. it was just disconnected); skip live highlighting.
             _liveReader = null;
             return;
         }
@@ -223,7 +209,7 @@ public sealed partial class DeviceSelectionViewModel : ObservableObject, IDispos
 
         if (!_liveReader.Poll(out var state))
         {
-            // Geraet wurde getrennt -> Ueberwachung stoppen, bis der Nutzer erneut aufklappt/aktualisiert.
+            // The device was disconnected; stop monitoring until the user expands the list or refreshes devices.
             StopLiveMonitoring();
             return;
         }

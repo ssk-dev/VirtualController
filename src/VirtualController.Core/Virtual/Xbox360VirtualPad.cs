@@ -6,9 +6,8 @@ using VirtualController.Core.Mapping;
 namespace VirtualController.Core.Virtual;
 
 /// <summary>
-/// Virtueller Xbox 360 Controller (XInput). Wird von Windows und praktisch allen Spielen
-/// automatisch als vollwertiger Xbox-Controller erkannt, ohne dass das Spiel etwas von
-/// ViGEmBus wissen muss.
+/// Virtual Xbox 360 controller (XInput). Windows and nearly all games recognize it as a full Xbox controller
+/// without needing to know about ViGEmBus.
 /// </summary>
 public sealed class Xbox360VirtualPad : IVirtualPad
 {

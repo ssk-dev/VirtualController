@@ -3,24 +3,20 @@ using VirtualController.Core.Virtual;
 namespace VirtualController.Core.Devices;
 
 /// <summary>
-/// Erfasst die naechste physische Eingabe (Knopfdruck, Achsenausschlag oder D-Pad-Bewegung)
-/// ueber alle uebergebenen Geraete hinweg. Wird von der UI fuer die "Erfassen"-Funktion pro
-/// Mapping-Zeile genutzt (Nutzer klickt "Erfassen" und bewegt/drueckt dann die gewuenschte
-/// physische Eingabe - analog zur bekannten Funktion in x360ce).
+/// Captures the next physical input (button press, axis deflection, or D-pad movement) across all supplied
+/// devices. Used by the UI's per-row Capture action: the user clicks Capture, then moves or presses the
+/// desired physical input, similar to the feature in x360ce.
 /// </summary>
 public static class InputCaptureService
 {
     private const float AxisThreshold = 0.6f;
     private static readonly TimeSpan PollInterval = TimeSpan.FromMilliseconds(4);
 
-    /// <summary>Anzahl verworfener "Aufwaerm"-Polls direkt nach dem Oeffnen/Acquire eines Geraets, bevor
-    /// der tatsaechliche Baseline-Zustand fuer die Aenderungserkennung uebernommen wird. Behebt den Bug,
-    /// dass ein bereits dauerhaft aktives Signal (z.B. ein Wahlschalter, der schon vor dem Klick auf
-    /// "Erfassen" eine Position haelt) sofort als "Aenderung" erkannt wurde: der allererste Poll-Aufruf
-    /// nach Acquire() kann bei manchen Geraeten (insbesondere DirectInput) noch einen veralteten/nicht
-    /// eingeschwungenen Zwischenzustand liefern, bevor sich der echte Live-Zustand stabilisiert hat. Wird
-    /// ausgerechnet dieser fehlerhafte erste Wert als Baseline verwendet, erkennt der naechste (korrekte)
-    /// Poll wenige Millisekunden spaeter faelschlich eine Aenderung, obwohl der Nutzer nichts angefasst hat.</summary>
+    /// <summary>Number of warm-up polls discarded after opening/acquiring a device before accepting the baseline
+    /// state for change detection. Prevents an already-active signal (e.g. a selector switch held before Capture
+    /// starts) from being detected as a new change. The first poll after Acquire() may be stale or unsettled,
+    /// especially for DirectInput; using it as the baseline can make the next correct poll appear to be a
+    /// change even when the user did nothing.</summary>
     private const int BaselineWarmupPollCount = 5;
 
     public static async Task<PhysicalInputRef?> WaitForNextInputAsync(
@@ -46,8 +42,8 @@ public static class InputCaptureService
                 {
                     var reader = DeviceEnumerator.OpenReader(device);
 
-                    // Mehrere Aufwaerm-Polls verwerfen (siehe BaselineWarmupPollCount) und erst den
-                    // zuletzt gelesenen, eingeschwungenen Zustand als tatsaechliche Baseline uebernehmen.
+                    // Discard several warm-up polls (see BaselineWarmupPollCount) and use the latest settled
+                    // state as the baseline.
                     DeviceState? initial = null;
                     for (int warmup = 0; warmup < BaselineWarmupPollCount; warmup++)
                     {
@@ -71,7 +67,7 @@ public static class InputCaptureService
                 }
                 catch
                 {
-                    // Geraet aktuell nicht oeffenbar (z.B. gerade getrennt) -> fuer die Erfassung ignorieren.
+                    // The device cannot currently be opened (e.g. it was just disconnected); skip it for capture.
                 }
             }
 
@@ -121,7 +117,7 @@ public static class InputCaptureService
             {
                 if (!deviceSettings.IsInputEnabled(device.DeviceId, PhysicalInputKind.Button, i))
                 {
-                    continue; // Im Konfigurationsdialog deaktiviert -> als Erfassungsziel ignorieren.
+                    continue; // Disabled in device configuration; skip it as a capture target.
                 }
 
                 return new PhysicalInputRef(device.DeviceId, PhysicalInputKind.Button, i, $"Button {i + 1}");
@@ -142,10 +138,10 @@ public static class InputCaptureService
                 var kind = delta > 0 ? PhysicalInputKind.AxisPositive : PhysicalInputKind.AxisNegative;
                 if (!deviceSettings.IsInputEnabled(device.DeviceId, kind, slot))
                 {
-                    continue; // Im Konfigurationsdialog deaktiviert -> als Erfassungsziel ignorieren.
+                    continue; // Disabled in device configuration; skip it as a capture target.
                 }
 
-                return new PhysicalInputRef(device.DeviceId, kind, slot, $"Achse {slot} {(delta > 0 ? "+" : "-")}");
+                return new PhysicalInputRef(device.DeviceId, kind, slot, $"Axis {slot} {(delta > 0 ? "+" : "-")}");
             }
         }
 
@@ -157,22 +153,22 @@ public static class InputCaptureService
             if (currentDirection.HasUp() && !baselineDirection.HasUp()
                 && deviceSettings.IsInputEnabled(device.DeviceId, PhysicalInputKind.DPadUp, 0))
             {
-                return new PhysicalInputRef(device.DeviceId, PhysicalInputKind.DPadUp, 0, "D-Pad Hoch");
+                return new PhysicalInputRef(device.DeviceId, PhysicalInputKind.DPadUp, 0, "D-pad Up");
             }
             if (currentDirection.HasDown() && !baselineDirection.HasDown()
                 && deviceSettings.IsInputEnabled(device.DeviceId, PhysicalInputKind.DPadDown, 1))
             {
-                return new PhysicalInputRef(device.DeviceId, PhysicalInputKind.DPadDown, 1, "D-Pad Runter");
+                return new PhysicalInputRef(device.DeviceId, PhysicalInputKind.DPadDown, 1, "D-pad Down");
             }
             if (currentDirection.HasLeft() && !baselineDirection.HasLeft()
                 && deviceSettings.IsInputEnabled(device.DeviceId, PhysicalInputKind.DPadLeft, 2))
             {
-                return new PhysicalInputRef(device.DeviceId, PhysicalInputKind.DPadLeft, 2, "D-Pad Links");
+                return new PhysicalInputRef(device.DeviceId, PhysicalInputKind.DPadLeft, 2, "D-pad Left");
             }
             if (currentDirection.HasRight() && !baselineDirection.HasRight()
                 && deviceSettings.IsInputEnabled(device.DeviceId, PhysicalInputKind.DPadRight, 3))
             {
-                return new PhysicalInputRef(device.DeviceId, PhysicalInputKind.DPadRight, 3, "D-Pad Rechts");
+                return new PhysicalInputRef(device.DeviceId, PhysicalInputKind.DPadRight, 3, "D-pad Right");
             }
         }
 

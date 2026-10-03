@@ -4,7 +4,7 @@ using VirtualController.Core.Virtual;
 
 namespace VirtualController.Core.Mapping;
 
-/// <summary>Ziel eines einzelnen Mapping-Eintrags: worauf im virtuellen Controller die physische Eingabe wirkt.</summary>
+/// <summary>Target of one mapping entry: which virtual controller element the physical input affects.</summary>
 public enum MappingTargetKind
 {
     Button,
@@ -14,27 +14,25 @@ public enum MappingTargetKind
 }
 
 /// <summary>
-/// Legt fest, wie zwischen den Modi eines virtuellen Controllers umgeschaltet wird (siehe
-/// <see cref="VirtualControllerProfile.ModeSwitchMechanism"/>). Die beiden Mechanismen schliessen
-/// sich pro Controller gegenseitig aus (nur einer ist zu einem Zeitpunkt aktiv), beide werden aber
-/// von der Anwendung unterstuetzt und koennen ueber einen Schalter in der UI gewaehlt werden.
+/// Defines how to switch between a virtual controller's modes (see
+/// <see cref="VirtualControllerProfile.ModeSwitchMechanism"/>). The mechanisms are mutually exclusive per
+/// controller, but both are supported and selectable in the UI.
 /// </summary>
 public enum ModeSwitchMechanism
 {
-    /// <summary>Ein einzelner, dem Controller zugeordneter Ausloeser (<see cref="VirtualControllerProfile.ToggleTrigger"/>)
-    /// schaltet bei jeder steigenden Flanke zum naechsten aktivierten Modus weiter (zyklisch, mit Umlauf).</summary>
+    /// <summary>A single controller-wide trigger (<see cref="VirtualControllerProfile.ToggleTrigger"/>) advances
+    /// to the next enabled mode on each rising edge, cycling back to the beginning.</summary>
     Toggle,
 
-    /// <summary>Jeder Modus kann seinen eigenen Ausloeser (<see cref="ControllerMode.SwitchTrigger"/>) besitzen;
-    /// eine steigende Flanke auf diesem Ausloeser aktiviert direkt genau diesen Modus. Ein Ausloeser darf
-    /// innerhalb desselben Controllers nur von genau einem Modus verwendet werden.</summary>
+    /// <summary>Each mode can have its own trigger (<see cref="ControllerMode.SwitchTrigger"/>); a rising edge
+    /// activates that mode directly. A trigger can be used by only one mode per controller.</summary>
     Switch
 }
 
 /// <summary>
-/// Referenz auf eine physische Eingabe, die als Ausloeser fuer einen Moduswechsel dient (Umschalten/Toggle
-/// oder direktes Aktivieren eines bestimmten Modus). Bewusst getrennt von <see cref="MappingEntry"/>, da hier
-/// kein Ziel im virtuellen Controller existiert, sondern nur ein Ereignis (steigende Flanke) ausgewertet wird.
+/// Reference to a physical input used to switch modes, either by cycling/toggling or by activating a specific
+/// mode directly. Separate from <see cref="MappingEntry"/> because this evaluates an event (rising edge) and
+/// has no virtual controller target.
 /// </summary>
 public sealed class PhysicalInputTrigger
 {
@@ -44,71 +42,65 @@ public sealed class PhysicalInputTrigger
 }
 
 /// <summary>
-/// Ein einzelner Mapping-Eintrag: "Diese physische Eingabe (Button/Achse/DPad eines bestimmten
-/// angeschlossenen Controllers) steuert dieses Element des virtuellen Controllers."
-/// Mehrere physische Eingaben (auch von unterschiedlichen Geraeten) koennen auf dasselbe
-/// virtuelle Ziel gemappt werden (z.B. zwei Controller teilen sich "Start").
+/// One mapping entry: a physical input (button/axis/D-pad on a connected controller) controls a virtual
+/// controller element. Multiple physical inputs, including those from different devices, can map to the same
+/// virtual target (e.g. two controllers sharing Start).
 /// </summary>
 public sealed class MappingEntry
 {
-    /// <summary>Quelle: welches physische Geraet, welcher Button/welche Achse/DPad-Index.</summary>
+    /// <summary>Source: physical device and button/axis/D-pad index.</summary>
     public required string SourceDeviceId { get; set; }
     public required PhysicalInputKind SourceKind { get; set; }
     public required int SourceIndex { get; set; }
 
-    /// <summary>Ziel: welches Element des virtuellen Controllers angesteuert wird.</summary>
+    /// <summary>Target: virtual controller element to activate.</summary>
     public required MappingTargetKind TargetKind { get; set; }
     public VirtualButton? TargetButton { get; set; }
     public VirtualAxis? TargetAxis { get; set; }
     public VirtualTrigger? TargetTrigger { get; set; }
     public DPadDirection? TargetDPadDirection { get; set; }
 
-    /// <summary>Bei Achsen: Ausschlagsrichtung invertieren.</summary>
+    /// <summary>For axes: invert the deflection direction.</summary>
     public bool Invert { get; set; }
 
     /// <summary>
-    /// Bei Achsen-Zielen: Wenn true, wird nur die durch <see cref="SourceKind"/> festgelegte Haelfte
-    /// der physischen Quellachse (z.B. nur "Y+") isoliert auf 0..1 normalisiert und als Ziel-Achsenwert
-    /// verwendet (Vorzeichen weiterhin unabhaengig ueber <see cref="Invert"/> steuerbar) - ermoeglicht
-    /// z.B. "physische Achse Y+ -&gt; virtuelle Achse X-", also ein Aufteilen zweier unabhaengiger
-    /// physischer Achsenhaelften auf dieselbe oder unterschiedliche virtuelle Achsen. Wenn false
-    /// (Standard, auch fuer alte Profile ohne dieses Feld), wird wie bisher der volle bidirektionale
-    /// Bereich der Quellachse durchgereicht.
+    /// For axis targets: when true, uses only the half of the physical source axis specified by
+    /// <see cref="SourceKind"/> (e.g. Y+) and normalizes it to 0..1 as the target axis value; sign remains
+    /// independently controlled by <see cref="Invert"/>. This allows physical halves to map to the same or
+    /// different virtual axes. When false (the default, including older profiles without this field), passes
+    /// through the full bidirectional source range.
     /// </summary>
     public bool DirectionalOnly { get; set; }
 
-    /// <summary>Anzeigename fuer die UI-Tabelle, z.B. "Controller 1 - Button A" -> "South".</summary>
+    /// <summary>Display name for the UI table, e.g. "Controller 1 - Button A" -> "South".</summary>
     public string? Description { get; set; }
 }
 
 /// <summary>
-/// Ein einzelner, vom Nutzer frei benannter Modus eines virtuellen Controllers (z.B. "Flugmodus",
-/// "Rennen"), mit eigener, unabhaengiger Mapping-Tabelle. Ein virtueller Controller kann mehrere Modi
-/// besitzen, von denen zu jedem Zeitpunkt genau einer aktiv ist (<see cref="VirtualControllerProfile.ActiveModeId"/>).
-/// Ein Modus muss zunaechst angelegt werden, bevor ihm Mapping-Eintraege hinzugefuegt werden koennen.
+/// One user-named mode of a virtual controller (e.g. "Flight", "Racing") with its own independent mapping
+/// table. A virtual controller can have several modes, but only one is active at a time
+/// (<see cref="VirtualControllerProfile.ActiveModeId"/>). A mode must be created before mappings can be added.
 /// </summary>
 public sealed class ControllerMode
 {
     public required Guid Id { get; set; }
     public required string Name { get; set; }
 
-    /// <summary>Nur aktivierte Modi koennen ueberhaupt aktiv werden (siehe Toggle-/Switch-Mechanismus in
-    /// <see cref="VirtualControllerProfile"/>); ein deaktivierter Modus wird beim Umschalten uebersprungen.</summary>
+    /// <summary>Only enabled modes can become active (see the toggle/switch mechanism in
+    /// <see cref="VirtualControllerProfile"/>); disabled modes are skipped when switching.</summary>
     public bool Enabled { get; set; } = true;
 
     [JsonConverter(typeof(MappingEntryListConverter))]
     public List<MappingEntry> Mappings { get; set; } = new();
 
-    /// <summary>Nur relevant, wenn <see cref="VirtualControllerProfile.ModeSwitchMechanism"/> auf
-    /// <see cref="Mapping.ModeSwitchMechanism.Switch"/> steht: physische Eingabe, deren steigende Flanke
-    /// diesen Modus direkt aktiviert. Muss innerhalb desselben Controllers eindeutig sein (wird beim
-    /// Zuweisen gegen die uebrigen Modi geprueft).</summary>
+    /// <summary>Used only when <see cref="VirtualControllerProfile.ModeSwitchMechanism"/> is
+    /// <see cref="Mapping.ModeSwitchMechanism.Switch"/>: physical input whose rising edge activates this mode.
+    /// Must be unique within the controller (checked against other modes during assignment).</summary>
     public PhysicalInputTrigger? SwitchTrigger { get; set; }
 }
 
 /// <summary>
-/// Ein einzelner virtueller Controller inklusive seiner kompletten Mapping-Tabelle
-/// (Liste der physischen Controller/Eingaben, die auf ihn wirken).
+/// One virtual controller and its complete mapping table (physical controllers/inputs that affect it).
 /// </summary>
 public sealed class VirtualControllerProfile
 {
@@ -117,105 +109,95 @@ public sealed class VirtualControllerProfile
     public required ControllerLayout Layout { get; set; }
     public bool Enabled { get; set; } = true;
 
-    /// <summary>Zielabtastrate des Polling-/Submit-Loops in Hz (z.B. 1000).</summary>
+    /// <summary>Target polling/submission loop rate in Hz (e.g. 1000).</summary>
     public int PollingRateHz { get; set; } = 1000;
 
-    /// <summary>Alle Modi dieses virtuellen Controllers (siehe <see cref="ControllerMode"/>). Ein neu
-    /// angelegter Controller startet ohne Modus - der Nutzer muss zunaechst einen Modus anlegen, bevor
-    /// Mapping-Eintraege erfasst/zugewiesen werden koennen.</summary>
+    /// <summary>All modes for this virtual controller (see <see cref="ControllerMode"/>). A newly created
+    /// controller starts without a mode; one must be created before mappings can be captured or assigned.</summary>
     public List<ControllerMode> Modes { get; set; } = new();
 
-    /// <summary>Id des aktuell aktiven Modus (siehe <see cref="ActiveMode"/>). Null, solange noch kein
-    /// Modus angelegt oder aktiviert wurde.</summary>
+    /// <summary>ID of the active mode (see <see cref="ActiveMode"/>), or null when no mode has been created or activated.</summary>
     public Guid? ActiveModeId { get; set; }
 
-    /// <summary>Legt fest, ueber welchen Mechanismus zwischen den Modi umgeschaltet wird - siehe
-    /// <see cref="Mapping.ModeSwitchMechanism"/>.</summary>
+    /// <summary>Defines the mechanism used to switch between modes; see <see cref="Mapping.ModeSwitchMechanism"/>.</summary>
     public ModeSwitchMechanism ModeSwitchMechanism { get; set; } = ModeSwitchMechanism.Toggle;
 
-    /// <summary>Nur relevant bei <see cref="ModeSwitchMechanism.Toggle"/>: einzelner, dem gesamten
-    /// Controller zugeordneter Ausloeser, der bei jeder steigenden Flanke zum naechsten aktivierten
-    /// Modus weiterschaltet (zyklisch, mit Umlauf).</summary>
+    /// <summary>Used only with <see cref="ModeSwitchMechanism.Toggle"/>: controller-wide trigger that advances
+    /// to the next enabled mode on each rising edge, cycling back to the beginning.</summary>
     public PhysicalInputTrigger? ToggleTrigger { get; set; }
 
-    /// <summary>Ob bei jedem tatsaechlichen Wechsel des aktiven Modus (manuell per Tab-Klick waehrend
-    /// der Controller gestoppt ist, oder per Toggle-/Switch-Trigger waehrend der Controller laeuft) eine
-    /// kurze Bildschirmbenachrichtigung mit Controller- und Modusnamen angezeigt werden soll.</summary>
+    /// <summary>Whether to show a brief on-screen notification with the controller/mode names whenever the
+    /// active mode changes, either by tab click while stopped or by a toggle/switch trigger while running.</summary>
     public bool NotifyOnModeChange { get; set; }
 
-    /// <summary>Ob die diesem Controller aktuell zugeordneten physischen Geraete (siehe
-    /// <see cref="Engine.ControllerSession.NeededDeviceIds"/>) automatisch per HidHide (siehe
-    /// <see cref="Devices.HidHideController"/>) fuer alle anderen Anwendungen gesperrt werden sollen, solange
-    /// dieser virtuelle Controller laeuft - damit z.B. ein Spiel nicht gleichzeitig auf das physische UND das
-    /// davon abgeleitete virtuelle Geraet reagiert. Opt-in (Standard: deaktiviert), da HidHide ein separat zu
-    /// installierender Treiber ist. Ohne Wirkung, solange HidHide nicht installiert/betriebsbereit ist (siehe
-    /// <see cref="Devices.HidHideController.IsAvailable"/>).</summary>
+    /// <summary>Whether to block this controller's assigned physical devices from other applications through
+    /// HidHide while the virtual controller is running (see <see cref="Engine.ControllerSession.NeededDeviceIds"/>
+    /// and <see cref="Devices.HidHideController"/>). This prevents a game from reacting to both the physical
+    /// device and its virtual counterpart. Opt-in (disabled by default) because HidHide is a separate driver.
+    /// Has no effect unless HidHide is installed and ready (see <see cref="Devices.HidHideController.IsAvailable"/>).</summary>
     public bool HidHideEnabled { get; set; }
 
-    /// <summary>Ob dieser virtuelle Controller automatisch gestartet werden soll, sobald das unter
-    /// <see cref="AutoStartExecutablePath"/> hinterlegte Programm laeuft, und automatisch wieder gestoppt
-    /// werden soll, sobald dieses Programm beendet wurde (siehe <see cref="Views.MainWindow"/>, Checkbox
-    /// "Controller automatisch starten" neben Start/Stop). Wird per periodischem Polling ausgewertet (siehe
-    /// <c>MainViewModel</c>). Opt-in (Standard: deaktiviert); ohne Wirkung, solange <see cref="AutoStartExecutablePath"/>
-    /// nicht gesetzt ist.</summary>
+    /// <summary>Whether to start this virtual controller automatically when the program at
+    /// <see cref="AutoStartExecutablePath"/> starts, and stop it when the program exits (see the corresponding
+    /// checkbox beside Start/Stop in <see cref="Views.MainWindow"/>). Evaluated through periodic polling in
+    /// <c>MainViewModel</c>. Opt-in (disabled by default); has no effect until an executable path is set.</summary>
     public bool AutoStartEnabled { get; set; }
 
-    /// <summary>Vollstaendiger Dateipfad der .exe, deren Laufen ueberwacht wird, um diesen Controller
-    /// automatisch zu starten/stoppen (siehe <see cref="AutoStartEnabled"/>). Bewusst der volle Pfad statt
-    /// nur der Dateiname, um Verwechslungen mit gleichnamigen Programmen an anderer Stelle zu vermeiden -
-    /// wird vom Nutzer per Dateiauswahl-Dialog gesetzt. Null/leer, solange kein Programm ausgewaehlt wurde.</summary>
+    /// <summary>Full path to the .exe monitored for automatic controller start/stop (see
+    /// <see cref="AutoStartEnabled"/>). Stores the full path rather than the filename to distinguish programs
+    /// with the same name in different locations. Set by the user through a file picker; null/empty until selected.</summary>
     public string? AutoStartExecutablePath { get; set; }
 
-    /// <summary>Der aktuell aktive Modus, oder null, falls noch keiner angelegt/aktiviert wurde bzw.
-    /// die hinterlegte <see cref="ActiveModeId"/> auf keinen (mehr) vorhandenen Modus verweist.</summary>
+    /// <summary>The active mode, or null if none has been created/activated or <see cref="ActiveModeId"/> no
+    /// longer refers to an existing mode.</summary>
     public ControllerMode? ActiveMode => ActiveModeId is { } id ? Modes.FirstOrDefault(m => m.Id == id) : null;
 
     /// <summary>
-    /// Physische Geraete (per <see cref="Devices.PhysicalDeviceInfo.DeviceId"/>), die diesem virtuellen
-    /// Controller zugeordnet sind. Wird verwendet, um die "Erfassen"-Funktion und das aktive Mapping auf
-    /// diese Geraete zu beschraenken. Leer = alle angeschlossenen Geraete werden beruecksichtigt (Standard).
+    /// Physical devices assigned to this virtual controller, identified by
+    /// <see cref="Devices.PhysicalDeviceInfo.DeviceId"/>. Restricts Capture and active mappings to these devices.
+    /// Empty means all connected devices are included (default).
     /// </summary>
     public List<string> AssignedDeviceIds { get; set; } = new();
 
-    /// <summary>Das tatsaechliche ViGEmBus-Backend, abgeleitet aus dem Layout.</summary>
+    /// <summary>Actual ViGEmBus backend, derived from the layout.</summary>
     public VirtualBackend Backend => LayoutBackendMap.Resolve(Layout);
 }
 
-/// <summary>Die gesamte gespeicherte Konfiguration: alle definierten virtuellen Controller.</summary>
+/// <summary>Complete saved configuration: all defined virtual controllers.</summary>
 public sealed class AppProfile
 {
     public List<VirtualControllerProfile> Controllers { get; set; } = new();
 
     /// <summary>
-    /// Vom Nutzer vergebene Anzeigenamen fuer einzelne physische Eingaben (z.B. "Sniper-Taste"
-    /// statt "Button 4"), Key-Format "{DeviceId}|{PhysicalInputKind}|{Index}". Geraeteuebergreifend
-    /// gueltig, unabhaengig vom virtuellen Controller, dem das Geraet aktuell zugeordnet ist.
-    /// Veraltet: wird nur noch zum Laden alter Profile benutzt und beim Laden automatisch nach
-    /// <see cref="DeviceSettings"/> migriert (siehe <see cref="Profiles.ProfileStore.Load"/>).
+    /// User-defined display names for physical inputs (e.g. "Sniper button" instead of "Button 4"), keyed
+    /// by "{DeviceId}|{PhysicalInputKind}|{Index}". Valid across virtual controllers. Deprecated: used only
+    /// to load older profiles and automatically migrated to <see cref="DeviceSettings"/> during loading
+    /// (see <see cref="Profiles.ProfileStore.Load"/>).
     /// </summary>
     public Dictionary<string, string> CustomInputNames { get; set; } = new();
 
     /// <summary>
-    /// Einstellungen je physischem Geraet (Enable/Disable, sowie je physischer Eingabe: Umbenennung,
-    /// Enable/Disable, Kalibrierung, Deadzone, Antwortkurve), Key = <see cref="PhysicalDeviceInfo.DeviceId"/>.
-    /// Geraeteuebergreifend gueltig, unabhaengig vom virtuellen Controller, dem das Geraet aktuell
-    /// zugeordnet ist.
+    /// Settings per physical device (device enabled state and per-input custom name, enabled state, calibration,
+    /// deadzone, and response curve), keyed by <see cref="PhysicalDeviceInfo.DeviceId"/>. Shared across virtual
+    /// controllers.
     /// </summary>
     public Dictionary<string, DeviceSettings> DeviceSettings { get; set; } = new();
 
-    /// <summary>Ob neu angeschlossene/getrennte physische Geraete automatisch (per Hintergrund-Polling,
-    /// siehe MainViewModel) erkannt werden sollen, ohne dass die App neu gestartet oder "Geraete
-    /// aktualisieren" manuell geklickt werden muss. Kann im "Einstellungen"-Tab deaktiviert werden, falls
-    /// der dafuer notwendige periodische Geraete-Scan unerwuenscht ist (z.B. um jegliche zusaetzliche
-    /// Hintergrundlast zu vermeiden). Standard: aktiviert.</summary>
+    /// <summary>Whether newly connected/disconnected physical devices should be detected automatically through
+    /// background polling (see MainViewModel), without restarting the app or manually clicking Refresh devices.
+    /// Can be disabled on the Settings tab to avoid periodic device scans and their background work. Enabled by default.</summary>
     public bool AutoDeviceDetectionEnabled { get; set; } = true;
 
-    /// <summary>Ob die Anwendung bei der Windows-Anmeldung automatisch gestartet wird.</summary>
+    /// <summary>Whether the application starts automatically when signing in to Windows.</summary>
     public bool StartWithWindows { get; set; }
 
-    /// <summary>Ob das Hauptfenster beim Windows-Autostart minimiert angezeigt wird.</summary>
+    /// <summary>Whether the main window starts minimized when launched with Windows.</summary>
     public bool StartMinimized { get; set; }
 
-    /// <summary>Ob das Hauptfenster immer im Vordergrund bleibt. Standard: aktiviert.</summary>
+    /// <summary>Whether the main window stays on top. Enabled by default.</summary>
     public bool AlwaysOnTop { get; set; } = true;
+
+    /// <summary>UI language selection. Supported values are "system", "en", and "de". "system" uses the
+    /// current OS language when the app starts.</summary>
+    public string UiLanguage { get; set; } = "system";
 }

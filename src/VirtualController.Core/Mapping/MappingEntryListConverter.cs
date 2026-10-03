@@ -7,17 +7,14 @@ using VirtualController.Core.Devices;
 namespace VirtualController.Core.Mapping;
 
 /// <summary>
-/// Custom-Serialisierung fuer <see cref="ControllerMode.Mappings"/>: blendet beim Schreiben Felder aus,
-/// die fuer die jeweilige Quellart (<see cref="MappingEntry.SourceKind"/>) fachlich keine Bedeutung haben.
-/// Ein digitaler Button oder eine D-Pad-Richtung kennt weder eine Invertierung noch
-/// die Aufteilung einer Achse in zwei Haelften (<see cref="MappingEntry.DirectionalOnly"/>) - diese Felder
-/// sind ausschliesslich fuer Achsen (<see cref="PhysicalInputKind.AxisPositive"/>/
-/// <see cref="PhysicalInputKind.AxisNegative"/>) relevant. So bleiben gespeicherte Mapping-Eintraege fuer
-/// Buttons/D-Pad deutlich kompakter und enthalten keine irrefuehrenden, fachlich bedeutungslosen Werte.
+/// Custom serialization for <see cref="ControllerMode.Mappings"/>. Omits fields that do not apply to the
+/// entry's source type (<see cref="MappingEntry.SourceKind"/>). Digital buttons and D-pad directions have
+/// neither inversion nor axis-half selection (<see cref="MappingEntry.DirectionalOnly"/>); those fields only
+/// apply to axes (<see cref="PhysicalInputKind.AxisPositive"/>/<see cref="PhysicalInputKind.AxisNegative"/>).
+/// This keeps button/D-pad mappings compact and avoids misleading, meaningless values.
 ///
-/// Beim Lesen genuegt die Standard-Deserialisierung pro Eintrag: fehlt eines der ausgeblendeten Felder
-/// im JSON, erhaelt die Eigenschaft ohnehin ihren regulaeren Default-Wert (siehe <see cref="MappingEntry"/>),
-/// exakt wie bei jedem anderen optionalen Feld.
+/// Reading can use standard deserialization per entry: omitted JSON fields receive their normal defaults
+/// (see <see cref="MappingEntry"/>), like any other optional field.
 /// </summary>
 public sealed class MappingEntryListConverter : JsonConverter<List<MappingEntry>>
 {
@@ -31,7 +28,7 @@ public sealed class MappingEntryListConverter : JsonConverter<List<MappingEntry>
 
         if (reader.TokenType != JsonTokenType.StartArray)
         {
-            throw new JsonException("Erwartetes Array fuer Mappings-Liste nicht gefunden.");
+            throw new JsonException("Expected an array for the mappings list.");
         }
 
         using var document = JsonDocument.ParseValue(ref reader);
@@ -54,9 +51,9 @@ public sealed class MappingEntryListConverter : JsonConverter<List<MappingEntry>
         writer.WriteEndArray();
     }
 
-    /// <summary>Baut die JSON-Darstellung eines einzelnen Mapping-Eintrags als <see cref="JsonObject"/> auf,
-    /// statt die Felder direkt ueber den <see cref="Utf8JsonWriter"/> zu schreiben. Achsenspezifische Felder
-    /// (<see cref="IsAxisSource"/>) werden dem Objekt nur bei einer analogen Quelle ueberhaupt hinzugefuegt.</summary>
+    /// <summary>Builds one mapping entry as a <see cref="JsonObject"/> rather than writing fields directly
+    /// through <see cref="Utf8JsonWriter"/>. Axis-specific fields (<see cref="IsAxisSource"/>) are included
+    /// only for axis sources.</summary>
     private static JsonObject BuildEntryNode(MappingEntry entry)
     {
         var node = new JsonObject
@@ -82,8 +79,8 @@ public sealed class MappingEntryListConverter : JsonConverter<List<MappingEntry>
         return node;
     }
 
-    /// <summary>Nur Achsen kennen Invertierung und Richtungsisolation - Buttons und D-Pad-Richtungen
-    /// sind rein digital und besitzen keinen analogen Wertebereich.</summary>
+    /// <summary>Only axes support inversion and direction isolation; buttons and D-pad directions are digital
+    /// and have no analog range.</summary>
     private static bool IsAxisSource(PhysicalInputKind kind)
         => kind is PhysicalInputKind.AxisPositive or PhysicalInputKind.AxisNegative;
 }

@@ -4,23 +4,22 @@ using System.Text.RegularExpressions;
 namespace VirtualController.Core.Profiles;
 
 /// <summary>
-/// Hilfsfunktionen zum Ableiten von unter Windows gueltigen, lesbaren Dateinamen aus Anzeigenamen
-/// (Geraete, virtuelle Controller) fuer die pro Geraet/Controller aufgeteilte Persistenz (siehe
-/// <see cref="DeviceSettingsStore"/>, <see cref="ControllerStore"/>). Oeffentlich, da dieselbe
-/// Marke/Name-Aufteilung auch von den unabhaengigen Logging- und Benchmark-Exportdateien
-/// (log-device-{marke}-{name}.txt bzw. benchmark-device-{marke}-{name}.json) verwendet wird, um
-/// unterschiedliche Dateinamenskonventionen fuer denselben Geraetenamen zu vermeiden.
+/// Helpers for deriving readable Windows-compatible filenames from device and virtual controller display
+/// names for per-device/controller persistence (see <see cref="DeviceSettingsStore"/> and
+/// <see cref="ControllerStore"/>). Public because the same brand/name split is also used by independent log
+/// and benchmark export files (log-device-{brand}-{name}.txt and benchmark-device-{brand}-{name}.json) for
+/// consistent naming.
 /// </summary>
 public static class FileNaming
 {
-    /// <summary>Wandelt einen beliebigen Anzeigenamen in ein Dateinamen-taugliches Segment um:
-    /// klein geschrieben, ungueltige/problematische Zeichen entfernt, Leerraum durch '-' ersetzt,
-    /// mehrfache '-' zusammengefasst. Liefert "unbenannt", falls am Ende nichts uebrig bleibt.</summary>
+    /// <summary>Converts a display name to a filename-safe segment: lowercase, remove invalid/problematic
+    /// characters, replace whitespace with hyphens, and collapse repeated hyphens. Returns "unnamed" if the
+    /// result is empty.</summary>
     public static string Sanitize(string? value)
     {
         if (string.IsNullOrWhiteSpace(value))
         {
-            return "unbenannt";
+            return "unnamed";
         }
 
         var invalidChars = Path.GetInvalidFileNameChars();
@@ -29,36 +28,36 @@ public static class FileNaming
         {
             if (Array.IndexOf(invalidChars, ch) >= 0 || ch is '|' or ':')
             {
-                continue; // Fuer Dateinamen ungeeignetes Zeichen einfach weglassen statt zu ersetzen.
+                continue; // Omit characters unsuitable for filenames rather than replacing them.
             }
 
             builder.Append(char.IsWhiteSpace(ch) ? '-' : ch);
         }
 
         var collapsed = Regex.Replace(builder.ToString(), "-{2,}", "-").Trim('-');
-        return collapsed.Length == 0 ? "unbenannt" : collapsed;
+        return collapsed.Length == 0 ? "unnamed" : collapsed;
     }
 
-    /// <summary>Teilt einen Geraete-Anzeigenamen in Marke (erstes Wort) und restlichen Namen auf, z.B.
-    /// "Logitech Extreme 3D Pro" -&gt; ("logitech", "extreme-3d-pro") - ergibt den Dateinamen
-    /// "device-logitech-extreme-3d-pro.json". Ohne erkennbares zweites Wort wird als Marke "geraet"
-    /// verwendet und der komplette (sanitisierte) Name als Namensteil beibehalten.</summary>
+    /// <summary>Splits a device display name into brand (first word) and remainder, e.g.
+    /// "Logitech Extreme 3D Pro" -> ("logitech", "extreme-3d-pro"), producing
+    /// "device-logitech-extreme-3d-pro.json". If no second word exists, uses "device" as the brand and keeps
+    /// the sanitized full name as the name segment.</summary>
     public static (string Brand, string Name) SplitBrandAndName(string? displayName)
     {
         var trimmed = displayName?.Trim() ?? string.Empty;
         if (trimmed.Length == 0)
         {
-            return ("geraet", "unbenannt");
+            return ("device", "unnamed");
         }
 
         int spaceIndex = trimmed.IndexOf(' ');
         if (spaceIndex <= 0)
         {
-            return ("geraet", Sanitize(trimmed));
+            return ("device", Sanitize(trimmed));
         }
 
         var brand = Sanitize(trimmed[..spaceIndex]);
         var name = Sanitize(trimmed[(spaceIndex + 1)..]);
-        return (brand.Length == 0 ? "geraet" : brand, name.Length == 0 ? "unbenannt" : name);
+        return (brand.Length == 0 ? "device" : brand, name.Length == 0 ? "unnamed" : name);
     }
 }

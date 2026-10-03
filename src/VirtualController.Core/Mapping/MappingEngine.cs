@@ -4,25 +4,22 @@ using VirtualController.Core.Virtual;
 namespace VirtualController.Core.Mapping;
 
 /// <summary>
-/// Berechnet aus den aktuellen Zustaenden aller zugeordneten physischen Geraete den
-/// resultierenden Zustand eines virtuellen Controllers, gemaess dessen Mapping-Tabelle.
-/// Wird bei jedem Tick des Polling-Loops einmal pro virtuellem Controller aufgerufen.
-/// Zustandslos / threadsicher, solange die uebergebenen Dictionaries waehrend des Aufrufs
-/// nicht von einem anderen Thread veraendert werden.
+/// Computes a virtual controller's output state from the current states of its assigned physical devices,
+/// according to its mapping table. Called once per virtual controller on every polling loop tick. Stateless
+/// and thread-safe as long as the supplied dictionaries are not modified concurrently.
 /// </summary>
 public static class MappingEngine
 {
     /// <summary>
-    /// Wendet alle Mapping-Eintraege eines Profils auf die zuletzt gelesenen Device-States an
-    /// und schreibt das Ergebnis in <paramref name="target"/> (wird vorher zurueckgesetzt).
+    /// Applies all profile mappings to the latest device states and writes the result to
+    /// <paramref name="target"/>, which is reset first.
     /// </summary>
-    /// <param name="profile">Das Profil des virtuellen Controllers.</param>
-    /// <param name="latestStates">Zuletzt gepollter Zustand je physischem Geraet (Key = DeviceId).</param>
-    /// <param name="target">Wiederverwendbarer Ziel-Zustand, wird in-place aktualisiert.</param>
-    /// <param name="deviceSettings">Optionale, geraeteweite Einstellungen (Key = DeviceId). Wird genutzt, um
-    /// einzelne, vom Nutzer im Konfigurationsdialog deaktivierte physische Eingaben (z.B. ein schwammiger,
-    /// verschlissener Button) unabhaengig von der Mapping-Tabelle vollstaendig zu ignorieren. Null bedeutet
-    /// "keine Einstellungen vorhanden" -> alle Eingaben gelten als aktiviert (Standardverhalten).</param>
+    /// <param name="profile">Virtual controller profile.</param>
+    /// <param name="latestStates">Latest polled state for each physical device (key = DeviceId).</param>
+    /// <param name="target">Reusable output state, updated in place.</param>
+    /// <param name="deviceSettings">Optional device-wide settings (key = DeviceId), used to ignore physical
+    /// inputs disabled in the configuration dialog independently of the mapping table. Null means no settings
+    /// exist, so all inputs are enabled by default.</param>
     public static void Apply(
         VirtualControllerProfile profile,
         IReadOnlyDictionary<string, DeviceState> latestStates,
@@ -33,8 +30,8 @@ public static class MappingEngine
 
         bool dpadUp = false, dpadDown = false, dpadLeft = false, dpadRight = false;
 
-        // Nur die Mapping-Tabelle des aktuell aktiven Modus wird ausgewertet (siehe VirtualControllerProfile.ActiveMode);
-        // ohne aktiven Modus (z.B. noch keiner angelegt) bleibt target auf dem oben gesetzten Reset-Zustand.
+        // Evaluate only the active mode's mapping table (see VirtualControllerProfile.ActiveMode). Without an
+        // active mode (e.g. none has been created), target remains in the reset state set above.
         var activeMappings = profile.ActiveMode?.Mappings;
         if (activeMappings is null)
         {
@@ -45,12 +42,12 @@ public static class MappingEngine
         {
             if (!latestStates.TryGetValue(entry.SourceDeviceId, out var state))
             {
-                continue; // Quellgeraet aktuell nicht verbunden -> Eintrag wird einfach ignoriert.
+                continue; // Source device is disconnected; ignore this entry.
             }
 
             if (!deviceSettings.IsInputEnabled(entry.SourceDeviceId, entry.SourceKind, entry.SourceIndex))
             {
-                continue; // Physische Eingabe wurde im Konfigurationsdialog deaktiviert -> ignorieren.
+                continue; // Physical input is disabled in the configuration dialog; ignore it.
             }
 
             switch (entry.SourceKind)
@@ -81,9 +78,8 @@ public static class MappingEngine
             }
         }
 
-        // DPad wird zum Schluss aus den waehrend der Schleife gesammelten Flags kombiniert,
-        // damit z.B. "Up" und "Right" von zwei unterschiedlichen Mapping-Eintraegen stammen
-        // und trotzdem korrekt zu "UpRight" zusammengefuehrt werden.
+        // Combine D-pad flags collected during the loop at the end so directions such as Up and Right can come
+        // from separate mapping entries and still produce UpRight.
         if (target.DPad == DPadDirection.None)
         {
             target.DPad = DPadDirectionExtensions.FromFlags(dpadUp, dpadDown, dpadLeft, dpadRight);
@@ -91,14 +87,12 @@ public static class MappingEngine
     }
 
     /// <summary>
-    /// Ermittelt, ob eine physische Eingabe (referenziert ueber <see cref="PhysicalInputTrigger"/>, z.B.
-    /// ein Modus-Umschalt-Ausloeser) im aktuellen Tick "aktiv" ist (Button gedrueckt, Achse ueber ihrer
-    /// Deadzone ausgeschlagen, D-Pad-Richtung aktiv). Im Gegensatz zu den <see cref="MappingEntry"/>-
-    /// bezogenen Auswertungen oben gibt es hier kein Ziel und keine pro-Eintrag konfigurierte Deadzone -
-    /// bei Achsen wird daher die geraeteweite Kalibrierung (falls vorhanden) bzw. der Standardwert
-    /// verwendet (siehe <see cref="Devices.DeviceSettingsExtensions.ResolveDefaultAxisDeadzone"/>). Wird
-    /// von <see cref="Engine.ControllerSession"/> fuer die Flankenerkennung von Toggle-/Switch-Triggern
-    /// verwendet, unabhaengig vom aktuell aktiven Modus.
+    /// Checks whether a physical input referenced by <see cref="PhysicalInputTrigger"/> (e.g. a mode switch
+    /// trigger) is active on the current tick: a button is pressed, an axis is beyond its deadzone, or a D-pad
+    /// direction is active. Unlike <see cref="MappingEntry"/> evaluation above, triggers have no target or
+    /// per-entry deadzone; axes use the device-wide calibration when available, otherwise the default (see
+    /// <see cref="Devices.DeviceSettingsExtensions.ResolveDefaultAxisDeadzone"/>). Used by
+    /// <see cref="Engine.ControllerSession"/> for toggle/switch trigger edge detection, regardless of active mode.
     /// </summary>
     public static bool IsPhysicalInputActive(
         PhysicalInputTrigger trigger,
@@ -172,7 +166,7 @@ public static class MappingEngine
                 break;
 
             case MappingTargetKind.Axis when entry.TargetAxis.HasValue:
-                // Digitaler Button auf eine Achse gemappt (z.B. Buttons als Stick-Ersatz) -> voller Ausschlag.
+                // A digital button mapped to an axis (e.g. buttons used as a stick substitute) gives full deflection.
                 SetAxis(target, entry.TargetAxis.Value, entry.Invert ? -1f : 1f);
                 break;
 
@@ -187,18 +181,14 @@ public static class MappingEngine
         IReadOnlyDictionary<string, DeviceSettings>? deviceSettings,
         ref bool dpadUp, ref bool dpadDown, ref bool dpadLeft, ref bool dpadRight)
     {
-        // Eine physische Achse besitzt nur eine Kalibrierung/Deadzone/Kurve, obwohl sie im Katalog als
-        // zwei getrennte Eintraege (AxisPositive/AxisNegative) auftritt (je einer pro Ausschlagsrichtung
-        // fuer die Mapping-Zuordnung) -> Achseneinstellungen werden stets ueber den kanonischen
-        // AxisPositive-Schluessel derselben Achsen-Nummer nachgeschlagen, unabhaengig von der tatsaechlichen
-        // Richtung dieses konkreten Mapping-Eintrags (Enabled/Umbenennung bleiben davon unberuehrt und
-        // werden weiterhin ueber den jeweils eigenen Schluessel der tatsaechlichen Richtung ausgewertet,
-        // siehe Aufrufer). Welche Slots physisch einseitig (0..1, "trigger-artig") statt zentriert/
-        // bidirektional (-1..1) sind, haengt von der Quell-API ab: Bei XInput liegen die Trigger auf
-        // Slot 4/5 (RotationY/RotationZ, siehe XInputDeviceReader.FixedAvailableAxes), waehrend genau
-        // diese Slot-Nummern bei DirectInput echte, bidirektionale Rotationsachsen sind - dort sind
-        // stattdessen Slot 6/7 (Slider0/Slider1) die physisch einseitigen Schieberegler. Ein reiner
-        // Index-Vergleich ohne API-Unterscheidung wuerde daher fuer eine der beiden APIs falsch liegen.
+        // A physical axis has one calibration/deadzone/curve despite appearing in the catalog as two entries
+        // (AxisPositive/AxisNegative), one per mapping direction. Always look up axis settings through the
+        // canonical AxisPositive key for that axis index, independent of this mapping entry's direction.
+        // Enabled state and custom names still use the key for the actual direction (see caller). Which slots
+        // are physically unidirectional (0..1, trigger-like) depends on the source API: XInput uses slots 4/5
+        // (RotationY/RotationZ; see XInputDeviceReader.FixedAvailableAxes), while those slots are bidirectional
+        // rotation axes in DirectInput, where slots 6/7 (Slider0/Slider1) are unidirectional. Comparing indices
+        // without accounting for the API would therefore be incorrect for one of them.
         bool isXInputSource = entry.SourceDeviceId.StartsWith("xinput:", StringComparison.Ordinal);
         bool isTriggerLikeSlot = isXInputSource
             ? entry.SourceIndex is (int)PhysicalAxisId.RotationY or (int)PhysicalAxisId.RotationZ
@@ -207,40 +197,34 @@ public static class MappingEngine
         float raw = AxisSignalProcessor.Process(state.GetAxisRaw(entry.SourceIndex), axisSettings, bidirectional: !isTriggerLikeSlot);
         bool wantPositive = entry.SourceKind == PhysicalInputKind.AxisPositive;
 
-        // Fuer Digital-Ziele (Button/DPad/Trigger) wird die Achse als Schwellwert-Schalter behandelt.
-        // Die geraeteweite Deadzone (siehe AxisSignalProcessor.Process) hat Werte innerhalb ihres Radius
-        // bereits auf exakt 0 gesetzt, ein einfacher > 0-Vergleich reicht daher aus.
+        // For digital targets (button/D-pad/trigger), treat the axis as a threshold switch. The device-wide
+        // deadzone in AxisSignalProcessor.Process has already set values inside its radius to zero, so > 0 suffices.
         float magnitude = wantPositive ? MathF.Max(raw, 0f) : MathF.Max(-raw, 0f);
         bool digitalPressed = magnitude > 0f;
 
-        // Analog zu "magnitude", aber VORZEICHENERHALTEND statt auf 0..1 normalisiert: wird fuer
-        // DirectionalOnly bei Achsen-Zielen benoetigt (siehe unten) - "magnitude" eignet sich dort
-        // NICHT, da ihr Vorzeichen immer positiv ist und damit die isolierte Achsenhaelfte faelschlich
-        // stets Richtung positiv auf der virtuellen Achse ausschlagen wuerde, unabhaengig davon, ob
-        // SourceKind tatsaechlich AxisPositive oder AxisNegative ist.
+        // Like magnitude, but preserves the sign instead of normalizing to 0..1. DirectionalOnly axis targets
+        // need this value (see below); magnitude is always positive and would make an isolated axis half always
+        // deflect the virtual axis positively, regardless of whether SourceKind is AxisPositive or AxisNegative.
         float directionalSignedValue = wantPositive ? MathF.Max(raw, 0f) : MathF.Min(raw, 0f);
 
         switch (entry.TargetKind)
         {
             case MappingTargetKind.Axis when entry.TargetAxis.HasValue:
-                // DirectionalOnly: nur die durch SourceKind festgelegte Haelfte der physischen Achse
-                // (als vorzeichenerhaltendes "directionalSignedValue" isoliert) verwenden, statt wie im
-                // Standardfall den vollen bidirektionalen Rohwert durchzureichen. So koennen zwei
-                // unabhaengige physische Achsenhaelften (z.B. Y+ und X+) mit jeweils eigenem Invert-
-                // Vorzeichen auf dieselbe oder unterschiedliche virtuelle Achsen aufgeteilt werden. Die
-                // geraeteweite Deadzone (inkl. Neuskalierung ab der Deadzone-Grenze) ist bereits ueber
-                // AxisSignalProcessor.Process in "raw" enthalten.
+                // DirectionalOnly uses only the physical axis half specified by SourceKind (isolated as the
+                // sign-preserving directionalSignedValue) instead of passing through the full bidirectional
+                // raw value. This allows two physical axis halves (e.g. Y+ and X+) to map to the same or different
+                // virtual axes with independent inversion. The device-wide deadzone, including rescaling from
+                // its boundary, is already applied to raw by AxisSignalProcessor.Process.
                 float normalized = entry.DirectionalOnly ? directionalSignedValue : raw;
                 if (entry.Invert) normalized = -normalized;
                 SetAxis(target, entry.TargetAxis.Value, normalized);
                 break;
 
             case MappingTargetKind.Trigger when entry.TargetTrigger.HasValue:
-                // Der jeweils trigger-artige Slot ist bereits vom zustaendigen Reader auf 0..1 normalisiert
-                // (XInput-Trigger bzw. DirectInput-Schieberegler, siehe API-abhaengige Ermittlung von
-                // isTriggerLikeSlot oben) und hat die geraeteweite Deadzone bereits ueber
-                // AxisSignalProcessor.Process durchlaufen. Alle anderen Achsen (z.B. ein Stick als
-                // Trigger-Ersatz gemappt) nutzen stattdessen den Magnitude-Anteil.
+                // Trigger-like slots are already normalized to 0..1 by the reader (XInput triggers or
+                // DirectInput sliders; see the API-specific isTriggerLikeSlot logic above) and have the
+                // device-wide deadzone applied by AxisSignalProcessor.Process. Other axes (e.g. a stick mapped
+                // as a trigger) use their magnitude instead.
                 float triggerValue = isTriggerLikeSlot ? raw : magnitude;
                 SetTrigger(target, entry.TargetTrigger.Value, Math.Clamp(triggerValue, 0f, 1f));
                 break;

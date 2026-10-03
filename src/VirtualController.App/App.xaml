@@ -10,14 +10,11 @@
                 <ResourceDictionary Source="Themes/Styles.xaml" />
             </ResourceDictionary.MergedDictionaries>
 
-        <!-- Globaler Standard-Look fuer alle Fenster der Anwendung: dunkler App-Hintergrund und helle
-             Standard-Schriftfarbe. Als impliziter Style (kein x:Key, TargetType="Window") gilt dies
-             automatisch fuer jedes Window in der Anwendung, ohne dass es explizit referenziert werden
-             muss. Foreground ist eine vererbte Eigenschaft (Property Value Inheritance) und wirkt dadurch
-             automatisch auf alle Kind-Controls, die keine eigene, explizite Foreground setzen - Background
-             dagegen wird NICHT vererbt und muss daher bei einzelnen Panels/Controls mit eigenem
-             Standard-Hintergrund (z.B. TabControl) zusaetzlich explizit auf Transparent gesetzt werden
-             (siehe MainWindow.xaml). -->
+           <!-- Global default appearance for all application windows: dark app background and light text.
+               This implicit Window style applies automatically without an explicit key. Foreground is an
+               inherited property and flows to child controls that do not set their own value; Background is
+               not inherited, so individual panels/controls with a default background (e.g. TabControl) must
+               explicitly be set to transparent when needed (see MainWindow.xaml). -->
         <Style TargetType="Window">
             <Setter Property="Background" Value="{StaticResource AppBackgroundBrush}" />
             <Setter Property="Foreground" Value="#F6FBFD" />

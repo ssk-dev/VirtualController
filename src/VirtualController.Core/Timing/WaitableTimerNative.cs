@@ -4,10 +4,9 @@ using Microsoft.Win32.SafeHandles;
 namespace VirtualController.Core.Timing;
 
 /// <summary>
-/// P/Invoke-Zugriff auf einen High-Resolution Waitable-Timer (seit Windows 10 1809 / Server 2019).
-/// Ermoeglicht ein Warten mit Sub-Millisekunden-Praezision, rein im User-Mode, ohne Treiber oder
-/// Systemweite Erhoehung der Timer-Aufloesung (kein "timeBeginPeriod(1)" mit Seiteneffekten auf
-/// den gesamten Rechner noetig).
+/// P/Invoke access to a high-resolution waitable timer (Windows 10 1809 / Server 2019+). Enables
+/// sub-millisecond waits in user mode without a driver or a system-wide timer resolution increase
+/// (avoids the machine-wide side effects of <c>timeBeginPeriod(1)</c>).
 /// </summary>
 internal static class WaitableTimerNative
 {
@@ -32,9 +31,8 @@ internal static class WaitableTimerNative
     private static extern uint WaitForSingleObject(SafeWaitHandle hHandle, uint dwMilliseconds);
 
     /// <summary>
-    /// Erstellt einen High-Resolution Timer. Gibt null zurueck, wenn das Betriebssystem das
-    /// High-Resolution-Flag nicht unterstuetzt (aeltere Windows-Version) - der Aufrufer soll in
-    /// diesem Fall auf einen Standard-Timer/Sleep-basierten Loop zurueckfallen.
+    /// Creates a high-resolution timer. Returns null if the OS does not support the flag (older Windows
+    /// versions), allowing callers to fall back to a standard timer/sleep-based loop.
     /// </summary>
     public static SafeWaitHandle? TryCreate()
     {
@@ -50,7 +48,7 @@ internal static class WaitableTimerNative
         return new SafeWaitHandle(raw, ownsHandle: true);
     }
 
-    /// <summary>Setzt den Timer auf eine einmalige relative Wartezeit (in 100ns-Einheiten, negativ = relativ) und wartet blockierend.</summary>
+    /// <summary>Sets a one-shot relative wait (in 100 ns units; negative means relative) and blocks until it expires.</summary>
     public static void WaitRelative(SafeWaitHandle timer, long dueTimeIn100ns)
     {
         long relative = -Math.Abs(dueTimeIn100ns);

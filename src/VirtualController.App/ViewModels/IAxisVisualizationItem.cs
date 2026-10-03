@@ -3,18 +3,17 @@ using VirtualController.Core.Devices;
 namespace VirtualController.App.ViewModels;
 
 /// <summary>
-/// Gemeinsame Schnittstelle fuer die beiden Arten von Achsenvisualisierungs-Items
-/// (<see cref="AxisVisualizationViewModel"/> fuer Einzelachsen, <see cref="Axis2DVisualizationViewModel"/>
-/// fuer kombinierte X/Y-Achsen), damit <see cref="DeviceConfigDeviceViewModel"/> beliebig viele Achsen
-/// eines Geraets generisch, ohne Typ-Unterscheidung, per Live-Polling aktualisieren kann. Welche
-/// konkrete Darstellung (horizontaler Slider vs. quadratisches Koordinatenfeld) verwendet wird,
-/// entscheidet die View allein anhand des Laufzeittyps (implizite DataTemplates).
+/// Shared interface for the two axis visualization item types (<see cref="AxisVisualizationViewModel"/> for
+/// individual axes and <see cref="Axis2DVisualizationViewModel"/> for combined X/Y axes). Lets
+/// <see cref="DeviceConfigDeviceViewModel"/> update any number of device axes through live polling without
+/// type checks. The view selects the horizontal slider or square coordinate field from the runtime type
+/// through implicit DataTemplates.
 /// </summary>
 public interface IAxisVisualizationItem
 {
-    /// <summary>Aktualisiert Wert(e) und Deadzone-Zustand anhand des zuletzt gepollten Geraetezustands.</summary>
+    /// <summary>Updates the value(s) and deadzone state from the most recently polled device state.</summary>
     void UpdateFromState(DeviceState state);
 
-    /// <summary>Setzt die Anzeige auf den Ruhezustand zurueck (z.B. beim Zuklappen des Geraets im Konfigurationsdialog).</summary>
+    /// <summary>Resets the display to its resting state, e.g. when the device is collapsed in the configuration dialog.</summary>
     void Reset();
 }

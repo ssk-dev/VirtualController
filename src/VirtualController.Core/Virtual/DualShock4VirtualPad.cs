@@ -6,9 +6,8 @@ using VirtualController.Core.Mapping;
 namespace VirtualController.Core.Virtual;
 
 /// <summary>
-/// Virtueller Sony DualShock 4 Controller (HID-Gamepad). Wird von Windows als
-/// "Wireless Controller" erkannt und von PlayStation-optimierten Spielen (z.B. mit
-/// entsprechenden Button-Prompts) automatisch bevorzugt.
+/// Virtual Sony DualShock 4 controller (HID gamepad). Windows recognizes it as "Wireless Controller", and
+/// PlayStation-optimized games may prefer it automatically, e.g. to show matching button prompts.
 /// </summary>
 public sealed class DualShock4VirtualPad : IVirtualPad
 {
@@ -56,7 +55,7 @@ public sealed class DualShock4VirtualPad : IVirtualPad
         _controller.SetDPadDirection(ToDPad(state.DPad));
 
         _controller.SetAxisValue(DualShock4Axis.LeftThumbX, ToByte(state.LeftStickX));
-        _controller.SetAxisValue(DualShock4Axis.LeftThumbY, ToByte(-state.LeftStickY)); // DS4: Y-Achse invertiert (0 = oben)
+        _controller.SetAxisValue(DualShock4Axis.LeftThumbY, ToByte(-state.LeftStickY)); // DS4: Y axis is inverted (0 = up).
         _controller.SetAxisValue(DualShock4Axis.RightThumbX, ToByte(state.RightStickX));
         _controller.SetAxisValue(DualShock4Axis.RightThumbY, ToByte(-state.RightStickY));
 
@@ -79,7 +78,7 @@ public sealed class DualShock4VirtualPad : IVirtualPad
         _ => DualShock4DPadDirection.None
     };
 
-    /// <summary>DS4-Sticks nutzen den vollen 0-255 Bereich mit 128 als Mitte (nicht symmetrisch wie XInput).</summary>
+    /// <summary>DS4 sticks use the full 0-255 range with 128 as the midpoint (unlike XInput, this is not symmetric).</summary>
     private static byte ToByte(float normalized) => (byte)Math.Clamp((normalized * 127.5f) + 127.5f, 0, 255);
 
     private static byte ToByte01(float normalized01) => (byte)(Math.Clamp(normalized01, 0f, 1f) * 255);

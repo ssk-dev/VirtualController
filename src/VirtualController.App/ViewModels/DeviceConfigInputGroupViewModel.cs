@@ -3,11 +3,9 @@ using System.Collections.ObjectModel;
 namespace VirtualController.App.ViewModels;
 
 /// <summary>
-/// Fasst die physischen Eingaben eines Geraets im Konfigurationsdialog zu einer benannten Gruppe
-/// zusammen (z.B. "Buttons", "D-Pad"), damit der Nutzer bei Geraeten mit vielen Eingaben
-/// schneller die gesuchte Kategorie findet, statt eine lange, unstrukturierte Liste zu durchsuchen.
-/// Fuer Achsen wird stattdessen <see cref="DeviceConfigAxisGroupViewModel"/> verwendet, da dort
-/// Positiv-/Negativ-Eintraege paarweise mit gemeinsamem Rahmen dargestellt werden.
+/// Groups a device's physical inputs under a named heading (e.g. "Buttons", "D-Pad") so users can find a
+/// category quickly instead of searching a long, unstructured list. Axes use
+/// <see cref="DeviceConfigAxisGroupViewModel"/> so positive/negative entries can be shown as framed pairs.
 /// </summary>
 public sealed class DeviceConfigInputGroupViewModel : IDeviceConfigGroup
 {
