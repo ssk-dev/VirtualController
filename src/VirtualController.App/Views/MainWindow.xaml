@@ -172,7 +172,7 @@
                                                     <Border x:Name="CardBorder"
                                                             Background="{StaticResource PanelVirtualControllersBackgroundBrush}"
                                                             BorderBrush="{StaticResource PanelVirtualControllersBorderBrush}"
-                                                            BorderThickness="1" CornerRadius="6" Padding="10,8">
+                                                            BorderThickness="1" CornerRadius="0" Padding="10,8">
                                                         <Grid>
                                                             <Grid.ColumnDefinitions>
                                                                 <ColumnDefinition Width="*" />
@@ -356,7 +356,7 @@
                             <StackPanel Orientation="Horizontal">
                                 <ListBox ItemsSource="{Binding Modes}" SelectedItem="{Binding SelectedMode}"
                                          BorderThickness="0" Background="Transparent"
-                                         ScrollViewer.HorizontalScrollBarVisibility="Disabled">
+                                         ScrollViewer.HorizontalScrollBarVisibility="Auto">
                                     <ListBox.ItemsPanel>
                                         <ItemsPanelTemplate>
                                             <StackPanel Orientation="Horizontal" />
@@ -470,6 +470,7 @@
                                       Selector.SelectionChangedEvent bubbles regardless of the number or nesting of
                                       intervening ItemsControls. -->
                                 <ScrollViewer x:Name="MappingsScrollViewer" VerticalScrollBarVisibility="Auto"
+                                              HorizontalScrollBarVisibility="Auto"
                                               PreviewMouseWheel="OnMappingsScrollViewerPreviewMouseWheel">
                                     <StackPanel Orientation="Vertical">
                                         <!-- Unassigned mapping rows (ModeViewModel.UnassignedMappings) are newly added rows that
