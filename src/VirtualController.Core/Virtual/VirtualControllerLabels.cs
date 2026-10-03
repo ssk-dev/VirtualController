@@ -107,4 +107,25 @@ public static class VirtualControllerLabels
         DPadDirection.UpLeft => "Up-Left",
         _ => direction.ToString()
     };
+
+    /// <summary>Returns the translation key for a virtual button label, used by the UI to look up
+    /// localized text from the translation files. The key is layout-independent; the translation
+    /// files contain the layout-specific labels.</summary>
+    public static string GetButtonTranslationKey(ControllerLayout layout, VirtualButton button) => layout switch
+    {
+        ControllerLayout.PlayStation => $"virtual.playstation.{button.ToString().ToLowerInvariant()}",
+        ControllerLayout.Nintendo => $"virtual.nintendo.{button.ToString().ToLowerInvariant()}",
+        _ => $"virtual.xbox.{button.ToString().ToLowerInvariant()}"
+    };
+
+    public static string GetTriggerTranslationKey(ControllerLayout layout, VirtualTrigger trigger) => layout switch
+    {
+        ControllerLayout.PlayStation => $"virtual.playstation.{trigger.ToString().ToLowerInvariant()}",
+        ControllerLayout.Nintendo => $"virtual.nintendo.{trigger.ToString().ToLowerInvariant()}",
+        _ => $"virtual.xbox.{trigger.ToString().ToLowerInvariant()}"
+    };
+
+    public static string GetAxisTranslationKey(VirtualAxis axis) => $"virtual.axis.{axis.ToString().ToLowerInvariant()}";
+
+    public static string GetDPadTranslationKey(DPadDirection direction) => $"virtual.dpad.{direction.ToString().ToLowerInvariant()}";
 }

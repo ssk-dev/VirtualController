@@ -241,7 +241,13 @@
                                     <ComboBox ItemsSource="{x:Static vm:VirtualControllerViewModel.LayoutOptions}"
                                               SelectedItem="{Binding Layout}" Width="120"
                                               IsEnabled="{Binding IsRunning, Converter={StaticResource InverseBoolConverter}}"
-                                              ToolTip="{loc:Loc mapping.layout_locked_tooltip}" />
+                                              ToolTip="{loc:Loc mapping.layout_locked_tooltip}">
+                                        <ComboBox.ItemTemplate>
+                                            <DataTemplate>
+                                                <TextBlock Text="{Binding Converter={StaticResource TranslationKeyConverter}, ConverterParameter='mapping.layout'}" />
+                                            </DataTemplate>
+                                        </ComboBox.ItemTemplate>
+                                    </ComboBox>
 
                                     <TextBlock Text="{loc:Loc mapping.backend}" VerticalAlignment="Center" Width="70" Margin="16,0,0,0" />
                                     <TextBlock Text="{Binding ResolvedBackend}" VerticalAlignment="Center" FontStyle="Italic" />
@@ -317,7 +323,13 @@
                             <StackPanel Orientation="Horizontal">
                                 <TextBlock Text="{loc:Loc mapping.mode_switch}" VerticalAlignment="Center" FontWeight="Bold" Width="130" />
                                 <ComboBox ItemsSource="{x:Static vm:VirtualControllerViewModel.ModeSwitchMechanismOptions}"
-                                          SelectedItem="{Binding ModeSwitchMechanism}" Width="110" />
+                                          SelectedItem="{Binding ModeSwitchMechanism}" Width="110">
+                                    <ComboBox.ItemTemplate>
+                                        <DataTemplate>
+                                            <TextBlock Text="{Binding Converter={StaticResource TranslationKeyConverter}, ConverterParameter='mapping.mode'}" />
+                                        </DataTemplate>
+                                    </ComboBox.ItemTemplate>
+                                </ComboBox>
 
                                   <!-- The toggle trigger is defined beside the selector, rather than in the tab bar,
                                       because it applies to the whole controller, not to an individual mode. -->
@@ -523,7 +535,13 @@
                                                         <DataTemplate DataType="{x:Type vm:MappingRowViewModel}">
                                                             <ComboBox ItemsSource="{x:Static vm:MappingRowViewModel.TargetKindOptions}"
                                                                       IsSynchronizedWithCurrentItem="False"
-                                                                      SelectedItem="{Binding SelectedTargetKind}" />
+                                                                      SelectedItem="{Binding SelectedTargetKind}">
+                                                                <ComboBox.ItemTemplate>
+                                                                    <DataTemplate>
+                                                                        <TextBlock Text="{Binding Converter={StaticResource TranslationKeyConverter}, ConverterParameter='mapping.target_kind'}" />
+                                                                    </DataTemplate>
+                                                                </ComboBox.ItemTemplate>
+                                                            </ComboBox>
                                                         </DataTemplate>
                                                     </DataGridTemplateColumn.CellTemplate>
                                                 </DataGridTemplateColumn>
@@ -535,7 +553,13 @@
                                                                       DisplayMemberPath="Label"
                                                                       SelectedValuePath="Value"
                                                                       IsSynchronizedWithCurrentItem="False"
-                                                                      SelectedValue="{Binding SelectedTargetValue}" />
+                                                                      SelectedValue="{Binding SelectedTargetValue}">
+                                                                <ComboBox.ItemTemplate>
+                                                                    <DataTemplate>
+                                                                        <TextBlock Text="{Binding Label, Converter={StaticResource TranslationKeyConverter}}" />
+                                                                    </DataTemplate>
+                                                                </ComboBox.ItemTemplate>
+                                                            </ComboBox>
                                                         </DataTemplate>
                                                     </DataGridTemplateColumn.CellTemplate>
                                                 </DataGridTemplateColumn>
@@ -632,7 +656,13 @@
                                                                     <DataTemplate DataType="{x:Type vm:MappingRowViewModel}">
                                                                         <ComboBox ItemsSource="{x:Static vm:MappingRowViewModel.TargetKindOptions}"
                                                                                   IsSynchronizedWithCurrentItem="False"
-                                                                                  SelectedItem="{Binding SelectedTargetKind}" />
+                                                                                  SelectedItem="{Binding SelectedTargetKind}">
+                                                                            <ComboBox.ItemTemplate>
+                                                                                <DataTemplate>
+                                                                                    <TextBlock Text="{Binding Converter={StaticResource TranslationKeyConverter}, ConverterParameter='mapping.target_kind'}" />
+                                                                                </DataTemplate>
+                                                                            </ComboBox.ItemTemplate>
+                                                                        </ComboBox>
                                                                     </DataTemplate>
                                                                 </DataGridTemplateColumn.CellTemplate>
                                                             </DataGridTemplateColumn>
@@ -644,7 +674,13 @@
                                                                                   DisplayMemberPath="Label"
                                                                                   SelectedValuePath="Value"
                                                                                   IsSynchronizedWithCurrentItem="False"
-                                                                                  SelectedValue="{Binding SelectedTargetValue}" />
+                                                                                  SelectedValue="{Binding SelectedTargetValue}">
+                                                                            <ComboBox.ItemTemplate>
+                                                                                <DataTemplate>
+                                                                                    <TextBlock Text="{Binding Label, Converter={StaticResource TranslationKeyConverter}}" />
+                                                                                </DataTemplate>
+                                                                            </ComboBox.ItemTemplate>
+                                                                        </ComboBox>
                                                                     </DataTemplate>
                                                                 </DataGridTemplateColumn.CellTemplate>
                                                             </DataGridTemplateColumn>
@@ -851,8 +887,13 @@
                     <ComboBox Margin="0,6,0,0" Width="220" HorizontalAlignment="Left"
                               ItemsSource="{Binding UiLanguageOptions}"
                               SelectedValue="{Binding SelectedUiLanguage}"
-                              SelectedValuePath="Code"
-                              DisplayMemberPath="DisplayName" />
+                              SelectedValuePath="Code">
+                        <ComboBox.ItemTemplate>
+                            <DataTemplate>
+                                <TextBlock Text="{Binding DisplayName, Converter={StaticResource TranslationKeyConverter}}" />
+                            </DataTemplate>
+                        </ComboBox.ItemTemplate>
+                    </ComboBox>
 
                     <CheckBox Content="{Binding SettingsAutoDeviceDetectionText}" IsChecked="{Binding AutoDeviceDetectionEnabled}"
                               FontWeight="Bold" Margin="0,12,0,0" />

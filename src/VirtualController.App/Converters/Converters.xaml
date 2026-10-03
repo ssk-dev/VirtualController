@@ -21,5 +21,6 @@
     <conv:BoolToFontWeightConverter x:Key="BoolToFontWeightConverter" />
     <conv:FractionToStarGridLengthConverter x:Key="FractionToStarGridLengthConverter" />
     <conv:CountToVisibilityConverter x:Key="CountToVisibilityConverter" />
+    <conv:TranslationKeyConverter x:Key="TranslationKeyConverter" />
 
 </ResourceDictionary>

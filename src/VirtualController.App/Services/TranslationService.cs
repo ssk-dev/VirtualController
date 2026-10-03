@@ -63,9 +63,9 @@ public sealed class TranslationService : INotifyPropertyChanged
 
     private static readonly IReadOnlyList<UiLanguageOption> SupportedLanguages = new[]
     {
-        new UiLanguageOption("system", "System default"),
-        new UiLanguageOption("en", "English"),
-        new UiLanguageOption("de", "Deutsch")
+        new UiLanguageOption("system", "settings.language.system"),
+        new UiLanguageOption("en", "settings.language.english"),
+        new UiLanguageOption("de", "settings.language.german")
     };
 
     public IReadOnlyList<UiLanguageOption> GetAvailableLanguages() => SupportedLanguages;

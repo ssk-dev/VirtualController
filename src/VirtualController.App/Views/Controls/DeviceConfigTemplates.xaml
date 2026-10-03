@@ -64,7 +64,13 @@
                         <TextBlock Text="{loc:Loc devices.curve}" VerticalAlignment="Center" Margin="0,0,4,0" />
                         <ComboBox ItemsSource="{x:Static vm:DeviceConfigInputRowViewModel.CurveTypeOptions}"
                                   IsSynchronizedWithCurrentItem="False"
-                                  SelectedItem="{Binding CurveType}" Width="100" Margin="0,0,8,0" />
+                                  SelectedItem="{Binding CurveType}" Width="100" Margin="0,0,8,0">
+                            <ComboBox.ItemTemplate>
+                                <DataTemplate>
+                                    <TextBlock Text="{Binding Converter={StaticResource TranslationKeyConverter}, ConverterParameter='devices.curve'}" />
+                                </DataTemplate>
+                            </ComboBox.ItemTemplate>
+                        </ComboBox>
                         <TextBlock Text="{loc:Loc devices.strength}" VerticalAlignment="Center" Margin="0,0,4,0" />
                         <TextBox Text="{Binding CurveStrength, UpdateSourceTrigger=PropertyChanged}" Width="50" />
                     </StackPanel>

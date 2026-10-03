@@ -1,6 +1,7 @@
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
 using VirtualController.App.Diagnostics;
+using VirtualController.App.Services;
 using VirtualController.Core.Devices;
 using VirtualController.Core.Mapping;
 using VirtualController.Core.Virtual;
@@ -12,8 +13,31 @@ namespace VirtualController.App.ViewModels;
 /// <see cref="VirtualTrigger"/>, or <see cref="DPadDirection"/>) with the layout-specific label used by the
 /// selected <see cref="ControllerLayout"/> (see <see cref="VirtualControllerLabels"/>). Used as an item in
 /// the target value ComboBox (DisplayMemberPath = Label, SelectedValuePath = Value).
+/// The label is re-resolved when the UI language changes, so the ComboBox text switches language live.
 /// </summary>
-public sealed record TargetOptionItem(object Value, string Label);
+public sealed partial class TargetOptionItem : ObservableObject
+{
+    public object Value { get; }
+    private readonly string _translationKey;
+
+    public TargetOptionItem(object value, string translationKey)
+    {
+        Value = value;
+        _translationKey = translationKey;
+
+        // Subscribe to language changes so the label is re-resolved when the UI language switches.
+        TranslationService.Instance.PropertyChanged += (_, args) =>
+        {
+            if (args.PropertyName is nameof(TranslationService.CurrentLanguage) or "")
+            {
+                OnPropertyChanged(nameof(Label));
+            }
+        };
+    }
+
+    /// <summary>Localized display text, resolved from the translation key on each access.</summary>
+    public string Label => TranslationService.Instance.GetText(_translationKey);
+}
 
 /// <summary>
 /// One entry in the "Assign" selection list (see <see cref="MappingRowViewModel.AssignableInputs"/>): a
@@ -49,6 +73,16 @@ public sealed partial class MappingRowViewModel : ObservableObject
     public static IReadOnlyList<VirtualAxis> AxisOptions { get; } = Enum.GetValues<VirtualAxis>();
     public static IReadOnlyList<VirtualTrigger> TriggerOptions { get; } = Enum.GetValues<VirtualTrigger>();
     public static IReadOnlyList<DPadDirection> DPadOptions { get; } = Enum.GetValues<DPadDirection>();
+
+    /// <summary>Translation keys for the target kind ComboBox, resolved at runtime by the view through
+    /// <see cref="Services.TranslationService"/> so the labels switch language together with the UI.</summary>
+    public static IReadOnlyList<string> TargetKindTranslationKeys { get; } = new[]
+    {
+        "mapping.target_kind.button",
+        "mapping.target_kind.axis",
+        "mapping.target_kind.trigger",
+        "mapping.target_kind.dpad"
+    };
 
     public MappingEntry Entry { get; }
 
@@ -158,10 +192,10 @@ public sealed partial class MappingRowViewModel : ObservableObject
             var layout = _getLayout();
             return SelectedTargetKind switch
             {
-                MappingTargetKind.Button => ButtonOptions.Select(b => new TargetOptionItem(b, VirtualControllerLabels.GetButtonLabel(layout, b))).ToList(),
-                MappingTargetKind.Axis => AxisOptions.Select(a => new TargetOptionItem(a, VirtualControllerLabels.GetAxisLabel(a))).ToList(),
-                MappingTargetKind.Trigger => TriggerOptions.Select(t => new TargetOptionItem(t, VirtualControllerLabels.GetTriggerLabel(layout, t))).ToList(),
-                MappingTargetKind.DPad => DPadOptions.Select(d => new TargetOptionItem(d, VirtualControllerLabels.GetDPadLabel(d))).ToList(),
+                MappingTargetKind.Button => ButtonOptions.Select(b => new TargetOptionItem(b, VirtualControllerLabels.GetButtonTranslationKey(layout, b))).ToList(),
+                MappingTargetKind.Axis => AxisOptions.Select(a => new TargetOptionItem(a, VirtualControllerLabels.GetAxisTranslationKey(a))).ToList(),
+                MappingTargetKind.Trigger => TriggerOptions.Select(t => new TargetOptionItem(t, VirtualControllerLabels.GetTriggerTranslationKey(layout, t))).ToList(),
+                MappingTargetKind.DPad => DPadOptions.Select(d => new TargetOptionItem(d, VirtualControllerLabels.GetDPadTranslationKey(d))).ToList(),
                 _ => Array.Empty<TargetOptionItem>()
             };
         }
