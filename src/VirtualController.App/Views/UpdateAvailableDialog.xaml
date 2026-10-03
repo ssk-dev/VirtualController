@@ -2,13 +2,39 @@
         xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         xmlns:loc="clr-namespace:VirtualController.App.Localization"
+        xmlns:shell="clr-namespace:System.Windows.Shell;assembly=PresentationFramework"
         Title="{loc:Loc update_dialog.title}" Width="420" SizeToContent="Height"
         Icon="pack://application:,,,/Icons/VirtualController.ico"
         WindowStartupLocation="CenterOwner"
         ResizeMode="NoResize"
         ShowInTaskbar="False"
         Background="{StaticResource AppBackgroundBrush}"
-        Foreground="{StaticResource TextBrush}">
+        Foreground="{StaticResource TextBrush}"
+        WindowStyle="None">
+
+    <!-- Dark title bar replacement for the native bright Windows title bar (see MainWindow.xaml for the
+         same pattern). WindowStyle="None" removes the system chrome; WindowChrome provides drag and
+         double-click-to-maximize behavior for the custom title bar area below. -->
+    <WindowChrome.WindowChrome>
+        <shell:WindowChrome CaptionHeight="32" ResizeBorderThickness="0" CornerRadius="0" GlassFrameThickness="0" />
+    </WindowChrome.WindowChrome>
+
+    <DockPanel Margin="0">
+        <!-- Custom dark title bar -->
+        <Border DockPanel.Dock="Top" Height="32" Background="{StaticResource CardBackgroundBrush}"
+                BorderBrush="{StaticResource PanelBorderBrush}" BorderThickness="0,0,0,1">
+            <Grid>
+                <TextBlock Text="{Binding Title}" VerticalAlignment="Center" Margin="12,0,0,0"
+                           FontWeight="Bold" Foreground="{StaticResource TextBrush}" />
+                <StackPanel Orientation="Horizontal" HorizontalAlignment="Right"
+                            WindowChrome.IsHitTestVisibleInChrome="True">
+                    <Button Style="{StaticResource TitleBarCloseButtonStyle}" Click="OnCloseButtonClicked"
+                            ToolTip="{loc:Loc window.close}">
+                        <TextBlock Text="&#xE8BB;" />
+                    </Button>
+                </StackPanel>
+            </Grid>
+        </Border>
 
         <!-- Modal update dialog (see UpdateAvailableDialog.xaml.cs) that announces a new version and offers
             "Install update" and "Skip update". During installation (IsInstalling), both buttons are disabled
@@ -16,7 +42,7 @@
             dialog also contains an expandable changelog/release notes section (see ReleaseNotesText and
             HasReleaseNotes), collapsed by default to keep it compact. SizeToContent="Height" lets the window
             grow or shrink automatically when the section is expanded or collapsed. -->
-    <DockPanel Margin="16">
+        <DockPanel Margin="16">
         <StackPanel DockPanel.Dock="Bottom" Orientation="Horizontal" HorizontalAlignment="Right" Margin="0,16,0,0">
             <Button Content="{loc:Loc update_dialog.skip}" Command="{Binding SkipUpdateCommand}" Padding="8,4" Margin="0,0,8,0" />
             <Button Content="{loc:Loc update_dialog.install}" Command="{Binding InstallCommand}" Padding="8,4" IsDefault="True"
@@ -49,5 +75,6 @@
                            Visibility="{Binding IsRestarting, Converter={StaticResource BoolToVisibilityConverter}}" />
             </StackPanel>
         </StackPanel>
+        </DockPanel>
     </DockPanel>
 </Window>

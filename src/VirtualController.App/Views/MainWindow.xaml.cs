@@ -257,10 +257,19 @@ public partial class MainWindow : Window
     /// </summary>
     private void OnUpdateAvailable(UpdateCheckResult details)
     {
+        // Blur and dim the main window while the modal update dialog is open (like a modal overlay).
+        var blurEffect = new System.Windows.Media.Effects.BlurEffect { Radius = 8 };
+        Effect = blurEffect;
+        Opacity = 0.6;
+
         var dialogViewModel = _viewModel.Update.CreateAvailableDialogViewModel(details);
         var dialog = new UpdateAvailableDialog(dialogViewModel) { Owner = this };
         dialog.InstallationStarted += () => System.Windows.Application.Current.Shutdown();
         dialog.ShowDialog();
+
+        // Remove the blur when the dialog closes (whether by skip, install, or cancel).
+        Effect = null;
+        Opacity = 1.0;
     }
 
     /// <summary>
@@ -271,10 +280,19 @@ public partial class MainWindow : Window
     /// </summary>
     private void RollbackButton_Click(object sender, System.Windows.RoutedEventArgs e)
     {
+        // Blur and dim the main window while the modal rollback dialog is open.
+        var blurEffect = new System.Windows.Media.Effects.BlurEffect { Radius = 8 };
+        Effect = blurEffect;
+        Opacity = 0.6;
+
         var dialogViewModel = _viewModel.Update.CreateRollbackDialogViewModel();
         var dialog = new RollbackDialog(dialogViewModel) { Owner = this };
         dialog.InstallationStarted += () => System.Windows.Application.Current.Shutdown();
         dialog.ShowDialog();
+
+        // Remove the blur when the dialog closes.
+        Effect = null;
+        Opacity = 1.0;
     }
 
     private static T? FindVisualAncestor<T>(System.Windows.DependencyObject start) where T : System.Windows.DependencyObject

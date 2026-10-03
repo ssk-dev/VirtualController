@@ -39,6 +39,10 @@ public partial class RollbackDialog : Window
         Close();
     }
 
+    /// <summary>Closes the dialog through the custom title bar button (see the title bar Border in
+    /// RollbackDialog.xaml), replacing the removed native title bar.</summary>
+    private void OnCloseButtonClicked(object sender, RoutedEventArgs e) => Close();
+
     protected override void OnClosed(EventArgs e)
     {
         base.OnClosed(e);
