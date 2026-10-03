@@ -58,6 +58,9 @@ public static class ProfileStore
 
         var settings = SettingsStore.Load(SettingsFilePath(baseDir));
         profile.AutoDeviceDetectionEnabled = settings.AutoDeviceDetectionEnabled;
+        profile.StartWithWindows = settings.StartWithWindows;
+        profile.StartMinimized = settings.StartMinimized;
+        profile.AlwaysOnTop = settings.AlwaysOnTop;
         profile.CustomInputNames = settings.CustomInputNames;
 
         MigrateLegacyCustomInputNames(profile);
@@ -293,9 +296,11 @@ public static class ProfileStore
             new AppSettings
             {
                 AutoDeviceDetectionEnabled = profile.AutoDeviceDetectionEnabled,
+                StartWithWindows = profile.StartWithWindows,
+                StartMinimized = profile.StartMinimized,
+                AlwaysOnTop = profile.AlwaysOnTop,
                 CustomInputNames = profile.CustomInputNames
             },
             SettingsFilePath(baseDir));
     }
 }
-

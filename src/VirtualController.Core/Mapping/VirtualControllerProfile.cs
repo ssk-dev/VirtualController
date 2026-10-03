@@ -209,4 +209,13 @@ public sealed class AppProfile
     /// der dafuer notwendige periodische Geraete-Scan unerwuenscht ist (z.B. um jegliche zusaetzliche
     /// Hintergrundlast zu vermeiden). Standard: aktiviert.</summary>
     public bool AutoDeviceDetectionEnabled { get; set; } = true;
+
+    /// <summary>Ob die Anwendung bei der Windows-Anmeldung automatisch gestartet wird.</summary>
+    public bool StartWithWindows { get; set; }
+
+    /// <summary>Ob das Hauptfenster beim Windows-Autostart minimiert angezeigt wird.</summary>
+    public bool StartMinimized { get; set; }
+
+    /// <summary>Ob das Hauptfenster immer im Vordergrund bleibt. Standard: aktiviert.</summary>
+    public bool AlwaysOnTop { get; set; } = true;
 }

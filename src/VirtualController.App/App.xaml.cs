@@ -15,9 +15,13 @@ public partial class App : Application
 {
     private NotifyIcon? _trayIcon;
 
+    public bool StartMinimized { get; private set; }
+
     protected override void OnStartup(StartupEventArgs e)
     {
         base.OnStartup(e);
+
+        StartMinimized = e.Args.Contains("--minimized", StringComparer.OrdinalIgnoreCase);
 
         DebugLog.Reset("App-Start");
         DebugLog.Write($"Debug-Log-Datei: {DebugLog.FilePath}");
@@ -41,6 +45,12 @@ public partial class App : Application
         contextMenu.Items.Add("Oeffnen", null, (_, _) => ShowMainWindow());
         contextMenu.Items.Add("Beenden", null, (_, _) => Shutdown());
         _trayIcon.ContextMenuStrip = contextMenu;
+
+        MainWindow = new Views.MainWindow
+        {
+            WindowState = StartMinimized ? WindowState.Minimized : WindowState.Normal
+        };
+        MainWindow.Show();
     }
 
     private void ShowMainWindow()

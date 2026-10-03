@@ -13,6 +13,15 @@ public sealed class AppSettings
     /// aktualisieren" manuell geklickt werden muss. Standard: aktiviert.</summary>
     public bool AutoDeviceDetectionEnabled { get; set; } = true;
 
+    /// <summary>Ob die Anwendung bei der Windows-Anmeldung automatisch gestartet wird.</summary>
+    public bool StartWithWindows { get; set; }
+
+    /// <summary>Ob das Hauptfenster beim Windows-Autostart minimiert angezeigt wird.</summary>
+    public bool StartMinimized { get; set; }
+
+    /// <summary>Ob das Hauptfenster immer im Vordergrund bleibt. Standard: aktiviert.</summary>
+    public bool AlwaysOnTop { get; set; } = true;
+
     /// <summary>Veraltet: vor Einfuehrung von <see cref="Devices.DeviceSettings"/> die einzige Persistenz
     /// fuer benutzerdefinierte Eingabenamen, Key-Format "{DeviceId}|{PhysicalInputKind}|{Index}". Bleibt
     /// hier nur uebergangsweise erhalten, damit sehr alte, bereits einmal migrierte Profile beim

@@ -3,6 +3,7 @@ using System.Diagnostics;
 using System.Windows.Threading;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
+using VirtualController.App.Services;
 using VirtualController.Core.Devices;
 using VirtualController.Core.Engine;
 using VirtualController.Core.Mapping;
@@ -67,6 +68,15 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
     /// mehr entsteht.</summary>
     [ObservableProperty]
     private bool _autoDeviceDetectionEnabled = true;
+
+    [ObservableProperty]
+    private bool _startWithWindows;
+
+    [ObservableProperty]
+    private bool _startMinimized;
+
+    [ObservableProperty]
+    private bool _alwaysOnTop = true;
 
     public ObservableCollection<VirtualControllerViewModel> Controllers { get; } = new();
 
@@ -192,6 +202,8 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
 
     partial void OnAutoDeviceDetectionEnabledChanged(bool value)
     {
+        HasUnsavedChanges = true;
+
         if (value)
         {
             StartHotplugPolling();
@@ -199,6 +211,36 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
         else
         {
             StopHotplugPolling();
+        }
+    }
+
+    partial void OnStartWithWindowsChanged(bool value)
+    {
+        HasUnsavedChanges = true;
+        UpdateWindowsStartup();
+    }
+
+    partial void OnStartMinimizedChanged(bool value)
+    {
+        HasUnsavedChanges = true;
+        if (StartWithWindows)
+        {
+            UpdateWindowsStartup();
+        }
+    }
+
+    partial void OnAlwaysOnTopChanged(bool value) => HasUnsavedChanges = true;
+
+    private void UpdateWindowsStartup()
+    {
+        try
+        {
+            WindowsStartupManager.SetEnabled(StartWithWindows, StartMinimized);
+            LastErrorMessage = null;
+        }
+        catch (Exception ex)
+        {
+            LastErrorMessage = $"Windows-Autostart konnte nicht geändert werden: {ex.Message}";
         }
     }
 
@@ -452,7 +494,10 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
             {
                 Controllers = Controllers.Select(c => c.Profile).ToList(),
                 DeviceSettings = new Dictionary<string, DeviceSettings>(_deviceSettings),
-                AutoDeviceDetectionEnabled = AutoDeviceDetectionEnabled
+                AutoDeviceDetectionEnabled = AutoDeviceDetectionEnabled,
+                StartWithWindows = StartWithWindows,
+                StartMinimized = StartMinimized,
+                AlwaysOnTop = AlwaysOnTop
             };
             ProfileStore.Save(appProfile);
             LastErrorMessage = null;
@@ -504,6 +549,9 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
 
             _deviceSettings = new Dictionary<string, DeviceSettings>(appProfile.DeviceSettings);
             AutoDeviceDetectionEnabled = appProfile.AutoDeviceDetectionEnabled;
+            StartWithWindows = appProfile.StartWithWindows;
+            StartMinimized = appProfile.StartMinimized;
+            AlwaysOnTop = appProfile.AlwaysOnTop;
 
             // DeviceConfig muss hier komplett neu aufgebaut werden (statt inkrementell abgeglichen zu
             // werden, wie es RefreshDevices/UpdateDevices sonst tun): _deviceSettings wurde eben komplett

@@ -6,7 +6,7 @@
         Title="{Binding WindowTitle}" Height="900" Width="1440"
         Icon="pack://application:,,,/Icons/VirtualController.ico"
         WindowStyle="None" ResizeMode="CanResize"
-        Topmost="True"
+        Topmost="{Binding AlwaysOnTop}"
         Closing="MainWindow_OnClosing">
 
     <!-- Ersetzt die native, hell gerenderte und nicht themebare Windows-Titelleiste durch eine eigene,
@@ -871,6 +871,21 @@
                               FontWeight="Bold" />
                     <TextBlock Margin="24,4,0,0" Foreground="{StaticResource MutedTextBrush}" FontStyle="Italic" TextWrapping="Wrap" MaxWidth="500"
                                Text="Erkennt neu angeschlossene oder getrennte Geräte automatisch im Hintergrund, ohne dass 'Geräte aktualisieren' geklickt werden muss. Deaktivieren stoppt den periodischen Scan vollständig." />
+
+                    <CheckBox Content="Mit Windows starten" IsChecked="{Binding StartWithWindows}"
+                              FontWeight="Bold" Margin="0,12,0,0" />
+                    <TextBlock Margin="24,4,0,0" Foreground="{StaticResource MutedTextBrush}" FontStyle="Italic" TextWrapping="Wrap" MaxWidth="500"
+                               Text="Startet Virtual Controller automatisch bei der Windows-Anmeldung." />
+
+                    <CheckBox Content="Beim Windows-Start minimiert starten" IsChecked="{Binding StartMinimized}"
+                              IsEnabled="{Binding StartWithWindows}" FontWeight="Bold" Margin="0,8,0,0" />
+                    <TextBlock Margin="24,4,0,0" Foreground="{StaticResource MutedTextBrush}" FontStyle="Italic" TextWrapping="Wrap" MaxWidth="500"
+                               Text="Öffnet das Hauptfenster beim automatischen Start minimiert. Diese Option ist nur mit aktiviertem Windows-Autostart verfügbar." />
+
+                    <CheckBox Content="Immer im Vordergrund" IsChecked="{Binding AlwaysOnTop}"
+                              FontWeight="Bold" Margin="0,12,0,0" />
+                    <TextBlock Margin="24,4,0,0" Foreground="{StaticResource MutedTextBrush}" FontStyle="Italic" TextWrapping="Wrap" MaxWidth="500"
+                               Text="Hält das App-Fenster über anderen Fenstern. Standardmäßig aktiviert." />
 
                     <Separator Margin="0,16,0,12" />
 
