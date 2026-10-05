@@ -14,6 +14,12 @@ public partial class MainWindow : Window
 {
     private readonly MainViewModel _viewModel = new();
 
+    /// <summary>Lazily created on first Ctrl+Shift+I (see <see cref="GetOrCreateInspectorWindow"/>): the
+    /// standalone Elements tree + property editor window (see Diagnostics/LayoutInspectorWindow.cs), kept
+    /// alive and hidden/shown rather than recreated so the tree's expand/collapse state and the property
+    /// editor's selection persist across toggles.</summary>
+    private Diagnostics.LayoutInspectorWindow? _inspectorWindow;
+
     public MainWindow()
     {
         InitializeComponent();
@@ -309,6 +315,163 @@ public partial class MainWindow : Window
         }
 
         return null;
+    }
+
+    /// <summary>
+    /// Toggles the Ctrl+Shift+I layout inspector overlay (<see cref="Diagnostics.LayoutInspectorOverlay"/>),
+    /// in the spirit of a browser's "Inspect element" dev tool, and turns it off on Escape. Handles
+    /// PreviewKeyDown (tunneling) at the window level so the shortcut works regardless of which control
+    /// currently has keyboard focus.
+    /// </summary>
+    private void OnInspectorPreviewKeyDown(object sender, System.Windows.Input.KeyEventArgs e)
+    {
+        bool isCtrlShiftI = e.Key == System.Windows.Input.Key.I
+            && System.Windows.Input.Keyboard.Modifiers == (System.Windows.Input.ModifierKeys.Control | System.Windows.Input.ModifierKeys.Shift);
+
+        if (isCtrlShiftI)
+        {
+            if (InspectorOverlay.IsActive)
+            {
+                InspectorOverlay.Deactivate();
+                _inspectorWindow?.Hide();
+            }
+            else
+            {
+                InspectorOverlay.Activate();
+                LayoutInspectorWindow window = GetOrCreateInspectorWindow();
+                window.Tree.Load(this);
+                window.Show();
+                window.Activate();
+            }
+
+            e.Handled = true;
+            return;
+        }
+
+        if (e.Key == System.Windows.Input.Key.Escape && InspectorOverlay.IsActive)
+        {
+            InspectorOverlay.Deactivate();
+            _inspectorWindow?.Hide();
+            e.Handled = true;
+        }
+    }
+
+    /// <summary>
+    /// Lazily creates (on first Ctrl+Shift+I) the standalone Elements tree + property editor window (see
+    /// Diagnostics/LayoutInspectorWindow.cs) and wires its tree's hover/select events to drive
+    /// <see cref="InspectorOverlay"/> the same way hovering/clicking the app's own content does (see
+    /// OnInspectorPreviewMouseMove/OnInspectorPreviewMouseLeftButtonDown). Reused across toggles so the
+    /// tree's expand/collapse state and the property editor's current selection persist.
+    /// </summary>
+    private LayoutInspectorWindow GetOrCreateInspectorWindow()
+    {
+        if (_inspectorWindow is not null)
+        {
+            return _inspectorWindow;
+        }
+
+        var window = new LayoutInspectorWindow { Owner = this };
+
+        // Hovering a tree row previews that element without pinning it (ForceShow bypasses IsPinned), so
+        // moving on to another row keeps updating the preview even while a different element is pinned.
+        window.Tree.ElementHovered += element => InspectorOverlay.ForceShow(element, InspectorOverlay.GetBoundsRelativeToThis(element));
+
+        // Clicking a tree row pins that element, matching what clicking the element directly on the canvas
+        // does (see OnInspectorPreviewMouseLeftButtonDown). The property editor is wired up separately
+        // inside LayoutInspectorWindow itself.
+        window.Tree.ElementSelected += element => InspectorOverlay.PinTo(element, InspectorOverlay.GetBoundsRelativeToThis(element));
+
+        // After an edit (e.g. Width/Height/Margin) is applied, re-measure the highlight box to match the
+        // element's new layout. WPF's layout pass runs asynchronously after SetValue, so ActualWidth/
+        // ActualHeight are not updated yet at this point - deferring via Dispatcher at Render priority gives
+        // layout a chance to run first.
+        window.PropertyEditor.PropertyApplied += element =>
+            Dispatcher.BeginInvoke(System.Windows.Threading.DispatcherPriority.Render, () => InspectorOverlay.Refresh(element));
+
+        // Closing the inspector window directly (e.g. its title bar X button) should also exit inspector
+        // mode entirely, not just hide the window while the overlay/click-interception stays active.
+        window.ClosedByUser += () => InspectorOverlay.Deactivate();
+
+        _inspectorWindow = window;
+        return window;
+    }
+
+    /// <summary>
+    /// While the inspector overlay is active and not pinned (see <see cref="Diagnostics.LayoutInspectorOverlay.IsPinned"/>),
+    /// hit-tests whichever <see cref="FrameworkElement"/> is under the mouse and feeds it (plus its bounds
+    /// translated into the overlay's coordinate space) to <see cref="Diagnostics.LayoutInspectorOverlay.Show"/>.
+    /// Does nothing while the overlay is inactive, so normal mouse-move handling elsewhere is unaffected.
+    /// </summary>
+    private void OnInspectorPreviewMouseMove(object sender, System.Windows.Input.MouseEventArgs e)
+    {
+        if (!InspectorOverlay.IsActive || InspectorOverlay.IsPinned)
+        {
+            return;
+        }
+
+        if (FindHitElement(e.GetPosition(this)) is not { } element)
+        {
+            return;
+        }
+
+        Rect bounds = InspectorOverlay.GetBoundsRelativeToThis(element);
+        InspectorOverlay.Show(element, bounds);
+    }
+
+    /// <summary>
+    /// While the inspector overlay is active, intercepts the left-click that would otherwise reach the real
+    /// UI. Clicking a new element pins the overlay highlight to it and jumps the standalone inspector
+    /// window's Elements tree to its row (see <see cref="Diagnostics.LayoutInspectorTreeView.SelectAndReveal"/>),
+    /// mirroring how clicking an element in a browser's page reveals/selects it in DevTools' Elements panel.
+    /// Clicking the already-pinned element again unpins it instead, resuming mouse-driven hover tracking
+    /// (see <see cref="Diagnostics.LayoutInspectorOverlay.TogglePin"/>), so the highlight is not stuck
+    /// forever on one element. Lets clicks through unmodified once the overlay is inactive.
+    /// </summary>
+    private void OnInspectorPreviewMouseLeftButtonDown(object sender, System.Windows.Input.MouseButtonEventArgs e)
+    {
+        if (!InspectorOverlay.IsActive)
+        {
+            return;
+        }
+
+        if (FindHitElement(e.GetPosition(this)) is { } element)
+        {
+            if (InspectorOverlay.IsPinned && ReferenceEquals(element, InspectorOverlay.CurrentElement))
+            {
+                InspectorOverlay.TogglePin();
+            }
+            else
+            {
+                _inspectorWindow?.Tree.SelectAndReveal(element);
+            }
+        }
+
+        e.Handled = true;
+    }
+
+    /// <summary>
+    /// Hit-tests <paramref name="position"/> (in window coordinates) and returns the first
+    /// <see cref="FrameworkElement"/> found, skipping the inspector overlay's own visuals as a defensive
+    /// measure (IsHitTestVisible="False" on LayoutInspectorOverlay already excludes it and its children from
+    /// WPF's hit testing, so this should normally never match).
+    /// </summary>
+    private FrameworkElement? FindHitElement(System.Windows.Point position)
+    {
+        FrameworkElement? result = null;
+
+        System.Windows.Media.VisualTreeHelper.HitTest(
+            this,
+            candidate => FindVisualAncestor<Diagnostics.LayoutInspectorOverlay>(candidate) is not null
+                ? System.Windows.Media.HitTestFilterBehavior.ContinueSkipSelfAndChildren
+                : System.Windows.Media.HitTestFilterBehavior.Continue,
+            hit =>
+            {
+                result = hit.VisualHit as FrameworkElement ?? FindVisualAncestor<FrameworkElement>(hit.VisualHit);
+                return System.Windows.Media.HitTestResultBehavior.Stop;
+            },
+            new System.Windows.Media.PointHitTestParameters(position));
+
+        return result;
     }
 }
 

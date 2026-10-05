@@ -4,11 +4,15 @@
         xmlns:vm="clr-namespace:VirtualController.App.ViewModels"
         xmlns:loc="clr-namespace:VirtualController.App.Localization"
         xmlns:shell="clr-namespace:System.Windows.Shell;assembly=PresentationFramework"
+        xmlns:diag="clr-namespace:VirtualController.App.Diagnostics"
         Title="{Binding WindowTitle}" Height="900" Width="1440"
         Icon="pack://application:,,,/Icons/VirtualController.ico"
         WindowStyle="None" ResizeMode="CanResize"
         Topmost="{Binding AlwaysOnTop}"
-        Closing="MainWindow_OnClosing">
+        Closing="MainWindow_OnClosing"
+        PreviewMouseMove="OnInspectorPreviewMouseMove"
+        PreviewMouseLeftButtonDown="OnInspectorPreviewMouseLeftButtonDown"
+        PreviewKeyDown="OnInspectorPreviewKeyDown">
 
         <!-- Replaces the bright, unthemed native Windows title bar with a custom dark title bar (see the
             TitleBar border with DockPanel.Dock="Top" below). WindowChrome is a built-in WPF feature and
@@ -21,6 +25,13 @@
         <shell:WindowChrome CaptionHeight="32" ResizeBorderThickness="5" CornerRadius="0" GlassFrameThickness="0" />
     </WindowChrome.WindowChrome>
 
+    <!-- Root Grid wraps the window's real content (the DockPanel below) together with the layout inspector
+        overlay (see Diagnostics/LayoutInspectorOverlay.cs and OnInspectorPreviewMouseMove/
+        OnInspectorPreviewKeyDown in MainWindow.xaml.cs), toggled with Ctrl+Shift+I like a browser's "Inspect
+        element" tool. The overlay is the last/topmost Grid child so its highlight box and info panel are
+        always drawn above every other visual, but it sets IsHitTestVisible="False" on itself and all its
+        children so it never blocks clicks on the real UI underneath. -->
+    <Grid>
     <DockPanel Background="{StaticResource AppBackgroundBrush}">
            <!-- Custom dark replacement for the native Windows title bar (see WindowStyle="None" above):
                the app icon and title are on the left, and window controls (minimize/maximize-restore/close)
@@ -935,4 +946,10 @@
             </TabItem>
         </TabControl>
     </DockPanel>
+
+    <!-- See the Grid wrapper comment above <DockPanel ...>: last child so it paints on top of everything,
+        but IsHitTestVisible="False" (set in the control's constructor) means it never intercepts clicks
+        meant for the real UI below it. -->
+    <diag:LayoutInspectorOverlay x:Name="InspectorOverlay" />
+    </Grid>
 </Window>
