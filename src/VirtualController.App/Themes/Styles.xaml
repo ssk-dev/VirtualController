@@ -467,6 +467,12 @@
         <Setter Property="Background" Value="Transparent" />
         <Setter Property="BorderBrush" Value="{StaticResource PanelBorderBrush}" />
         <Setter Property="BorderThickness" Value="0" />
+        <!-- Explicit Stretch here matches the native theme's default for these two properties (and
+            Control's own base default), so tab content fills the available area instead of being sized to
+            its natural/measured size. Mostly defensive/redundant now - see the comment on TabItem below for
+            the actual bug this was chased alongside, which turned out to be a different, unrelated setter. -->
+        <Setter Property="HorizontalContentAlignment" Value="Stretch" />
+        <Setter Property="VerticalContentAlignment" Value="Stretch" />
         <Setter Property="Template">
             <Setter.Value>
                  <!-- Simple property setters are insufficient: native chrome draws the content area through a
@@ -487,6 +493,8 @@
                                 KeyboardNavigation.DirectionalNavigation="Contained"
                                 KeyboardNavigation.TabIndex="2">
                             <ContentPresenter x:Name="PART_SelectedContentHost" Margin="{TemplateBinding Padding}"
+                                              HorizontalAlignment="{TemplateBinding HorizontalContentAlignment}"
+                                              VerticalAlignment="{TemplateBinding VerticalContentAlignment}"
                                               ContentSource="SelectedContent" />
                         </Border>
                     </Grid>
@@ -495,33 +503,86 @@
         </Setter>
     </Style>
 
+        <!-- Tab headers in the main TabControl (Mapping/Device Configuration/Settings) reuse the same
+            chamfered Path shape approach as PrimaryButtonStyle (own TabItemGeometry resource, authored
+            against a 220x40 reference box matching TabItem's Height=40) so they share its look by
+            default. This has to be its own TargetType="TabItem" style with duplicated setters/template rather
+            than Style.BasedOn="{StaticResource PrimaryButtonStyle}": WPF only allows BasedOn between styles
+            whose TargetType is the same or in the same inheritance chain, and TabItem is not a Button. Keeping
+            it as a separate style means per-tab visual tweaks can be made here later without touching
+            PrimaryButtonStyle (and vice versa). IsSelected currently mirrors PrimaryButtonStyle's hover look
+            (brighter gradient background, accent border, bold text) as a placeholder "active" state.
+            Unlike PrimaryButtonStyle's geometry, only the top-right corner is chamfered; the other three
+            corners stay square, matching tab headers sitting flush against the TabControl's content border. -->
+
+    <Geometry x:Key="TabItemGeometry">M 0,0 L 200,0 L 220,20 L 220,40 L 0,40 Z</Geometry>
     <Style TargetType="TabItem">
         <Setter Property="Margin" Value="0,0,4,0" />
+        <Setter Property="Height" Value="{StaticResource HeaderActionButtonHeight}" />
+        <Setter Property="Background" Value="#00001C32" />
         <Setter Property="Foreground" Value="{StaticResource MutedTextBrush}" />
+        <Setter Property="BorderBrush" Value="#093455" />
+        <Setter Property="BorderThickness" Value="1" />
+        <Setter Property="Padding" Value="14,8" />
+        <!-- Deliberately NOT setting HorizontalContentAlignment/VerticalContentAlignment here (they used to
+            be explicitly set to Center). That previous Center override was the root cause of a bug where the
+            Mapping tab's content stopped growing to fill the window on resize/maximize - confirmed via the
+            Ctrl+Shift+I Layout Inspector's tree export tool, and confirmed fixed by removing these setters
+            entirely so they fall back to Control's own Stretch default. The exact causal mechanism isn't
+            fully understood: HorizontalContentAlignment/VerticalContentAlignment conceptually only affect
+            this TabItem's own Header content (via ContentSource="Header" below), not the tab body (which is
+            hosted separately by TabControl's own PART_SelectedContentHost) - yet removing the Center override
+            here is what actually fixed the resize bug. Do not reintroduce a Center value here. -->
+        <Setter Property="Cursor" Value="Hand" />
         <Setter Property="Template">
             <Setter.Value>
                 <ControlTemplate TargetType="TabItem">
-                    <Border x:Name="TabItemBorder"
-                            Background="{StaticResource PanelBackgroundBrush}"
-                            BorderBrush="{StaticResource PanelBorderBrush}"
-                            BorderThickness="1,1,1,0" CornerRadius="0" Padding="14,8">
-                        <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center"
-                                          ContentSource="Header" />
-                    </Border>
-                    <ControlTemplate.Triggers>
-                        <Trigger Property="IsSelected" Value="True">
-                            <Setter TargetName="TabItemBorder" Property="Background" Value="{StaticResource ButtonPressedBrush}" />
-                            <Setter TargetName="TabItemBorder" Property="BorderBrush" Value="{StaticResource AccentBrush}" />
-                            <Setter Property="Foreground" Value="{StaticResource TextBrush}" />
-                            <Setter Property="FontWeight" Value="Bold" />
-                        </Trigger>
-                        <Trigger Property="IsMouseOver" Value="True">
-                            <Setter TargetName="TabItemBorder" Property="BorderBrush" Value="{StaticResource AccentBrush}" />
-                        </Trigger>
-                    </ControlTemplate.Triggers>
+                    <Grid x:Name="RootGrid">
+                        <!-- Same Width/Height-bound-to-self approach as PrimaryButtonStyle: the Path sizes
+                            itself from the Grid's resolved layout size (driven by the header content + Padding)
+                            instead of a fixed box, so the chamfer tracks each tab's content-driven width. -->
+                        <Path Fill="{TemplateBinding Background}"
+                              Stroke="{TemplateBinding BorderBrush}"
+                              StrokeThickness="{Binding BorderThickness.Left, RelativeSource={RelativeSource TemplatedParent}}"
+                              Stretch="Fill"
+                              Width="{Binding ActualWidth, ElementName=RootGrid}"
+                              Height="{Binding ActualHeight, ElementName=RootGrid}"
+                              HorizontalAlignment="Left"
+                              VerticalAlignment="Top"
+                              Data="{StaticResource TabItemGeometry}" />
+                        <ContentPresenter ContentSource="Header"
+                                          HorizontalAlignment="{TemplateBinding HorizontalContentAlignment}"
+                                          VerticalAlignment="{TemplateBinding VerticalContentAlignment}"
+                                          Margin="{TemplateBinding Padding}" />
+                    </Grid>
                 </ControlTemplate>
             </Setter.Value>
         </Setter>
+        <Style.Triggers>
+            <Trigger Property="IsSelected" Value="True">
+                <!-- Adjacent tabs sit only 4px apart (see Margin setter above) and are painted in document
+                    order, so without raising the selected tab above its siblings, the next unselected tab's
+                    left-edge stroke can end up drawn on top of this tab's right-edge stroke whenever there is
+                    even a sub-pixel overlap - making the selected tab's right border appear to vanish. Raising
+                    ZIndex here is the standard WPF TabItem fix: it guarantees the selected tab's full border is
+                    always painted above its neighbors. -->
+                <Setter Property="Panel.ZIndex" Value="1" />
+                <Setter Property="Foreground" Value="{StaticResource TextBrush}" />
+                <Setter Property="FontWeight" Value="Bold" />
+                <Setter Property="BorderBrush" Value="#1bbafa" />
+                <Setter Property="Background">
+                    <Setter.Value>
+                        <LinearGradientBrush StartPoint="0,0" EndPoint="1,0">
+                            <GradientStop Color="#FF001C32" Offset="0"/>
+                            <GradientStop Color="#FF010D19" Offset="1"/>
+                        </LinearGradientBrush>
+                    </Setter.Value>
+                </Setter>
+            </Trigger>
+            <Trigger Property="IsMouseOver" Value="True">
+                <Setter Property="Opacity" Value="0.88" />
+            </Trigger>
+        </Style.Triggers>
     </Style>
 
         <!-- Expander: native chrome draws the toggle header (arrow and text) through a theme-bound ToggleButton,
