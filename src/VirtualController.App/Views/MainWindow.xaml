@@ -113,7 +113,7 @@
                                 <TextBlock Text="{loc:Loc header.load_profiles}" VerticalAlignment="Center" />
                             </StackPanel>
                         </Button>
-                        <StackPanel Orientation="Horizontal" Margin="12,0,4,0"
+                        <StackPanel Orientation="Horizontal" Margin="12,0,4,0" 
                                     Visibility="{Binding HasUnsavedChanges, Converter={StaticResource BoolToVisibilityConverter}}">
                             <TextBlock Text="&#xE7BA;" FontFamily="Segoe MDL2 Assets" Foreground="{StaticResource WarningBadgeBrush}" Margin="0,0,6,0" VerticalAlignment="Center" />
                             <TextBlock Text="{loc:Loc header.unsaved_changes}" Foreground="{StaticResource WarningBadgeBrush}" FontWeight="Bold" VerticalAlignment="Center" />
@@ -147,12 +147,14 @@
         <TabControl SelectedIndex="{Binding SelectedTabIndex}" Background="Transparent">
             <TabItem Header="{loc:Loc tabs.mapping}">
                 <DockPanel>
-                    <!-- Left column: virtual controller list -->
-                    <Border DockPanel.Dock="Left" Width="260" BorderBrush="{StaticResource PanelBorderBrush}" BorderThickness="0,0,1,0">
+                    <!-- Left column: virtual controller list. Uses the shared sidebar styles (see Styles.xaml)
+                        so this list, the Device Configuration tab's device list, and any future sidebar all
+                        share the exact same Border/ListBox/ListBoxItem appearance and behavior. -->
+                    <Border Style="{StaticResource SidebarBorderStyle}">
                         <DockPanel>
                             <Button DockPanel.Dock="Top" Margin="8" Padding="6" Command="{Binding AddControllerCommand}" Style="{StaticResource PrimaryButtonStyle}">
                                 <StackPanel Orientation="Horizontal">
-                                    <TextBlock Text="&#xE710;" FontFamily="Segoe MDL2 Assets" Margin="0,0,6,0" VerticalAlignment="Center" />
+                                    <TextBlock Text="&#xE710;" FontFamily="{StaticResource IconFontFamily}" Margin="0,0,6,0" VerticalAlignment="Center" />
                                     <TextBlock Text="{loc:Loc mapping.new_controller}" VerticalAlignment="Center" />
                                 </StackPanel>
                             </Button>
@@ -160,45 +162,8 @@
                             <ListBox ItemsSource="{Binding Controllers}"
                                      x:Name="ControllerListBox"
                                      SelectedItem="{Binding SelectedController}"
-                                     Margin="4" BorderThickness="0" Background="Transparent">
-                                <ListBox.ItemContainerStyle>
-                                    <Style TargetType="ListBoxItem">
-                                        <Setter Property="Padding" Value="0" />
-                                        <Setter Property="Margin" Value="0,0,0,6" />
-                                        <Setter Property="HorizontalContentAlignment" Value="Stretch" />
-                                        <Setter Property="Template">
-                                            <Setter.Value>
-                                                <ControlTemplate TargetType="ListBoxItem">
-                                                    <Border x:Name="CardBorder"
-                                                            Background="{StaticResource PanelVirtualControllersBackgroundBrush}"
-                                                            BorderBrush="{StaticResource PanelVirtualControllersBorderBrush}"
-                                                            BorderThickness="1" CornerRadius="0" Padding="10,8">
-                                                        <Grid>
-                                                            <Grid.ColumnDefinitions>
-                                                                <ColumnDefinition Width="*" />
-                                                                <ColumnDefinition Width="Auto" />
-                                                            </Grid.ColumnDefinitions>
-                                                            <ContentPresenter Grid.Column="0" />
-                                                            <TextBlock x:Name="SelectedArrow" Grid.Column="1" Text="&#xE76C;"
-                                                                       FontFamily="Segoe MDL2 Assets" Foreground="{StaticResource AccentBrush}"
-                                                                       VerticalAlignment="Center" Margin="8,0,0,0" Visibility="Collapsed" />
-                                                        </Grid>
-                                                    </Border>
-                                                    <ControlTemplate.Triggers>
-                                                        <Trigger Property="IsSelected" Value="True">
-                                                            <Setter TargetName="CardBorder" Property="BorderBrush" Value="{StaticResource PanelVirtualControllersBorderBrushActive}" />
-                                                            <Setter TargetName="CardBorder" Property="Background" Value="{StaticResource PanelVirtualControllersBackgroundBrushActive}" />
-                                                            <Setter TargetName="SelectedArrow" Property="Visibility" Value="Visible" />
-                                                        </Trigger>
-                                                        <Trigger Property="IsMouseOver" Value="True">
-                                                            <Setter TargetName="CardBorder" Property="BorderBrush" Value="{StaticResource AccentBrush}" />
-                                                        </Trigger>
-                                                    </ControlTemplate.Triggers>
-                                                </ControlTemplate>
-                                            </Setter.Value>
-                                        </Setter>
-                                    </Style>
-                                </ListBox.ItemContainerStyle>
+                                     Style="{StaticResource SidebarListBoxStyle}"
+                                     ItemContainerStyle="{StaticResource SidebarListBoxItemStyle}">
                                 <ListBox.ItemTemplate>
                                     <DataTemplate DataType="{x:Type vm:VirtualControllerViewModel}">
                                         <StackPanel Orientation="Horizontal">
@@ -807,26 +772,28 @@
                         overlap. The collapsible section below the main list restores manually hidden devices
                         (see DeviceSettings.Hidden). This is needed because XInput/DirectInput cannot
                         automatically distinguish this app's ViGEmBus-emulated virtual controllers from hardware. -->
-                    <Border DockPanel.Dock="Left" Width="260" BorderBrush="{StaticResource PanelBorderBrush}" BorderThickness="0,0,1,0">
+                    <Border Style="{StaticResource SidebarBorderStyle}">
                         <DockPanel>
                             <Expander DockPanel.Dock="Bottom" Header="{loc:Loc devices.hidden}" Margin="4"
                                       Visibility="{Binding HiddenDevices.Count, Converter={StaticResource CountToVisibilityConverter}}">
-                                <ListBox ItemsSource="{Binding HiddenDevices}" MaxHeight="200" BorderThickness="0">
+                                <ListBox ItemsSource="{Binding HiddenDevices}" MaxHeight="200"
+                                         Style="{StaticResource SidebarListBoxStyle}"
+                                         ItemContainerStyle="{StaticResource SidebarListBoxItemStyle}">
                                     <ListBox.ItemTemplate>
                                         <DataTemplate DataType="{x:Type vm:DeviceConfigDeviceViewModel}">
-                                            <Grid Margin="2" Opacity="{Binding IsConnected, Converter={StaticResource BoolToDimOpacityConverter}}">
+                                            <Grid Opacity="{Binding IsConnected, Converter={StaticResource BoolToDimOpacityConverter}}">
                                                 <Grid.ColumnDefinitions>
                                                     <ColumnDefinition Width="*" />
                                                     <ColumnDefinition Width="Auto" />
                                                 </Grid.ColumnDefinitions>
-                                                <TextBlock Grid.Column="0" Text="{Binding DisplayName}" VerticalAlignment="Center"
-                                                           TextTrimming="CharacterEllipsis" />
-                                                <Button Grid.Column="1" Padding="4,1" FontSize="11"
-                                                        Command="{Binding ToggleHiddenCommand}">
-                                                    <StackPanel Orientation="Horizontal">
-                                                        <TextBlock Text="&#xE7B3;" FontFamily="Segoe MDL2 Assets" Margin="0,0,4,0" VerticalAlignment="Center" />
-                                                        <TextBlock Text="{loc:Loc devices.show}" VerticalAlignment="Center" />
-                                                    </StackPanel>
+                                                <StackPanel Grid.Column="0" VerticalAlignment="Center">
+                                                    <TextBlock Text="{Binding ManufacturerName}" FontWeight="Bold" TextTrimming="CharacterEllipsis" />
+                                                    <TextBlock Text="{Binding DeviceModelName}" FontSize="11" Foreground="{StaticResource MutedTextBrush}" TextTrimming="CharacterEllipsis" />
+                                                </StackPanel>
+                                                <Button Grid.Column="1" Style="{StaticResource IconButtonStyle}" Margin="4,0,0,0"
+                                                        Command="{Binding ToggleHiddenCommand}"
+                                                        ToolTip="{loc:Loc devices.show}">
+                                                    <TextBlock Text="&#xE7B3;" FontFamily="{StaticResource IconFontFamily}" FontSize="14" />
                                                 </Button>
                                             </Grid>
                                         </DataTemplate>
@@ -834,27 +801,28 @@
                                 </ListBox>
                             </Expander>
 
-                            <ListBox ItemsSource="{Binding Devices}" SelectedItem="{Binding SelectedDevice}" Margin="4">
+                            <ListBox ItemsSource="{Binding Devices}" SelectedItem="{Binding SelectedDevice}"
+                                     Style="{StaticResource SidebarListBoxStyle}"
+                                     ItemContainerStyle="{StaticResource SidebarListBoxItemStyle}">
                                 <ListBox.ItemTemplate>
                                     <DataTemplate DataType="{x:Type vm:DeviceConfigDeviceViewModel}">
-                                        <Grid Margin="2" Opacity="{Binding IsConnected, Converter={StaticResource BoolToDimOpacityConverter}}">
+                                        <Grid Opacity="{Binding IsConnected, Converter={StaticResource BoolToDimOpacityConverter}}">
                                             <Grid.ColumnDefinitions>
                                                 <ColumnDefinition Width="Auto" />
                                                 <ColumnDefinition Width="*" />
                                                 <ColumnDefinition Width="Auto" />
                                             </Grid.ColumnDefinitions>
-                                            <Ellipse Grid.Column="0" Width="10" Height="10" Margin="0,0,6,0" VerticalAlignment="Center"
+                                            <Ellipse Grid.Column="0" Width="10" Height="10" Margin="0,0,8,0" VerticalAlignment="Center"
                                                      Fill="{Binding IsActiveIndicator, Converter={StaticResource BoolToStatusBrushConverter}}"
                                                      ToolTip="{loc:Loc devices.status_tooltip}" />
-                                            <TextBlock Grid.Column="1" Text="{Binding DisplayName}" VerticalAlignment="Center"
-                                                       TextTrimming="CharacterEllipsis" />
-                                            <Button Grid.Column="2" Padding="4,1" FontSize="11" Margin="4,0,0,0"
+                                            <StackPanel Grid.Column="1" VerticalAlignment="Center">
+                                                <TextBlock Text="{Binding ManufacturerName}" FontWeight="Bold" TextTrimming="CharacterEllipsis" />
+                                                <TextBlock Text="{Binding DeviceModelName}" FontSize="11" Foreground="{StaticResource MutedTextBrush}" TextTrimming="CharacterEllipsis" />
+                                            </StackPanel>
+                                            <Button Grid.Column="2" Style="{StaticResource IconButtonStyle}" Margin="4,0,0,0"
                                                     Command="{Binding ToggleHiddenCommand}"
                                                     ToolTip="{loc:Loc devices.hide_tooltip}">
-                                                <StackPanel Orientation="Horizontal">
-                                                    <TextBlock Text="&#xE894;" FontFamily="Segoe MDL2 Assets" Margin="0,0,4,0" VerticalAlignment="Center" />
-                                                    <TextBlock Text="{loc:Loc devices.hide}" VerticalAlignment="Center" />
-                                                </StackPanel>
+                                                <TextBlock Text="&#xE8F4;" FontFamily="{StaticResource IconFontFamily}" FontSize="14" />
                                             </Button>
                                         </Grid>
                                     </DataTemplate>

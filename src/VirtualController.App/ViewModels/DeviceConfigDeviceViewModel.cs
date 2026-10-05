@@ -89,6 +89,25 @@ public sealed partial class DeviceConfigDeviceViewModel : ObservableObject, IDis
 
     public string DisplayName => Device.DisplayName;
 
+    /// <summary>First word of <see cref="DisplayName"/> (e.g. "Logitech"), shown as the bold first line of
+    /// the device list item (see the Device Configuration tab in MainWindow.xaml). Mirrors the brand/name
+    /// split used for file naming (see <see cref="VirtualController.Core.Profiles.FileNaming.SplitBrandAndName"/>),
+    /// but keeps the original casing/spacing since this is for display, not a sanitized filename segment.
+    /// Empty for display names without a space (e.g. "XInput Controller 1", which has no real manufacturer in
+    /// this model); in that case <see cref="DeviceModelName"/> contains the full display name instead.</summary>
+    public string ManufacturerName => SplitDisplayName(DisplayName).Manufacturer;
+
+    /// <summary>Remainder of <see cref="DisplayName"/> after <see cref="ManufacturerName"/> (e.g.
+    /// "Extreme 3D Pro"), shown as the muted second line of the device list item.</summary>
+    public string DeviceModelName => SplitDisplayName(DisplayName).Name;
+
+    private static (string Manufacturer, string Name) SplitDisplayName(string displayName)
+    {
+        var trimmed = displayName.Trim();
+        int spaceIndex = trimmed.IndexOf(' ');
+        return spaceIndex <= 0 ? (string.Empty, trimmed) : (trimmed[..spaceIndex], trimmed[(spaceIndex + 1)..]);
+    }
+
     /// <summary>Controls the green/gray status indicator in the device list (see the Device Configuration tab
     /// in MainWindow.xaml): green only when the device is both enabled and connected, otherwise gray (see
     /// BoolToStatusBrushConverter).</summary>

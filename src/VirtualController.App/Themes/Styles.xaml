@@ -24,14 +24,7 @@
             text, dark border, and a diagonally chamfered silhouette instead of a rectangle. Hover/pressed states
             use opacity instead of swapping brushes, matching the "Virtual Controller" mockup. -->
     <Style x:Key="PrimaryButtonStyle" TargetType="Button">
-        <Setter Property="Background">
-            <Setter.Value>
-                <LinearGradientBrush StartPoint="0,0" EndPoint="1,0">
-                    <GradientStop Color="#FF001C32" Offset="0"/>
-                    <GradientStop Color="#FF010D19" Offset="1"/>
-                </LinearGradientBrush>
-            </Setter.Value>
-        </Setter>
+        <Setter Property="Background" Value="#00001C32" />
         <Setter Property="Foreground" Value="#BDD6E4" />
         <Setter Property="BorderBrush" Value="#093455" />
         <Setter Property="BorderThickness" Value="1" />
@@ -72,6 +65,16 @@
         <Style.Triggers>
             <Trigger Property="IsMouseOver" Value="True">
                 <Setter Property="Opacity" Value="0.88" />
+                <Setter Property="Foreground" Value="#FFFFFF" />
+                <Setter Property="BorderBrush" Value="#1bbafa" />
+                <Setter Property="Background">
+                    <Setter.Value>
+                        <LinearGradientBrush StartPoint="0,0" EndPoint="1,0">
+                            <GradientStop Color="#FF001C32" Offset="0"/>
+                            <GradientStop Color="#FF010D19" Offset="1"/>
+                        </LinearGradientBrush>
+                    </Setter.Value>
+                </Setter>
             </Trigger>
             <Trigger Property="IsPressed" Value="True">
                 <Setter Property="Opacity" Value="0.72" />
@@ -590,6 +593,65 @@
                         </Trigger>
                         <Trigger Property="IsSelected" Value="True">
                             <Setter TargetName="ItemBorder" Property="Background" Value="{StaticResource ButtonPressedBrush}" />
+                        </Trigger>
+                    </ControlTemplate.Triggers>
+                </ControlTemplate>
+            </Setter.Value>
+        </Setter>
+    </Style>
+
+        <!-- Sidebar: shared appearance for the left-hand master list on every tab. The Mapping tab's virtual
+            controller list is the reference design; the Device Configuration tab's device list (and its
+            hidden-devices list) reuses these same three styles unchanged so every sidebar - and its list
+            items - looks and behaves identically across screens instead of diverging per tab. -->
+    <Style x:Key="SidebarBorderStyle" TargetType="Border">
+        <Setter Property="DockPanel.Dock" Value="Left" />
+        <Setter Property="MinWidth" Value="300" />
+        <Setter Property="BorderBrush" Value="{StaticResource PanelBorderBrush}" />
+        <Setter Property="BorderThickness" Value="0,0,1,0" />
+    </Style>
+
+        <!-- Sidebar ListBox: transparent and borderless so only the card-styled ListBoxItems below are
+            visible, overriding the global ListBox style's panel background/border above. -->
+    <Style x:Key="SidebarListBoxStyle" TargetType="ListBox" BasedOn="{StaticResource {x:Type ListBox}}">
+        <Setter Property="Background" Value="Transparent" />
+        <Setter Property="BorderThickness" Value="0" />
+        <Setter Property="Margin" Value="4" />
+    </Style>
+
+        <!-- Sidebar ListBoxItem: card appearance (PanelVirtualControllersBackgroundBrush/BorderBrush) with an
+            accent-colored arrow glyph that appears once selected, overriding the global flat ListBoxItem
+            style above. Originally authored for the Mapping tab's virtual controller list. -->
+    <Style x:Key="SidebarListBoxItemStyle" TargetType="ListBoxItem">
+        <Setter Property="Padding" Value="0" />
+        <Setter Property="Margin" Value="0,0,0,6" />
+        <Setter Property="HorizontalContentAlignment" Value="Stretch" />
+        <Setter Property="Template">
+            <Setter.Value>
+                <ControlTemplate TargetType="ListBoxItem">
+                    <Border x:Name="CardBorder"
+                            Background="{StaticResource PanelVirtualControllersBackgroundBrush}"
+                            BorderBrush="{StaticResource PanelVirtualControllersBorderBrush}"
+                            BorderThickness="1" CornerRadius="0" Padding="10,8">
+                        <Grid>
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="*" />
+                                <ColumnDefinition Width="Auto" />
+                            </Grid.ColumnDefinitions>
+                            <ContentPresenter Grid.Column="0" />
+                            <TextBlock x:Name="SelectedArrow" Grid.Column="1" Text="&#xE76C;"
+                                       FontFamily="{StaticResource IconFontFamily}" Foreground="{StaticResource AccentBrush}"
+                                       VerticalAlignment="Center" Margin="8,0,0,0" Visibility="Collapsed" />
+                        </Grid>
+                    </Border>
+                    <ControlTemplate.Triggers>
+                        <Trigger Property="IsSelected" Value="True">
+                            <Setter TargetName="CardBorder" Property="BorderBrush" Value="{StaticResource PanelVirtualControllersBorderBrushActive}" />
+                            <Setter TargetName="CardBorder" Property="Background" Value="{StaticResource PanelVirtualControllersBackgroundBrushActive}" />
+                            <Setter TargetName="SelectedArrow" Property="Visibility" Value="Visible" />
+                        </Trigger>
+                        <Trigger Property="IsMouseOver" Value="True">
+                            <Setter TargetName="CardBorder" Property="BorderBrush" Value="{StaticResource AccentBrush}" />
                         </Trigger>
                     </ControlTemplate.Triggers>
                 </ControlTemplate>
