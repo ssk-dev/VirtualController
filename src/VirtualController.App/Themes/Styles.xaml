@@ -11,13 +11,72 @@
             between the logo and ViGEmBus status pill, use the same height without binding to a specific button. -->
     <sys:Double x:Key="HeaderActionButtonHeight">40</sys:Double>
 
-    <!-- Primary action button (Start, Save, Refresh): accent gradient background, white text, no border. -->
-    <Style x:Key="PrimaryButtonStyle" TargetType="Button" BasedOn="{StaticResource {x:Type Button}}">
-        <Setter Property="Background" Value="{StaticResource AccentGradientBrush}" />
-        <Setter Property="BorderBrush" Value="{StaticResource AccentBrush}" />
-        <Setter Property="Foreground" Value="White" />
-        <Setter Property="FontWeight" Value="Bold" />
-        <Setter Property="Padding" Value="16,8" />
+    <!-- Chamfered shape shared by the base/primary button template below (top-left and bottom-right corners
+            cut at a diagonal, bottom-right/top-left square). Authored against a 220x40 reference box, matching
+            PrimaryButtonStyle's Height="40" setter so the fixed vertical dimension is never stretched/distorted;
+            the horizontal dimension is intentionally left to Stretch="Fill" so the chamfer scales with the
+            button's content-driven width. Defined as a standalone resource rather than inline inside the Style,
+            because <Style>'s XAML content property is its Setters collection, not an arbitrary resource list. -->
+    <Geometry x:Key="PrimaryButtonGeometry">M 14,0 L 220,0 L 220,26 L 206,40 L 0,40 L 0,14 Z</Geometry>
+
+    <!-- Primary/base button style (Start, Save, Refresh, and - via the implicit Button style below - every
+            other button that does not opt into a more specialized style): blue gradient background, light-blue
+            text, dark border, and a diagonally chamfered silhouette instead of a rectangle. Hover/pressed states
+            use opacity instead of swapping brushes, matching the "Virtual Controller" mockup. -->
+    <Style x:Key="PrimaryButtonStyle" TargetType="Button">
+        <Setter Property="Background">
+            <Setter.Value>
+                <LinearGradientBrush StartPoint="0,0" EndPoint="1,0">
+                    <GradientStop Color="#FF001C32" Offset="0"/>
+                    <GradientStop Color="#FF010D19" Offset="1"/>
+                </LinearGradientBrush>
+            </Setter.Value>
+        </Setter>
+        <Setter Property="Foreground" Value="#BDD6E4" />
+        <Setter Property="BorderBrush" Value="#093455" />
+        <Setter Property="BorderThickness" Value="1" />
+        <Setter Property="Padding" Value="24,12" />
+        <Setter Property="Height" Value="40" />
+        <Setter Property="Width" Value="Auto" />
+
+        <Setter Property="HorizontalContentAlignment" Value="Center" />
+        <Setter Property="VerticalContentAlignment" Value="Center" />
+        <Setter Property="Cursor" Value="Hand" />
+        <Setter Property="Template">
+            <Setter.Value>
+                <ControlTemplate TargetType="Button">
+                    <Grid x:Name="RootGrid">
+                        <!-- Width/Height are explicitly bound to this same Grid's own ActualWidth/ActualHeight
+                            instead of being left to size from the geometry's natural bounds. On the first layout
+                            pass the binding has no value yet, so the Path contributes nothing to the Grid's
+                            measure and the Grid sizes itself purely from the ContentPresenter (content + Padding)
+                            below; the Path then grows to match that resolved size on the next pass, giving a
+                            background shape that tracks the content-driven width/height instead of a fixed box. -->
+                        <Path Fill="{TemplateBinding Background}"
+                              Stroke="{TemplateBinding BorderBrush}"
+                              StrokeThickness="{Binding BorderThickness.Left, RelativeSource={RelativeSource TemplatedParent}}"
+                              Stretch="Fill"
+                              Width="{Binding ActualWidth, ElementName=RootGrid}"
+                              Height="{Binding ActualHeight, ElementName=RootGrid}"
+                              HorizontalAlignment="Left"
+                              VerticalAlignment="Top"
+                              Data="{StaticResource PrimaryButtonGeometry}" />
+                        <ContentPresenter
+                            HorizontalAlignment="{TemplateBinding HorizontalContentAlignment}"
+                            VerticalAlignment="{TemplateBinding VerticalContentAlignment}"
+                            Margin="{TemplateBinding Padding}" />
+                    </Grid>
+                </ControlTemplate>
+            </Setter.Value>
+        </Setter>
+        <Style.Triggers>
+            <Trigger Property="IsMouseOver" Value="True">
+                <Setter Property="Opacity" Value="0.88" />
+            </Trigger>
+            <Trigger Property="IsPressed" Value="True">
+                <Setter Property="Opacity" Value="0.72" />
+            </Trigger>
+        </Style.Triggers>
     </Style>
 
     <!-- Success/positive action button (e.g. Connect driver): green tint. -->
@@ -99,7 +158,7 @@
                             BorderBrush="{StaticResource PanelBorderBrush}"
                             BorderThickness="1,1,1,0" CornerRadius="0" Padding="14,8">
                         <StackPanel Orientation="Horizontal">
-                            <TextBlock x:Name="TabIcon" FontFamily="Segoe MDL2 Assets" FontSize="14"
+                            <TextBlock x:Name="TabIcon" FontFamily="{StaticResource IconFontFamily}" FontSize="14"
                                        VerticalAlignment="Center" Margin="0,0,8,0"
                                        Foreground="{StaticResource IconMutedBrush}" />
                             <ContentPresenter ContentSource="Header" HorizontalAlignment="Center" VerticalAlignment="Center" />
@@ -122,43 +181,10 @@
         </Setter>
     </Style>
 
-    <!-- Button: dark card appearance with rounded corners instead of native Windows chrome. Hover subtly
-            highlights the border/background; IsPressed uses the accent gradient for click feedback. -->
-    <Style TargetType="Button">
-        <Setter Property="Background" Value="{StaticResource PanelBackgroundBrush}" />
-        <Setter Property="BorderBrush" Value="{StaticResource PanelBorderBrush}" />
-        <Setter Property="BorderThickness" Value="1" />
-        <Setter Property="Foreground" Value="{StaticResource TextBrush}" />
-        <Setter Property="Padding" Value="10,5" />
-        <Setter Property="Cursor" Value="Hand" />
-        <Setter Property="Template">
-            <Setter.Value>
-                <ControlTemplate TargetType="Button">
-                    <Border x:Name="ButtonBorder"
-                            Background="{TemplateBinding Background}"
-                            BorderBrush="{TemplateBinding BorderBrush}"
-                            BorderThickness="{TemplateBinding BorderThickness}"
-                            CornerRadius="0">
-                        <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center"
-                                          Margin="{TemplateBinding Padding}" />
-                    </Border>
-                    <ControlTemplate.Triggers>
-                        <Trigger Property="IsMouseOver" Value="True">
-                            <Setter TargetName="ButtonBorder" Property="Background" Value="{StaticResource ButtonHoverBrush}" />
-                            <Setter TargetName="ButtonBorder" Property="BorderBrush" Value="{StaticResource AccentBrush}" />
-                        </Trigger>
-                        <Trigger Property="IsPressed" Value="True">
-                            <Setter TargetName="ButtonBorder" Property="Background" Value="{StaticResource AccentGradientBrush}" />
-                            <Setter TargetName="ButtonBorder" Property="BorderBrush" Value="{StaticResource AccentBrush}" />
-                        </Trigger>
-                        <Trigger Property="IsEnabled" Value="False">
-                            <Setter TargetName="ButtonBorder" Property="Opacity" Value="0.5" />
-                        </Trigger>
-                    </ControlTemplate.Triggers>
-                </ControlTemplate>
-            </Setter.Value>
-        </Setter>
-    </Style>
+    <!-- Button: every Button without an explicit Style gets the chamfered PrimaryButtonStyle look by default
+            ("Grundstil"). Named styles below (Success/Danger/Icon/TitleBar...) remain available for buttons
+            that need to opt into a different appearance. -->
+    <Style TargetType="Button" BasedOn="{StaticResource PrimaryButtonStyle}" />
 
         <!-- Custom dark title bar controls (minimize/maximize/close; see MainWindow.xaml) use keyed styles instead
             of overriding the implicit button style. These buttons are flat, borderless squares while regular
@@ -169,7 +195,7 @@
         <Setter Property="BorderThickness" Value="0" />
         <Setter Property="Width" Value="24" />
         <Setter Property="Height" Value="24" />
-        <Setter Property="FontFamily" Value="Segoe MDL2 Assets" />
+        <Setter Property="FontFamily" Value="{StaticResource IconFontFamily}" />
         <Setter Property="FontSize" Value="8" />
         <Setter Property="Cursor" Value="Arrow" />
         <Setter Property="Template">
@@ -197,7 +223,7 @@
         <Setter Property="BorderThickness" Value="0" />
         <Setter Property="Width" Value="24" />
         <Setter Property="Height" Value="24" />
-        <Setter Property="FontFamily" Value="Segoe MDL2 Assets" />
+        <Setter Property="FontFamily" Value="{StaticResource IconFontFamily}" />
         <Setter Property="FontSize" Value="8" />
         <Setter Property="Cursor" Value="Arrow" />
         <Setter Property="Template">
@@ -350,7 +376,7 @@
                                 Background="{StaticResource PanelBackgroundBrush}"
                                 BorderBrush="{StaticResource PanelBorderBrush}"
                                 BorderThickness="1" CornerRadius="0">
-                            <TextBlock x:Name="CheckGlyph" Text="&#xE73E;" FontFamily="Segoe MDL2 Assets"
+                            <TextBlock x:Name="CheckGlyph" Text="&#xE73E;" FontFamily="{StaticResource IconFontFamily}"
                                        FontSize="11" Foreground="{StaticResource AccentBrush}"
                                        HorizontalAlignment="Center" VerticalAlignment="Center"
                                        Visibility="Collapsed" />
@@ -511,7 +537,7 @@
                                 <ControlTemplate TargetType="ToggleButton">
                                     <Border Background="{TemplateBinding Background}">
                                         <StackPanel Orientation="Horizontal">
-                                            <TextBlock x:Name="ExpanderGlyph" Text="&#xE70D;" FontFamily="Segoe MDL2 Assets"
+                                            <TextBlock x:Name="ExpanderGlyph" Text="&#xE70D;" FontFamily="{StaticResource IconFontFamily}"
                                                        Foreground="{StaticResource AccentBrush}" Margin="0,0,6,0" VerticalAlignment="Center" />
                                             <ContentPresenter ContentSource="Content" VerticalAlignment="Center" />
                                         </StackPanel>

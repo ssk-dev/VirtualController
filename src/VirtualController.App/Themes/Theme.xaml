@@ -74,4 +74,9 @@
     <SolidColorBrush x:Key="ButtonHoverBrush" Color="#14385C" />
     <SolidColorBrush x:Key="ButtonPressedBrush" Color="#1D5A8F" />
 
+    <!-- Icon font used for Segoe MDL2 Assets glyph characters (e.g. tab icons, checkboxes, expanders, title
+         bar buttons). Defined once here so every icon TextBlock/Button references the same global FontFamily
+         instead of repeating the literal string "Segoe MDL2 Assets" throughout the XAML files. -->
+    <FontFamily x:Key="IconFontFamily">Segoe MDL2 Assets</FontFamily>
+
 </ResourceDictionary>
